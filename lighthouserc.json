@@ -1,0 +1,17 @@
+{
+  "ci": {
+    "collect": {
+      "url": ["http://localhost:3100/cartelera/2026-11-14"],
+      "numberOfRuns": 3,
+      "settings": { "preset": "perf", "formFactor": "mobile", "throttlingMethod": "simulate" }
+    },
+    "assert": {
+      "assertions": {
+        "largest-contentful-paint": ["error", { "maxNumericValue": 3000 }],
+        "interactive": ["warn", { "maxNumericValue": 3000 }],
+        "categories:accessibility": ["error", { "minScore": 0.95 }]
+      }
+    },
+    "upload": { "target": "filesystem", "outputDir": ".lighthouseci" }
+  }
+}
