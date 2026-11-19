@@ -24,9 +24,13 @@ aquí solo se resuelve lo propio de la cartelera.
 ## R2. Búsqueda sin distinguir mayúsculas ni tildes, con coincidencias parciales
 
 - **Necesidad**: FR-004 ("zombi" y "ZOMBÍ" encuentran "Zombi Manifiesto").
-- **Decisión**: extensiones de PostgreSQL **`unaccent`** + **`pg_trgm`**. Columna generada
-  `texto_busqueda = lower(unaccent(titulo || ' ' || elenco))` con índice GIN trigram; consulta
-  `ILIKE '%' || lower(unaccent(:q)) || '%'` ordenada por `similarity`.
+- **Decisión**: extensión **`pg_trgm`** de PostgreSQL. La aplicación guarda `texto_busqueda`
+  normalizado (sin tildes ni mayúsculas, `normalizarBusqueda`) al proyectar y normaliza igual la
+  consulta; búsqueda con `LIKE '%q%'` o `similarity > 0.3`, ordenada por similitud, con índice GIN
+  trigram.
+- **Ajuste durante la implementación**: se descartó la columna generada con `unaccent` porque Prisma
+  no modela columnas generadas y una migración posterior la habría borrado; normalizar en la
+  aplicación da el mismo resultado sin esa fragilidad.
 - **Por qué**: ~200 obras por edición; no justifica un motor de búsqueda aparte (constitución X).
 - **Alternativas**: Elasticsearch/Meilisearch (otro servicio con estado para 200 filas);
   búsqueda solo en el navegador (no cubriría toda la edición desde cualquier página).

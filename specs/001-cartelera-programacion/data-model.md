@@ -56,6 +56,7 @@ erDiagram
         timestamptz inicio
         timestamptz fin
         date dia_festival
+        date dia_fin
         boolean continua
         text tipo_acceso
         text publico
@@ -95,7 +96,7 @@ Desnormaliza los datos del **elenco** para no consultar a Operación al servir l
 | `disciplina` | `teatro` \| `danza` \| `circo` \| `musica` \| `titeres` \| `exposicion` \| `taller` \| `calle` \| `cine` |
 | `componente` | `internacional` \| `nacional` \| `camino_a_loja` \| `escuela` \| `salud_arte` |
 | `edad_minima` | 0 = todo público; se destaca si ≥ 16 (US3-AS3) |
-| `texto_busqueda` | **Columna generada**: `lower(unaccent(titulo \|\| ' ' \|\| elenco_nombre))`, índice GIN `gin_trgm_ops` (research R2) |
+| `texto_busqueda` | Calculado por la aplicación al proyectar: `normalizarBusqueda(titulo + ' ' + elenco_nombre)` (sin tildes, minúsculas); índice GIN `gin_trgm_ops` (research R2) |
 | `imagenes` | Lista de URLs; vacía → marcador de la disciplina (caso borde) |
 
 ### `sede_cartelera`
@@ -109,6 +110,7 @@ Desnormaliza los datos del **elenco** para no consultar a Operación al servir l
 | Campo | Regla |
 |-------|-------|
 | `dia_festival` | `(inicio AT TIME ZONE 'America/Guayaquil')::date` (research R3) |
+| `dia_fin` | Día de Ecuador en que termina; con `continua` define el intervalo en que la función aparece cada día |
 | `continua` | `true` para exposiciones de varios días: aparecen **cada día** entre `dia_festival` y el día de `fin` (en hora de Ecuador), como actividad continua y no como funciones repetidas |
 | `tipo_acceso` | `pagada` \| `gratuita_reserva` \| `gratuita_libre` \| `restringida` |
 | `publico` | `familiar` \| `adultos` \| `estudiantes` |

@@ -5,8 +5,9 @@ las tareas de preparación del monorepo (`tasks.md`, fase Setup) estén hechas.
 
 ## Requisitos
 
-- Node.js 22 LTS, pnpm 9, Docker (para PostgreSQL y las pruebas con Testcontainers).
-- Navegador Chromium para Playwright (`pnpm exec playwright install chromium`).
+- Node.js 22 o superior, pnpm 11, Docker (para PostgreSQL y las pruebas con Testcontainers).
+- Copiar `.env.example` a `.env`. PostgreSQL local usa el puerto **5433**; la API el **4000** y la web el **3100**.
+- Navegador Chromium para Playwright (`pnpm --filter @fiavl/web exec playwright install chromium`).
 
 ## Preparación
 
@@ -19,7 +20,7 @@ pnpm db:up
 ```
 
 ```bash
-pnpm db:migrate && pnpm db:seed --edicion 2026
+pnpm db:migrate && pnpm db:seed
 ```
 
 La semilla carga la edición XI (12–22 nov 2026) con obras y sedes reales de la investigación
@@ -31,7 +32,10 @@ agotada.
 pnpm dev
 ```
 
-Web en `http://localhost:3000`, API en `http://localhost:4000`.
+Arranca la API, el worker (consumidores de eventos, métricas en `:9464/metrics`) y la web.
+Web en `http://localhost:3100`, API en `http://localhost:4000`. Para reproducir los escenarios con
+la fecha de la demo, poner `FIAVL_AHORA=2026-11-14T12:00:00-05:00` en `.env` (solo fuera de
+producción).
 
 ## Escenarios de validación
 
@@ -45,34 +49,37 @@ Web en `http://localhost:3000`, API en `http://localhost:4000`.
 | 6 | Abrir `/obras/{id de Cometa}` | Dos funciones del 15 nov con enlace a la sede | US3-AS1 |
 | 7 | Abrir `/ahora` con la hora simulada `2026-11-14T17:10-05:00` | Solo funciones en curso o que empiezan antes de las 18:10 | US4-AS1 |
 | 8 | Marcar dos favoritos que se cruzan y abrir `/mi-agenda` | Aviso de cruce | US5-AS1 |
-| 9 | Publicar `FuncionCancelada` de prueba (`pnpm events:emit funcion-cancelada --id …`) | La cartelera lo muestra en < 1 min sin recargar el servidor | SC-004 |
+| 9 | Publicar `FuncionCancelada` de prueba (`pnpm events:emit funcion-cancelada --id <funcionId>`) | La cartelera lo muestra en < 1 min (medido: 2 s con el build de producción) | SC-004 |
 | 10 | Detener el módulo de Boletería (o no emitir disponibilidad 5 min) | La cartelera sigue y muestra "Consultar disponibilidad" | RNF-003 |
 
 ## Pruebas automatizadas
 
 ```bash
-pnpm --filter api test -- programacion
+pnpm test
 ```
 
-Unitarias (reglas RN-001…RN-006, día de festival, filtros, cruces) e integración con PostgreSQL
-real (proyección idempotente, búsqueda con tildes, eventos fuera de orden).
+Unitarias con cobertura ≥ 80 % del dominio (reglas RN-001…RN-006, día de festival, filtros,
+cruces, calendario) y contratos de eventos.
 
 ```bash
-pnpm --filter contracts test
+pnpm --filter @fiavl/api test:int
 ```
 
-Esquemas de los eventos consumidos ([contracts/eventos-consumidos.md](contracts/eventos-consumidos.md)).
+Integración con PostgreSQL real en Testcontainers: proyección idempotente, eventos fuera de orden,
+búsqueda sin tildes, fichas, Ahora, disponibilidad y favoritos.
 
 ```bash
-pnpm --filter web test:e2e -- cartelera
+pnpm --filter @fiavl/web test:e2e
 ```
 
-Playwright: escenarios 1–8 y auditoría axe (WCAG 2.1 AA, SC-005), también a 320 px de ancho.
+Playwright en móvil y escritorio (con la API en `FIAVL_AHORA=2026-11-14T12:00:00-05:00` y la
+semilla recién cargada): escenarios de US1–US6, degradación sin disponibilidad y auditoría axe
+(WCAG 2.1 AA, SC-005), también a 320 px de ancho.
 
 ## Criterios de rendimiento (staging)
 
 ```bash
-pnpm lhci --url https://staging.example/cartelera/2026-11-14
+npx @lhci/cli@0.14.0 autorun --collect.url=https://staging.example/cartelera/2026-11-14
 ```
 
 Lighthouse CI con perfil 4G: carga < 3 s (SC-002).
