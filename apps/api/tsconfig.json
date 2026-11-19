@@ -1,0 +1,10 @@
+{
+  "extends": "@fiavl/config/tsconfig.base.json",
+  "compilerOptions": {
+    "experimentalDecorators": true,
+    "types": ["node"],
+    "rootDir": "../..",
+    "lib": ["ES2023", "DOM"]
+  },
+  "include": ["src", "test", "scripts", "*.config.ts", "../../prisma/seed"]
+}

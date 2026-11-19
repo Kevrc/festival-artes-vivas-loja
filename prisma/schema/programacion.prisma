@@ -1,0 +1,189 @@
+// Esquema `programacion` — specs/001-cartelera-programacion/data-model.md
+
+enum EstadoEdicion {
+  borrador
+  publicada
+  cerrada
+
+  @@schema("programacion")
+}
+
+enum Disciplina {
+  teatro
+  danza
+  circo
+  musica
+  titeres
+  exposicion
+  taller
+  calle
+  cine
+
+  @@schema("programacion")
+}
+
+enum Componente {
+  internacional
+  nacional
+  camino_a_loja
+  escuela
+  salud_arte
+
+  @@schema("programacion")
+}
+
+enum TipoSede {
+  teatro
+  centro_cultural
+  museo
+  espacio_publico
+  recorrido
+
+  @@schema("programacion")
+}
+
+enum TipoAcceso {
+  pagada
+  gratuita_reserva
+  gratuita_libre
+  restringida
+
+  @@schema("programacion")
+}
+
+enum Publico {
+  familiar
+  adultos
+  estudiantes
+
+  @@schema("programacion")
+}
+
+enum EstadoFuncion {
+  programada
+  reprogramada
+  cancelada
+  finalizada
+
+  @@schema("programacion")
+}
+
+/// Valor guardado; la API añade el derivado `desconocida` (research R4)
+enum NivelDisponibilidad {
+  disponible
+  ultimos_lugares
+  agotado
+  no_aplica
+
+  @@schema("programacion")
+}
+
+model EdicionCartelera {
+  id           String        @id @db.Uuid
+  anio         Int
+  numero       String
+  fechaInicio  DateTime      @map("fecha_inicio") @db.Date
+  fechaFin     DateTime      @map("fecha_fin") @db.Date
+  paisInvitado String?       @map("pais_invitado")
+  estado       EstadoEdicion @default(borrador)
+  funciones    FuncionCartelera[]
+  obras        ObraCartelera[]
+
+  @@map("edicion_cartelera")
+  @@schema("programacion")
+}
+
+model ObraCartelera {
+  id              String     @id @db.Uuid
+  edicionId       String     @map("edicion_id") @db.Uuid
+  titulo          String
+  sinopsis        String     @default("")
+  disciplina      Disciplina
+  duracionMin     Int        @map("duracion_min")
+  edadMinima      Int        @default(0) @map("edad_minima")
+  idioma          String?
+  imagenes        Json       @default("[]")
+  fichaArtistica  Json       @default("[]") @map("ficha_artistica")
+  elencoId        String     @map("elenco_id") @db.Uuid
+  elencoNombre    String     @map("elenco_nombre")
+  elencoPais      String     @map("elenco_pais")
+  elencoCiudad    String?    @map("elenco_ciudad")
+  componente      Componente
+  /// lower(sin tildes(titulo + elenco)), calculado por la aplicación (research R2)
+  textoBusqueda   String     @map("texto_busqueda")
+  edicion         EdicionCartelera @relation(fields: [edicionId], references: [id])
+  funciones       FuncionCartelera[]
+
+  @@index([elencoId])
+  @@index([textoBusqueda(ops: raw("gin_trgm_ops"))], type: Gin, map: "obra_cartelera_texto_busqueda_trgm")
+  @@map("obra_cartelera")
+  @@schema("programacion")
+}
+
+model SedeCartelera {
+  id            String   @id @db.Uuid
+  nombre        String
+  tipo          TipoSede
+  direccion     String   @default("")
+  lat           Float
+  lng           Float
+  recorrido     Json?
+  aforo         Int?
+  accesibilidad Json     @default("{}")
+  funciones     FuncionCartelera[]
+
+  @@map("sede_cartelera")
+  @@schema("programacion")
+}
+
+model FuncionCartelera {
+  id                          String              @id @db.Uuid
+  edicionId                   String              @map("edicion_id") @db.Uuid
+  obraId                      String              @map("obra_id") @db.Uuid
+  sedeId                      String              @map("sede_id") @db.Uuid
+  inicio                      DateTime            @db.Timestamptz(3)
+  fin                         DateTime            @db.Timestamptz(3)
+  diaFestival                 DateTime            @map("dia_festival") @db.Date
+  /// día (Ecuador) en que termina; con `continua` define el intervalo visible
+  diaFin                      DateTime            @map("dia_fin") @db.Date
+  continua                    Boolean             @default(false)
+  tipoAcceso                  TipoAcceso          @map("tipo_acceso")
+  publico                     Publico             @default(familiar)
+  estado                      EstadoFuncion       @default(programada)
+  horarioAnterior             Json?               @map("horario_anterior")
+  aforoHabilitado             Int?                @map("aforo_habilitado")
+  disponibilidad              NivelDisponibilidad @default(disponible)
+  lugaresRestantes            Int?                @map("lugares_restantes")
+  disponibilidadActualizadaEn DateTime?           @map("disponibilidad_actualizada_en") @db.Timestamptz(3)
+  versionOrigen               Int                 @default(0) @map("version_origen")
+  actualizadaEn               DateTime            @default(now()) @updatedAt @map("actualizada_en") @db.Timestamptz(3)
+  edicion                     EdicionCartelera    @relation(fields: [edicionId], references: [id])
+  obra                        ObraCartelera       @relation(fields: [obraId], references: [id])
+  sede                        SedeCartelera       @relation(fields: [sedeId], references: [id])
+  favoritos                   Favorito[]
+
+  @@index([edicionId, diaFestival, inicio])
+  @@index([inicio, fin])
+  @@map("funcion_cartelera")
+  @@schema("programacion")
+}
+
+model Favorito {
+  cuentaId  String           @map("cuenta_id") @db.Uuid
+  funcionId String           @map("funcion_id") @db.Uuid
+  creadoEn  DateTime         @default(now()) @map("creado_en") @db.Timestamptz(3)
+  funcion   FuncionCartelera @relation(fields: [funcionId], references: [id], onDelete: Cascade)
+
+  @@id([cuentaId, funcionId])
+  @@map("favorito")
+  @@schema("programacion")
+}
+
+model EventoProcesado {
+  eventoId    String   @id @map("evento_id") @db.Uuid
+  tipo        String
+  procesadoEn DateTime @default(now()) @map("procesado_en") @db.Timestamptz(3)
+
+  @@map("evento_procesado")
+  @@schema("programacion")
+}

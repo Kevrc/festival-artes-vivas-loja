@@ -1,0 +1,5 @@
+{
+  "extends": "@fiavl/config/tsconfig.base.json",
+  "compilerOptions": { "experimentalDecorators": true, "types": ["node"] },
+  "include": ["src"]
+}

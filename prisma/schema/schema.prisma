@@ -1,0 +1,13 @@
+// Un esquema de PostgreSQL por módulo (constitución III). Cada módulo añade su archivo .prisma.
+generator client {
+  provider        = "prisma-client-js"
+  output          = "../../apps/api/src/generated/prisma"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  schemas    = ["programacion"]
+  extensions = [pg_trgm(schema: "public")]
+}
