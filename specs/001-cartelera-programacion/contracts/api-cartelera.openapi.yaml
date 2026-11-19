@@ -1,0 +1,400 @@
+openapi: 3.1.0
+info:
+  title: API de cartelera (módulo Programación)
+  version: 0.1.0
+  description: |
+    Contrato público de la cartelera del FIAVL (spec 001). Lectura sin autenticación salvo
+    favoritos. Horas en ISO 8601 con zona; días de festival en hora de Ecuador (America/Guayaquil).
+    Cabeceras de caché pensadas para la CDN (ADR-0006).
+servers:
+  - url: /api/cartelera
+security: []  # público por defecto; favoritos exige sesión
+tags:
+  - name: cartelera
+    description: Programación por día, búsqueda, disponibilidad y vista Ahora
+  - name: fichas
+    description: Fichas de obra, elenco y sede; calendario
+  - name: favoritos
+    description: Agenda personal de la cuenta
+paths:
+  /ediciones/actual:
+    get:
+      operationId: obtenerEdicionActual
+      tags: [cartelera]
+      summary: Edición visible y facetas para los filtros
+      description: Edición publicada más próxima o la más reciente (US1-AS2). Las facetas solo incluyen valores con funciones (US2-AS5).
+      responses:
+        '200':
+          description: Edición y facetas
+          headers:
+            Cache-Control: { schema: { type: string, example: 'public, s-maxage=60, stale-while-revalidate=300' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EdicionConFacetas' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+  /dias/{fecha}:
+    get:
+      operationId: listarDia
+      tags: [cartelera]
+      summary: Todas las funciones de un día de festival
+      description: Lista completa del día ordenada por RN-006; los filtros se aplican en el navegador (research R1).
+      parameters:
+        - { name: fecha, in: path, required: true, schema: { type: string, format: date }, example: '2026-11-14' }
+      responses:
+        '200':
+          description: Funciones del día
+          headers:
+            Cache-Control: { schema: { type: string, example: 'public, s-maxage=60, stale-while-revalidate=300' } }
+            ETag: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DiaCartelera' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+  /disponibilidad:
+    get:
+      operationId: obtenerDisponibilidad
+      tags: [cartelera]
+      summary: Disponibilidad de las funciones de un día
+      description: Separada de la página para poder cachearla 15 s (research R4).
+      parameters:
+        - { name: fecha, in: query, required: true, schema: { type: string, format: date } }
+      responses:
+        '200':
+          description: Disponibilidad por función
+          headers:
+            Cache-Control: { schema: { type: string, example: 'public, s-maxage=15' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [version, items]
+                properties:
+                  version: { type: string, description: Cambia si cambió la programación del día (research R5) }
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Disponibilidad' }
+        '400': { $ref: '#/components/responses/Invalido' }
+  /ahora:
+    get:
+      operationId: listarAhora
+      tags: [cartelera]
+      summary: Funciones en curso o que empiezan en los próximos 60 minutos
+      description: Devuelve coordenadas; el orden por cercanía se calcula en el navegador (FR-014, research R6).
+      responses:
+        '200':
+          description: Funciones de la ventana actual (hora del servidor)
+          headers:
+            Cache-Control: { schema: { type: string, example: 'public, s-maxage=30' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [horaServidor, items]
+                properties:
+                  horaServidor: { type: string, format: date-time }
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/FuncionResumen' }
+  /buscar:
+    get:
+      operationId: buscar
+      tags: [cartelera]
+      summary: Buscar obras o elencos en la edición
+      description: Sin distinguir mayúsculas ni tildes, coincidencias parciales (FR-004, research R2).
+      parameters:
+        - { name: q, in: query, required: true, schema: { type: string, minLength: 2, maxLength: 80 } }
+      responses:
+        '200':
+          description: Obras que coinciden, con sus funciones
+          headers:
+            Cache-Control: { schema: { type: string, example: 'public, s-maxage=60' } }
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ObraResumen' }
+        '400': { $ref: '#/components/responses/Invalido' }
+  /obras/{id}:
+    get:
+      operationId: obtenerObra
+      tags: [fichas]
+      summary: Ficha de obra con todas sus funciones
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      responses:
+        '200':
+          description: Ficha de obra
+          content: { application/json: { schema: { $ref: '#/components/schemas/FichaObra' } } }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+  /elencos/{id}:
+    get:
+      operationId: obtenerElenco
+      tags: [fichas]
+      summary: Ficha de elenco con sus obras en la edición
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      responses:
+        '200':
+          description: Ficha de elenco
+          content: { application/json: { schema: { $ref: '#/components/schemas/FichaElenco' } } }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+  /sedes/{id}:
+    get:
+      operationId: obtenerSede
+      tags: [fichas]
+      summary: Ficha de sede con accesibilidad y funciones programadas
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      responses:
+        '200':
+          description: Ficha de sede
+          content: { application/json: { schema: { $ref: '#/components/schemas/FichaSede' } } }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+  /funciones/{id}/calendario.ics:
+    get:
+      operationId: descargarCalendario
+      tags: [fichas]
+      summary: Evento de calendario de una función (FR-012, US6-AS2)
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      responses:
+        '200':
+          description: Archivo iCalendar (RFC 5545)
+          content:
+            text/calendar:
+              schema: { type: string }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+  /favoritos:
+    get:
+      operationId: listarFavoritos
+      tags: [favoritos]
+      summary: Favoritos de la cuenta
+      security: [ { sesion: [] } ]
+      responses:
+        '200':
+          description: Ids de funciones favoritas
+          headers:
+            Cache-Control: { schema: { type: string, example: 'private, no-store' } }
+          content:
+            application/json:
+              schema: { type: array, items: { type: string, format: uuid } }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+  /favoritos/{funcionId}:
+    put:
+      operationId: marcarFavorito
+      tags: [favoritos]
+      summary: Marcar favorito (idempotente)
+      security: [ { sesion: [] } ]
+      parameters:
+        - { name: funcionId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '204': { description: Marcado (o ya estaba) }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+    delete:
+      operationId: quitarFavorito
+      tags: [favoritos]
+      summary: Quitar favorito (idempotente)
+      security: [ { sesion: [] } ]
+      parameters:
+        - { name: funcionId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '204': { description: Quitado (o no existía) }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+  /favoritos/fusion:
+    post:
+      operationId: fusionarFavoritos
+      tags: [favoritos]
+      summary: Fusionar los favoritos del dispositivo con los de la cuenta (US5-AS3)
+      security: [ { sesion: [] } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [funcionIds]
+              properties:
+                funcionIds: { type: array, maxItems: 200, items: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Lista resultante sin duplicados; ids inexistentes se ignoran
+          content:
+            application/json:
+              schema: { type: array, items: { type: string, format: uuid } }
+        '400': { $ref: '#/components/responses/Invalido' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+components:
+  securitySchemes:
+    sesion:
+      type: apiKey
+      in: cookie
+      name: sesion
+      description: Cookie de sesión emitida por Identidad (spec 004, US8)
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  responses:
+    NoEncontrado:
+      description: No existe o no es visible (edición en borrador, RN-001)
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problema' } } }
+    Invalido:
+      description: Parámetros inválidos
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problema' } } }
+    NoAutenticado:
+      description: Requiere sesión
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problema' } } }
+  schemas:
+    Problema:
+      type: object
+      description: RFC 9457
+      required: [title, status]
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+    Disciplina:
+      type: string
+      enum: [teatro, danza, circo, musica, titeres, exposicion, taller, calle, cine]
+    Componente:
+      type: string
+      enum: [internacional, nacional, camino_a_loja, escuela, salud_arte]
+    TipoAcceso:
+      type: string
+      enum: [pagada, gratuita_reserva, gratuita_libre, restringida]
+    Publico:
+      type: string
+      enum: [familiar, adultos, estudiantes]
+    EstadoFuncion:
+      type: string
+      enum: [programada, reprogramada, cancelada, finalizada]
+    NivelDisponibilidad:
+      type: string
+      enum: [disponible, ultimos_lugares, agotado, no_aplica, desconocida]
+      description: '`desconocida` si la última actualización tiene más de 5 minutos (research R4)'
+    Coordenadas:
+      type: object
+      required: [lat, lng]
+      properties:
+        lat: { type: number }
+        lng: { type: number }
+    Edicion:
+      type: object
+      required: [id, anio, numero, fechaInicio, fechaFin]
+      properties:
+        id: { type: string, format: uuid }
+        anio: { type: integer, example: 2026 }
+        numero: { type: string, example: XI }
+        fechaInicio: { type: string, format: date }
+        fechaFin: { type: string, format: date }
+        paisInvitado: { type: string, example: Alemania }
+    EdicionConFacetas:
+      allOf:
+        - $ref: '#/components/schemas/Edicion'
+        - type: object
+          required: [facetas]
+          properties:
+            facetas:
+              type: object
+              properties:
+                sedes: { type: array, items: { $ref: '#/components/schemas/SedeResumen' } }
+                disciplinas: { type: array, items: { $ref: '#/components/schemas/Disciplina' } }
+                paises: { type: array, items: { type: string } }
+                componentes: { type: array, items: { $ref: '#/components/schemas/Componente' } }
+    SedeResumen:
+      type: object
+      required: [id, nombre, tipo, coordenadas]
+      properties:
+        id: { type: string, format: uuid }
+        nombre: { type: string, example: Teatro Bolívar }
+        tipo: { type: string, enum: [teatro, centro_cultural, museo, espacio_publico, recorrido] }
+        coordenadas: { $ref: '#/components/schemas/Coordenadas' }
+    FuncionResumen:
+      type: object
+      required: [id, inicio, fin, continua, tipoAcceso, publico, estado, obra, sede]
+      properties:
+        id: { type: string, format: uuid }
+        inicio: { type: string, format: date-time }
+        fin: { type: string, format: date-time }
+        continua: { type: boolean }
+        tipoAcceso: { $ref: '#/components/schemas/TipoAcceso' }
+        publico: { $ref: '#/components/schemas/Publico' }
+        estado: { $ref: '#/components/schemas/EstadoFuncion' }
+        horarioAnterior:
+          type: object
+          properties:
+            inicio: { type: string, format: date-time }
+            fin: { type: string, format: date-time }
+            sedeId: { type: string, format: uuid }
+        obra: { $ref: '#/components/schemas/ObraResumen' }
+        sede: { $ref: '#/components/schemas/SedeResumen' }
+    DiaCartelera:
+      type: object
+      required: [fecha, edicion, funciones]
+      properties:
+        fecha: { type: string, format: date }
+        edicion: { $ref: '#/components/schemas/Edicion' }
+        funciones: { type: array, items: { $ref: '#/components/schemas/FuncionResumen' } }
+    Disponibilidad:
+      type: object
+      required: [funcionId, nivel]
+      properties:
+        funcionId: { type: string, format: uuid }
+        nivel: { $ref: '#/components/schemas/NivelDisponibilidad' }
+        actualizadaEn: { type: string, format: date-time }
+    ObraResumen:
+      type: object
+      required: [id, titulo, disciplina, componente, elenco]
+      properties:
+        id: { type: string, format: uuid }
+        titulo: { type: string, example: Zombi Manifiesto }
+        disciplina: { $ref: '#/components/schemas/Disciplina' }
+        componente: { $ref: '#/components/schemas/Componente' }
+        edadMinima: { type: integer, minimum: 0 }
+        imagen: { type: string, format: uri }
+        elenco:
+          type: object
+          required: [id, nombre, pais]
+          properties:
+            id: { type: string, format: uuid }
+            nombre: { type: string, example: Santiago Sanguineti }
+            pais: { type: string, example: Uruguay }
+    FichaObra:
+      allOf:
+        - $ref: '#/components/schemas/ObraResumen'
+        - type: object
+          required: [sinopsis, duracionMin, funciones]
+          properties:
+            sinopsis: { type: string }
+            duracionMin: { type: integer }
+            idioma: { type: string }
+            imagenes: { type: array, items: { type: string, format: uri } }
+            fichaArtistica: { type: array, items: { type: object, properties: { rol: { type: string }, nombre: { type: string } } } }
+            funciones: { type: array, items: { $ref: '#/components/schemas/FuncionResumen' } }
+    FichaElenco:
+      type: object
+      required: [id, nombre, pais, componente, obras]
+      properties:
+        id: { type: string, format: uuid }
+        nombre: { type: string }
+        pais: { type: string }
+        ciudad: { type: string }
+        componente: { $ref: '#/components/schemas/Componente' }
+        obras: { type: array, items: { $ref: '#/components/schemas/ObraResumen' } }
+    FichaSede:
+      allOf:
+        - $ref: '#/components/schemas/SedeResumen'
+        - type: object
+          required: [direccion, accesibilidad, funciones]
+          properties:
+            direccion: { type: string }
+            aforo: { type: integer }
+            recorrido: { type: array, items: { $ref: '#/components/schemas/Coordenadas' } }
+            accesibilidad:
+              type: object
+              description: Vacío = "sin información" (US3-AS2)
+              properties:
+                sillaRuedas: { type: boolean }
+                banoAccesible: { type: boolean }
+                rampa: { type: boolean }
+            funciones: { type: array, items: { $ref: '#/components/schemas/FuncionResumen' } }
