@@ -14,8 +14,14 @@ test.describe('Accesibilidad de las rutas públicas', () => {
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
       await expect(page.getByText(/Cargando/)).toHaveCount(0);
       await sinViolacionesAxe(page);
-      const desborda = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
-      expect(desborda).toBe(false);
+      // Elementos que se salen del ancho visible (lista vacía = sin scroll horizontal)
+      const desbordan = await page.evaluate(() =>
+        [...document.querySelectorAll('body *')]
+          .filter((e) => e.getBoundingClientRect().right > document.documentElement.clientWidth + 1 && !e.closest('.selector-dias, .saltar'))
+          .slice(0, 5)
+          .map((e) => `${e.tagName.toLowerCase()}.${e.className} ${Math.round(e.getBoundingClientRect().right)}px`),
+      );
+      expect(desbordan).toEqual([]);
     });
   }
 
