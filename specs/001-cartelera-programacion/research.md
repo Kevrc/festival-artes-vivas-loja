@@ -126,6 +126,19 @@ aquí solo se resuelve lo propio de la cartelera.
 k6 y Lighthouse CI son herramientas de prueba (no van a producción); se justifican porque
 SC-002 y SC-003 no se pueden verificar de otra forma.
 
+## R12. Dependencias de soporte (constitución X)
+
+Cada dependencia que no es de producción del dominio también se justifica:
+
+| Dependencia | Necesidad | Driver | Alternativa descartada |
+|-------------|-----------|--------|------------------------|
+| `openapi-typescript` (desarrollo) | Tipos de la API generados desde [el OpenAPI](contracts/api-cartelera.openapi.yaml), sin escribirlos dos veces | Constitución III (contract-first), QA-10 | Tipos a mano: se desincronizan del contrato |
+| `@commitlint/cli` + `husky` (desarrollo) | Verificar en cada commit la convención exigida por la constitución §6 | Constitución §6, QA-10 | Revisarlo a mano en cada PR: se olvida |
+| `nestjs-pino` (pino) | Logs JSON estructurados con id de correlación por petición | Constitución IX | `console.log`: sin estructura ni correlación |
+| `prom-client` | Endpoint `/metrics` con peticiones, errores y latencia para el Prometheus de la [vista física](../../docs/arquitectura/04-vista-fisica.md) | Constitución IX | Solo logs: no dan percentiles de latencia (RNF-001) |
+| `@vitest/coverage-v8` (desarrollo) | Medir la cobertura ≥ 80 % de `domain/` exigida por la puerta Q2 | Constitución §4 Q2 | Sin medición: la puerta no se puede verificar |
+| `gitleaks` (acción de CI) | Detectar secretos en el diff (puerta Q8) | Constitución §4 Q8, VI | Revisión manual: no detecta llaves en archivos grandes |
+
 ---
 
 **Resultado**: no quedan `NEEDS CLARIFICATION` en el contexto técnico.

@@ -25,12 +25,14 @@ Detalle de las decisiones en [research.md](research.md).
 
 **Primary Dependencies**: NestJS 11 (módulo `programacion`), Next.js 15 (App Router, ISR,
 `revalidateTag`), Prisma 6 (`multiSchema`), pg-boss 10 (consumo de eventos), zod 3 (esquemas de
-eventos), Leaflet 1.9 (mapa, carga bajo demanda)
+eventos), Leaflet 1.9 (mapa, carga bajo demanda), nestjs-pino y prom-client (observabilidad).
+Herramientas de desarrollo: openapi-typescript, commitlint + husky, @vitest/coverage-v8; en CI:
+gitleaks. Todas justificadas en [research R12](research.md#r12-dependencias-de-soporte-constitución-x)
 
 **Storage**: PostgreSQL 16, esquema `programacion` con extensiones `unaccent` y `pg_trgm`
 ([data-model.md](data-model.md)); favoritos anónimos en `localStorage`
 
-**Testing**: Vitest (unitarias), Vitest + Testcontainers (integración con PostgreSQL real),
+**Testing**: Vitest con cobertura ≥ 80 % en `domain/` (puerta Q2), Vitest + Testcontainers (integración con PostgreSQL real),
 zod (contrato de eventos), Playwright + @axe-core/playwright (E2E y accesibilidad), Lighthouse CI
 (rendimiento en 4G), k6 (carga en staging)
 
@@ -63,8 +65,8 @@ funciones por día; 6 historias de usuario, 14 FR, 6 RN; ~12 pantallas públicas
 | VI. Seguridad y privacidad | Lectura pública sin datos personales; favoritos con sesión de Identidad; ubicación solo en el navegador (FR-014); `/api/revalidar` protegido por secreto | ✅ |
 | VII. Acceso público e inclusivo | Sin cuenta, móvil primero, WCAG 2.1 AA verificado con axe en la CI, accesibilidad de sedes visible ([rutas-web.md](contracts/rutas-web.md)) | ✅ |
 | VIII. Resiliencia ante picos | Página por día en CDN + ISR; disponibilidad aparte con caché de 15 s; degradación a "Consultar disponibilidad" | ✅ |
-| IX. Observabilidad | Consumidores registran `correlacionId`; métrica de retraso entre `ocurridoEn` y revalidación (SC-004) | ✅ |
-| X. Simplicidad | Sin motor de búsqueda, sin WebSockets, sin generador de PDF; dependencias nuevas justificadas en research (zod, Leaflet; k6 y Lighthouse solo para pruebas) | ✅ |
+| IX. Observabilidad | Logs estructurados con id de correlación y `/metrics` (peticiones, errores, latencia) desde la fase de Setup; consumidores registran `correlacionId`; métrica de retraso entre `ocurridoEn` y revalidación (SC-004) | ✅ |
+| X. Simplicidad | Sin motor de búsqueda, sin WebSockets, sin generador de PDF; **todas** las dependencias nuevas justificadas en research (R10, R7, R11, R12) | ✅ |
 
 **Puertas de calidad aplicables**: Q1–Q8; Q7 (accesibilidad) es crítica en esta spec.
 
@@ -96,8 +98,10 @@ specs/001-cartelera-programacion/
 apps/api/src/modules/programacion/
 ├── domain/
 │   ├── funcion-cartelera.ts        # entidad de lectura y estados
-│   ├── reglas.ts                   # nivelDisponibilidad, enCurso, ordenarDia, diaFestival (RN-001…006)
-│   └── reglas.test.ts
+│   ├── dia-festival.ts (+ .test)   # diaFestival, incluidaEnDia (R3, continuas)
+│   ├── reglas-dia.ts (+ .test)     # ordenarDia, nivelDisponibilidad (RN-002, RN-006)
+│   ├── en-curso.ts (+ .test)       # enCurso (RN-003)
+│   └── calendario.ts (+ .test)     # generador .ics
 ├── application/
 │   ├── consultas/                  # listarDia, buscar, ahora, fichas, disponibilidad
 │   ├── proyeccion/                 # aplicar eventos a la proyección (idempotente, por versión)
@@ -108,11 +112,16 @@ apps/api/src/modules/programacion/
 │   ├── revalidador-next.ts         # llama a /api/revalidar
 │   └── consumidores.pgboss.ts      # colas programacion.*
 ├── interface/
-│   ├── cartelera.controller.ts     # endpoints del OpenAPI
-│   └── favoritos.controller.ts
+│   ├── cartelera.controller.ts     # US1: edición, día, disponibilidad
+│   ├── busqueda.controller.ts      # US2
+│   ├── fichas.controller.ts        # US3: obras, elencos, sedes
+│   ├── ahora.controller.ts         # US4
+│   ├── calendario.controller.ts    # US6
+│   └── favoritos.controller.ts     # US5
 └── programacion.module.ts
 
 apps/api/test/programacion/         # integración (Testcontainers)
+apps/api/src/common/observabilidad/ # logger y métricas compartidos por todos los módulos
 
 apps/web/src/app/(publico)/
 ├── cartelera/[fecha]/page.tsx      # ISR por día
