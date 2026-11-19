@@ -302,7 +302,7 @@ seleccionada y programable.
 - En la realidad la convocatoria nacional usa el portal de fomento del Ministerio y Camino a Loja
   lo ejecuta la Casa de la Cultura; aquí se unifican en una sola plataforma como caso de estudio.
 - La deliberación del comité ocurre fuera del sistema; aquí se registra su resultado.
-- Los curadores tienen cuenta creada por la coordinación (spec 005).
+- Los curadores tienen cuenta creada por la coordinación (spec 004, Identidad).
 
 ## Fuera de alcance
 
@@ -312,5 +312,5 @@ seleccionada y programable.
 
 ## Dependencias
 
-- **005 Identidad**: cuentas de postulantes y curadores, roles y notificaciones.
+- **004 Identidad**: cuentas de postulantes y curadores, roles y notificaciones.
 - **004 Operación**: consume las obras seleccionadas.

@@ -22,7 +22,7 @@ entrada?** Hoy la programación se publica en un PDF (programa de mano) y en pá
 ## Actores
 
 - **Visitante** (sin cuenta): consulta, filtra, busca, guarda favoritos en su dispositivo.
-- **Asistente** (con cuenta, spec 005): además sincroniza su agenda entre dispositivos.
+- **Asistente** (con cuenta, spec 004, Identidad): además sincroniza su agenda entre dispositivos.
 - **Operación** (spec 004): fuente de la programación publicada.
 - **Boletería** (spec 002): fuente de la disponibilidad de entradas.
 
@@ -286,4 +286,4 @@ Función es Operación (spec 004).*
 
 - **002 Boletería**: disponibilidad y acceso a compra o reserva.
 - **004 Operación**: programación publicada y cambios de función.
-- **005 Identidad**: sincronizar favoritos con la cuenta (opcional para el visitante).
+- **004 Identidad**: sincronizar favoritos con la cuenta (opcional para el visitante).

@@ -34,7 +34,7 @@ flowchart LR
         CART[Programación / Cartelera<br/>spec 001]
     end
     subgraph Soporte
-        IDEN[Identidad y notificaciones<br/>spec 005]
+        IDEN[Identidad y notificaciones<br/>spec 004]
     end
     PAGOS[(Proveedor de pagos<br/>externo)]
     CORREO[(Proveedor de correo<br/>externo)]
@@ -120,4 +120,4 @@ Historias P1 que recorren varios contextos y sirven para validar la arquitectura
 1. **De la convocatoria a la cartelera**: 003-US1 → 003-US3 → 003-US4 → 004-US1 → 004-US2 → 001-US1.
 2. **Compra en hora pico sin sobreventa**: 001-US1 → 002-US1 (500 compras concurrentes, 100 lugares).
 3. **Ingreso sin internet**: 002-US2 (validación diferida y conflicto de doble ingreso).
-4. **Cancelación por lluvia**: 004-US3 → 002-US5 → 005-US4 → 001-US1.
+4. **Cancelación por lluvia**: 004-US3 → 002-US5 → 004-US10 → 001-US1.

@@ -23,7 +23,7 @@ web, lo que muestra que el modelo de precio cambia entre ediciones.
 
 ## Actores
 
-- **Asistente**: compra o reserva entradas; necesita cuenta verificada (spec 005).
+- **Asistente**: compra o reserva entradas; necesita cuenta verificada (spec 004, Identidad).
 - **Taquilla**: vende o entrega entradas presenciales; cierra su caja.
 - **Validador**: escanea entradas en la puerta.
 - **Programador / Operación**: define aforo habilitado y cancela funciones (spec 004).
@@ -223,7 +223,7 @@ cuántos lugares quedan para venta o liberación en puerta.
   inicio.
 - **FR-014**: El sistema MUST publicar la disponibilidad de cada función para la Cartelera.
 - **FR-015**: El sistema MUST mostrar la ocupación en vivo por función a los roles autorizados.
-- **FR-016**: Comprar o reservar en línea MUST requerir cuenta con correo verificado (spec 005);
+- **FR-016**: Comprar o reservar en línea MUST requerir cuenta con correo verificado (spec 004, Identidad);
   la compra en taquilla no la requiere.
 
 ### Reglas de negocio
@@ -322,5 +322,5 @@ cuántos lugares quedan para venta o liberación en puerta.
 ## Dependencias
 
 - **004 Operación**: funciones, aforo habilitado y cancelaciones.
-- **005 Identidad**: cuentas, roles (taquilla, validador) y envío de notificaciones.
+- **004 Identidad**: cuentas, roles (taquilla, validador) y envío de notificaciones.
 - **001 Cartelera**: consume la disponibilidad.

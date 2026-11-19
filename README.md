@@ -22,8 +22,7 @@ colaborativo por ramas y arquitectura documentada con el **modelo 4+1** en Merma
 | [001 Cartelera](specs/001-cartelera-programacion/spec.md) | `001-cartelera-programacion` | Programación | Programación del día, filtros y búsqueda |
 | [002 Boletería](specs/002-boleteria-entradas/spec.md) | `002-boleteria-entradas` | Boletería | Compra sin sobreventa, validación de ingreso (también sin conexión) |
 | [003 Convocatorias](specs/003-convocatorias-curaduria/spec.md) | `003-convocatorias-curaduria` | Convocatorias | Postulación, subsanación, evaluación ponderada |
-| [004 Operación](specs/004-gestion-operativa/spec.md) | `004-gestion-operativa` | Operación | Grilla sin cruces, publicación, reprogramar/cancelar |
-| [005 Identidad](specs/005-cuentas-notificaciones/spec.md) | `005-cuentas-notificaciones` | Identidad | Registro verificado, sesión, roles con alcance |
+| [004 Operación e Identidad](specs/004-gestion-operativa/spec.md) | `004-gestion-operativa` | Operación + Identidad | Grilla sin cruces, publicación, reprogramar/cancelar, registro verificado, roles con alcance |
 
 ## Flujo de trabajo
 

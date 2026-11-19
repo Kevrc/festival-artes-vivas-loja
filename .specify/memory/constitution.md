@@ -1,6 +1,8 @@
 <!--
 Sync Impact Report
-- Versión: 1.0.0 → 2.0.0 (MAJOR: se redefinen principios y se añaden obligaciones verificables)
+- Versión: 2.0.0 → 2.1.0 (MINOR: equipo de 4 integrantes, un spec por persona; la spec 005
+  Identidad se integra en la 004 como segundo módulo del mismo responsable)
+- Historial: 1.0.0 → 2.0.0 (MAJOR: principios redefinidos con obligaciones verificables)
 - Principios: I–VII reescritos con reglas, justificación y verificación; añadidos
   VI (Seguridad y privacidad), VIII (Resiliencia ante picos) y IX (Observabilidad y trazabilidad)
 - Secciones añadidas: Propósito y alcance, Actores, Puertas de calidad, Definición de Listo y
@@ -8,7 +10,7 @@ Sync Impact Report
   Responsabilidades del equipo, Plantilla de ADR
 - Plantillas: plan-template.md ✅ (Constitution Check = principios I–X + puertas de calidad),
   spec-template.md ✅, tasks-template.md ✅ (tareas de prueba obligatorias por Principio IV)
-- Pendientes: completar la tabla de responsables cuando el equipo asigne integrantes
+- Pendientes: completar nombres en la tabla de responsables (§11)
 -->
 
 # Constitución del proyecto
@@ -123,7 +125,7 @@ desactualice.
   dominio** (p. ej. `FuncionCancelada`, `PostulacionSeleccionada`).
 - Añadir un sexto contexto o partir uno existente exige una ADR.
 
-**Justificación**: cinco integrantes pueden trabajar en paralelo sin pisarse; las fronteras
+**Justificación**: los cuatro integrantes trabajan en paralelo sin pisarse, un spec cada uno; las fronteras
 claras se explican y defienden en la vista lógica y en la de desarrollo.
 **Verificación**: pruebas de contrato por cada integración; revisión de dependencias entre
 módulos en cada PR.
@@ -356,11 +358,10 @@ vista lógica y contextos (45 s) → procesos y picos de demanda (45 s) → fís
 
 | Contexto / área | Spec | Responsable | Revisor suplente |
 |-----------------|------|-------------|------------------|
-| Programación (cartelera) | 001 | *por asignar* | *por asignar* |
-| Boletería | 002 | *por asignar* | *por asignar* |
-| Convocatorias | 003 | *por asignar* | *por asignar* |
-| Operación | 004 | *por asignar* | *por asignar* |
-| Identidad y notificaciones | 005 | *por asignar* | *por asignar* |
+| Programación (cartelera) | 001 | Integrante 1 | Integrante 2 |
+| Boletería | 002 | Integrante 2 | Integrante 3 |
+| Convocatorias | 003 | Integrante 3 | Integrante 4 |
+| Operación + Identidad | 004 | Integrante 4 | Integrante 1 |
 | Arquitectura 4+1, ADR y CI | transversal | rotativo | todos |
 
 ## 12. Gobernanza
@@ -374,4 +375,4 @@ vista lógica y contextos (45 s) → procesos y picos de demanda (45 s) → fís
   principio o sección), PATCH (aclaraciones de redacción).
 - Las excepciones se documentan en el *Complexity Tracking* del plan con fecha de revisión.
 
-**Versión**: 2.0.0 | **Ratificada**: 2026-11-19 | **Última enmienda**: 2026-11-19
+**Versión**: 2.1.0 | **Ratificada**: 2026-11-19 | **Última enmienda**: 2026-11-19
