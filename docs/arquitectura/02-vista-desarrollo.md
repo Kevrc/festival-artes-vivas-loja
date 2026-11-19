@@ -116,7 +116,7 @@ gitGraph
     commit id: "v1.0" tag: "v1.0-entrega"
 ```
 
-- `main` protegida: PR con 1 aprobación (2 en Boletería e Identidad), historial lineal, sin *force push*.
+- `main` protegida: PR con los checks de CI en verde (diagramas, contratos, secretos y, con T010, pruebas), historial lineal, sin *force push*; revisión de otro integrante recomendada.
 - Una rama por spec (`001-…` a `004-…`); cambios compartidos en ramas `docs/…` o `chore/…`.
 - Commits en español con Conventional Commits, ámbito = módulo.
 
