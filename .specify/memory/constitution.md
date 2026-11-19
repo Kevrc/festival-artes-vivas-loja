@@ -1,6 +1,7 @@
 <!--
 Sync Impact Report
-- Versión: 2.0.0 → 2.1.0 (MINOR: equipo de 4 integrantes, un spec por persona; la spec 005
+- Versión: 2.1.0 → 2.1.1 (PATCH: se asignan responsables y revisores por spec en §11)
+- Historial: 2.0.0 → 2.1.0 (MINOR: equipo de 4 integrantes, un spec por persona; la spec 005
   Identidad se integra en la 004 como segundo módulo del mismo responsable)
 - Historial: 1.0.0 → 2.0.0 (MAJOR: principios redefinidos con obligaciones verificables)
 - Principios: I–VII reescritos con reglas, justificación y verificación; añadidos
@@ -10,7 +11,7 @@ Sync Impact Report
   Responsabilidades del equipo, Plantilla de ADR
 - Plantillas: plan-template.md ✅ (Constitution Check = principios I–X + puertas de calidad),
   spec-template.md ✅, tasks-template.md ✅ (tareas de prueba obligatorias por Principio IV)
-- Pendientes: completar nombres en la tabla de responsables (§11)
+- Pendientes: ninguno
 -->
 
 # Constitución del proyecto
@@ -358,10 +359,10 @@ vista lógica y contextos (45 s) → procesos y picos de demanda (45 s) → fís
 
 | Contexto / área | Spec | Responsable | Revisor suplente |
 |-----------------|------|-------------|------------------|
-| Programación (cartelera) | 001 | Integrante 1 | Integrante 2 |
-| Boletería | 002 | Integrante 2 | Integrante 3 |
-| Convocatorias | 003 | Integrante 3 | Integrante 4 |
-| Operación + Identidad | 004 | Integrante 4 | Integrante 1 |
+| Programación (cartelera) | 001 | @Kevrc | @jeimytorresg |
+| Boletería | 002 | @By-Alvarez06 | @Kevrc |
+| Convocatorias | 003 | @Carlos2190 | @By-Alvarez06 |
+| Operación + Identidad | 004 | @jeimytorresg | @Carlos2190 |
 | Arquitectura 4+1, ADR y CI | transversal | rotativo | todos |
 
 ## 12. Gobernanza
@@ -375,4 +376,4 @@ vista lógica y contextos (45 s) → procesos y picos de demanda (45 s) → fís
   principio o sección), PATCH (aclaraciones de redacción).
 - Las excepciones se documentan en el *Complexity Tracking* del plan con fecha de revisión.
 
-**Versión**: 2.1.0 | **Ratificada**: 2026-11-19 | **Última enmienda**: 2026-11-19
+**Versión**: 2.1.1 | **Ratificada**: 2026-11-19 | **Última enmienda**: 2026-11-19
