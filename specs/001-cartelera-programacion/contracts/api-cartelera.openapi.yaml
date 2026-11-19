@@ -292,8 +292,12 @@ components:
       allOf:
         - $ref: '#/components/schemas/Edicion'
         - type: object
-          required: [facetas]
+          required: [facetas, diaSugerido]
           properties:
+            diaSugerido:
+              type: string
+              format: date
+              description: Hoy si hay festival; si no, primer día de la próxima edición o último de la más reciente (US1-AS2)
             facetas:
               type: object
               properties:
@@ -322,6 +326,7 @@ components:
         estado: { $ref: '#/components/schemas/EstadoFuncion' }
         horarioAnterior:
           type: object
+          required: [inicio, fin, sedeId]
           properties:
             inicio: { type: string, format: date-time }
             fin: { type: string, format: date-time }
@@ -330,9 +335,10 @@ components:
         sede: { $ref: '#/components/schemas/SedeResumen' }
     DiaCartelera:
       type: object
-      required: [fecha, edicion, funciones]
+      required: [fecha, edicion, version, funciones]
       properties:
         fecha: { type: string, format: date }
+        version: { type: string, description: Huella de la programación del día; igual a la de /disponibilidad (research R5) }
         edicion: { $ref: '#/components/schemas/Edicion' }
         funciones: { type: array, items: { $ref: '#/components/schemas/FuncionResumen' } }
     Disponibilidad:
