@@ -1,0 +1,27 @@
+{
+  "name": "@fiavl/contracts",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./eventos": "./src/eventos/index.ts",
+    "./api": "./src/api/index.ts"
+  },
+  "scripts": {
+    "gen": "openapi-typescript ../../specs/001-cartelera-programacion/contracts/api-cartelera.openapi.yaml -o src/api/cartelera.ts",
+    "test": "vitest run",
+    "typecheck": "tsc -p .",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@fiavl/config": "workspace:*",
+    "eslint": "^9.39.5",
+    "openapi-typescript": "^7.13.0",
+    "typescript-eslint": "^8.73.0",
+    "vitest": "^3.2.7"
+  }
+}
