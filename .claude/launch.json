@@ -1,0 +1,8 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "api", "runtimeExecutable": "pnpm", "runtimeArgs": ["--filter", "@fiavl/api", "dev"], "port": 4000 },
+    { "name": "worker", "runtimeExecutable": "pnpm", "runtimeArgs": ["--filter", "@fiavl/worker", "dev"], "port": 9464 },
+    { "name": "web", "runtimeExecutable": "pnpm", "runtimeArgs": ["--filter", "@fiavl/web", "dev"], "port": 3100 }
+  ]
+}

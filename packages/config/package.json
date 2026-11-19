@@ -1,0 +1,10 @@
+{
+  "name": "@fiavl/config",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./tsconfig.base.json": "./tsconfig.base.json",
+    "./eslint": "./eslint.mjs",
+    "./prettier": "./prettier.json"
+  }
+}

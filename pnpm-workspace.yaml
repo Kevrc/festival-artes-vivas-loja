@@ -1,0 +1,15 @@
+packages:
+  - apps/*
+  - packages/*
+# Dependencias a las que se permite ejecutar scripts de instalación (pnpm 11 las bloquea por defecto)
+allowBuilds:
+  '@prisma/client': true
+  '@prisma/engines': true
+  prisma: true
+  esbuild: true
+  sharp: true
+  unrs-resolver: true
+  # Opcionales nativos de testcontainers (ssh/protobuf): no hacen falta
+  cpu-features: false
+  ssh2: false
+  protobufjs: false
