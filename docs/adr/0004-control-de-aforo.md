@@ -2,6 +2,7 @@
 
 - Estado: aceptada
 - Fecha: 2026-11-19 · Autor: @Kevrc · Specs: 002
+- Drivers: QA-1, QA-9 ([drivers](../arquitectura/00-drivers.md))
 
 ## Contexto
 
@@ -32,7 +33,7 @@ devuelve el mismo pedido.
 |--------|-----------|
 | Leer disponibilidad y luego escribir | Condición de carrera: dos compras leen "1 libre" y venden 2 |
 | Bloqueo `SELECT … FOR UPDATE` | Correcto pero serializa y alarga la transacción |
-| Contador en Redis | Rápido, pero dos fuentes de verdad para el dinero |
+| Contador en memoria compartida (p. ej. Redis) | Rápido, pero dos fuentes de verdad para el inventario y el dinero; ~25 escrituras/s no lo necesitan |
 
 ## Consecuencias
 

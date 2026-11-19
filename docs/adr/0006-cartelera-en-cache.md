@@ -2,6 +2,7 @@
 
 - Estado: aceptada
 - Fecha: 2026-11-19 · Autor: @Kevrc · Specs: 001
+- Drivers: QA-2, QA-3, QA-4, QA-6, QA-13 ([drivers](../arquitectura/00-drivers.md))
 
 ## Contexto
 
