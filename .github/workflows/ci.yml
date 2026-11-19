@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  mermaid:
+    name: Diagramas Mermaid
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Instalar mermaid-cli
+        run: npm install -g @mermaid-js/mermaid-cli@11.4.2
+      - name: Validar todos los diagramas
+        run: |
+          echo '{"args":["--no-sandbox"]}' > "$RUNNER_TEMP/puppeteer.json"
+          PUPPETEER_CONFIG="$RUNNER_TEMP/puppeteer.json" python3 scripts/validar-mermaid.py
+
+  openapi:
+    name: Contratos OpenAPI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validar contratos
+        run: |
+          shopt -s nullglob
+          archivos=(specs/*/contracts/*.yaml specs/*/contracts/*.yml)
+          if [ ${#archivos[@]} -eq 0 ]; then echo "Sin contratos OpenAPI"; exit 0; fi
+          npx --yes @redocly/cli@1.25.0 lint --extends=recommended "${archivos[@]}"
+
+  secretos:
+    name: Escaneo de secretos
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
