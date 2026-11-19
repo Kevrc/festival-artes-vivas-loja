@@ -1,7 +1,7 @@
 # Vista de desarrollo
 
 Describe cómo se **organiza el código**, quién es dueño de cada parte, qué puede depender de qué
-y cómo el equipo integra su trabajo. Tecnología según [ADR-0002](../adr/0002-stack-typescript.md).
+y cómo el equipo integra su trabajo. Tecnología según [ADR-0002](../adr/0002-stack-por-necesidades.md).
 
 ## 1. Estructura del monorepo
 
@@ -17,9 +17,9 @@ festival-artes-vivas-loja/
 │   │       └── identidad/        # spec 004 (B)
 │   │           ├── domain/       # entidades, reglas, eventos (sin frameworks)
 │   │           ├── application/  # casos de uso y puertos
-│   │           ├── infrastructure/ # repositorios, outbox, clientes externos
+│   │           ├── infrastructure/ # repositorios, cola de eventos, clientes externos
 │   │           └── interface/    # controladores HTTP, consumidores, trabajos
-│   ├── worker/                   # mismo código, arranca relay del outbox, colas y trabajos
+│   ├── worker/                   # mismo código, arranca consumidores de colas y trabajos
 │   └── web/                      # Next.js: cartelera, paneles y validador PWA
 │       └── src/app/
 │           ├── (publico)/        # cartelera, fichas, convocatorias abiertas, mis entradas
@@ -77,7 +77,7 @@ flowchart TB
 flowchart LR
     I["interface<br/>controladores, consumidores"] --> A["application<br/>casos de uso, puertos"]
     A --> D["domain<br/>entidades, reglas, eventos"]
-    INF["infrastructure<br/>Prisma, outbox, clientes"] -. implementa .-> A
+    INF["infrastructure<br/>Prisma, cola pg-boss, clientes"] -. implementa .-> A
     INF --> D
 ```
 
@@ -128,7 +128,7 @@ flowchart LR
     LINT --> TYPES["Chequeo de tipos"]
     TYPES --> BOUND["Reglas de dependencia<br/>entre módulos"]
     BOUND --> UNIT["Pruebas unitarias<br/>cobertura dominio ≥ 80 %"]
-    UNIT --> INT["Pruebas de integración<br/>con PostgreSQL y Redis"]
+    UNIT --> INT["Pruebas de integración<br/>con PostgreSQL real (Testcontainers)"]
     INT --> CTRT["Pruebas de contrato<br/>de eventos y API"]
     CTRT --> A11Y["Accesibilidad<br/>páginas públicas"]
     A11Y --> OK{"¿Todo en verde?"}

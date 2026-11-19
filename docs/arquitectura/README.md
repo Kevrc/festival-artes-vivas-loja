@@ -2,7 +2,7 @@
 
 Arquitectura documentada con el modelo de vistas de **Kruchten (4+1)**. Todos los diagramas están
 en Mermaid y se ven directamente en GitHub. Las decisiones que la sostienen están en
-[`docs/adr/`](../adr/).
+[`docs/adr/`](../adr/) y **cada una se justifica con un driver** de [00-drivers.md](00-drivers.md).
 
 ```mermaid
 flowchart TB
@@ -18,6 +18,7 @@ flowchart TB
 
 | Vista | Documento | Contenido principal |
 |-------|-----------|---------------------|
+| (base) | [00-drivers.md](00-drivers.md) | Restricciones, escenarios de calidad, dimensionamiento y matriz drivers → decisiones |
 | Lógica | [01-vista-logica.md](01-vista-logica.md) | Contextos, módulos, puertos, modelo de cada contexto |
 | Desarrollo | [02-vista-desarrollo.md](02-vista-desarrollo.md) | Monorepo, paquetes, reglas de dependencia, dueños, ramas, CI |
 | Procesos | [03-vista-procesos.md](03-vista-procesos.md) | Procesos en ejecución, eventos, concurrencia, secuencias y estados |
@@ -28,8 +29,8 @@ flowchart TB
 
 - **Estilo**: monolito modular con cinco módulos de dominio ([ADR-0001](../adr/0001-monolito-modular.md)),
   cada uno con arquitectura hexagonal (dominio, aplicación, adaptadores).
-- **Integración**: eventos de dominio con outbox transaccional y colas ([ADR-0003](../adr/0003-eventos-outbox.md)).
-- **Tecnología**: TypeScript de punta a punta — NestJS, Next.js, PostgreSQL, Redis ([ADR-0002](../adr/0002-stack-typescript.md)).
+- **Integración**: eventos de dominio en una cola transaccional sobre PostgreSQL ([ADR-0003](../adr/0003-eventos-outbox.md)).
+- **Tecnología**: elegida por necesidad con matrices de criterios — NestJS, Next.js, PostgreSQL ([ADR-0002](../adr/0002-stack-por-necesidades.md)).
 - **Calidades críticas**: sin sobreventa ([ADR-0004](../adr/0004-control-de-aforo.md)), ingreso sin
   conexión ([ADR-0005](../adr/0005-qr-firmado-validador-offline.md)), cartelera resistente a picos
   ([ADR-0006](../adr/0006-cartelera-en-cache.md)), pagos desacoplados
