@@ -24,6 +24,38 @@ colaborativo por ramas y arquitectura documentada con el **modelo 4+1** en Merma
 | [003 Convocatorias](specs/003-convocatorias-curaduria/spec.md) | `003-convocatorias-curaduria` | Convocatorias | Postulación, subsanación, evaluación ponderada |
 | [004 Operación e Identidad](specs/004-gestion-operativa/spec.md) | `004-gestion-operativa` | Operación + Identidad | Grilla sin cruces, publicación, reprogramar/cancelar, registro verificado, roles con alcance |
 
+## Cómo ejecutar
+
+Requisitos: Node.js 22+, pnpm 11 y Docker.
+
+```bash
+cp .env.example .env
+```
+
+```bash
+pnpm install
+```
+
+```bash
+pnpm db:up && pnpm db:migrate && pnpm db:seed
+```
+
+```bash
+pnpm dev
+```
+
+Web en http://localhost:3100 (cartelera), API en http://localhost:4000 y métricas del worker en
+http://localhost:9464/metrics. La semilla carga la edición XI (2026) con obras y sedes reales; con
+`FIAVL_AHORA=2026-11-14T12:00:00-05:00` en `.env` la demo se ve como un día del festival.
+
+| Comando | Qué verifica |
+|---------|--------------|
+| `pnpm lint && pnpm typecheck` | Estilo, tipos y fronteras entre módulos |
+| `pnpm test` | Unitarias y contratos de eventos, cobertura ≥ 80 % del dominio |
+| `pnpm --filter @fiavl/api test:int` | Integración contra PostgreSQL real (Testcontainers) |
+| `pnpm --filter @fiavl/web test:e2e` | Historias de punta a punta y accesibilidad (requiere la app en marcha) |
+| `pnpm events:emit funcion-cancelada --id <funcionId>` | Simula un evento de Operación (ver quickstart de la 001) |
+
 ## Flujo de trabajo
 
 1. Cada integrante toma una spec y trabaja en su rama `NNN-nombre`.

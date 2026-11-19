@@ -23,13 +23,13 @@ Detalle de las decisiones en [research.md](research.md).
 
 **Language/Version**: TypeScript 5.x sobre Node.js 22 LTS ([ADR-0002](../../docs/adr/0002-stack-por-necesidades.md))
 
-**Primary Dependencies**: NestJS 11 (módulo `programacion`), Next.js 15 (App Router, ISR,
-`revalidateTag`), Prisma 6 (`multiSchema`), pg-boss 10 (consumo de eventos), zod 3 (esquemas de
+**Primary Dependencies**: NestJS 11 (módulo `programacion`), Next.js 15.5 (App Router, ISR,
+`revalidateTag`), Prisma 6.19 (esquema multiarchivo), pg-boss 10 (consumo de eventos), zod 3 (esquemas de
 eventos), Leaflet 1.9 (mapa, carga bajo demanda), nestjs-pino y prom-client (observabilidad).
 Herramientas de desarrollo: openapi-typescript, commitlint + husky, @vitest/coverage-v8; en CI:
 gitleaks. Todas justificadas en [research R12](research.md#r12-dependencias-de-soporte-constitución-x)
 
-**Storage**: PostgreSQL 16, esquema `programacion` con extensiones `unaccent` y `pg_trgm`
+**Storage**: PostgreSQL 16, esquema `programacion` con la extensión `pg_trgm`
 ([data-model.md](data-model.md)); favoritos anónimos en `localStorage`
 
 **Testing**: Vitest con cobertura ≥ 80 % en `domain/` (puerta Q2), Vitest + Testcontainers (integración con PostgreSQL real),
