@@ -17,26 +17,23 @@ flowchart LR
         WEB["Proceso web<br/>Next.js (SSR / ISR)"]
         API1["Proceso API #1<br/>NestJS"]
         API2["Proceso API #2<br/>NestJS"]
-        WRK["Proceso worker<br/>relay outbox · consumidores · trabajos"]
+        WRK["Proceso worker<br/>consumidores de colas · trabajos"]
     end
-    PG[("PostgreSQL<br/>5 esquemas + outbox")]
-    RD[("Redis<br/>colas BullMQ · caché")]
+    PG[("PostgreSQL<br/>5 esquemas + colas pg-boss")]
 
     B1 --> CDN --> WEB
     B1 & B2 & B3 --> API1 & API2
     WEB --> API1 & API2
     API1 & API2 --> PG
-    API1 & API2 --> RD
     WRK --> PG
-    WRK <--> RD
     WRK -. revalidar páginas .-> WEB
 ```
 
 | Proceso | Instancias | Hace | Si falla |
 |---------|-----------|------|----------|
 | web | 1+ | Renderiza cartelera y paneles | La CDN sigue sirviendo la última versión |
-| api | 2+ | Atiende peticiones HTTP, escribe datos y outbox | La otra réplica atiende |
-| worker | 1 | Publica eventos, consume colas, trabajos programados | Los eventos esperan en el outbox; nada se pierde |
+| api | 2+ | Atiende peticiones HTTP; escribe datos y encola eventos en la misma transacción | La otra réplica atiende |
+| worker | 1 | Consume colas, ejecuta trabajos programados | Los eventos esperan en la cola; nada se pierde |
 | validador | 1 por puerta | Valida QR localmente | Sigue sin red; sincroniza al volver |
 
 ### Trabajos programados (worker)
@@ -51,27 +48,26 @@ flowchart LR
 | Reintentar notificaciones fallidas | espera creciente hasta 24 h | 004 US10 |
 | Cerrar edición | diario | 004 RN-007 |
 
-## 2. Eventos de dominio: outbox y colas
+## 2. Eventos de dominio: cola transaccional ([ADR-0003](../adr/0003-eventos-outbox.md))
 
 ```mermaid
 sequenceDiagram
     autonumber
     participant UC as Caso de uso (Operación)
     participant DB as PostgreSQL
-    participant RL as Relay (worker)
-    participant Q as Colas BullMQ
+    participant WK as Worker (pg-boss)
     participant C1 as Consumidor Boletería
     participant C2 as Consumidor Programación
-    UC->>DB: BEGIN · actualizar función · insertar FuncionCancelada en outbox · COMMIT
-    loop cada segundo
-        RL->>DB: leer eventos pendientes del outbox
-        RL->>Q: encolar en cola de cada consumidor
-        RL->>DB: marcar como publicados
+    UC->>DB: BEGIN · actualizar función · encolar FuncionCancelada para cada consumidor · COMMIT
+    Note over UC,DB: Si la transacción se revierte, el evento no existe
+    loop sondeo de colas
+        WK->>DB: tomar trabajos pendientes (SKIP LOCKED)
     end
-    Q->>C1: FuncionCancelada
+    WK->>C1: FuncionCancelada
     C1->>C1: ¿id ya procesado? no → anular entradas
-    Q->>C2: FuncionCancelada
+    WK->>C2: FuncionCancelada
     C2->>C2: actualizar proyección y revalidar páginas
+    C1-->>DB: marcar completado (o reintentar con espera creciente)
     Note over C1,C2: Consumo idempotente: un evento repetido se descarta
 ```
 
@@ -99,7 +95,7 @@ sequenceDiagram
         API-->>W: redirigir a pago
         A->>PP: Paga
         PP->>API: webhook firmado: aprobado
-        API->>DB: BEGIN · Pedido pagado · emitidos += 3, retenidos -= 3 · 3 Entradas con QR firmado · outbox EntradasEmitidas · COMMIT
+        API->>DB: BEGIN · Pedido pagado · emitidos += 3, retenidos -= 3 · 3 Entradas con QR firmado · encolar EntradasEmitidas · COMMIT
         API-->>PP: 200 OK
         WK->>WK: Identidad envía correo con entradas
         WK->>WK: Programación actualiza disponibilidad
@@ -133,7 +129,7 @@ sequenceDiagram
     P->>API: Sincronizar ingresos (idempotente)
     API->>API: Conservar el primer ingreso por hora
     API-->>P: Conflictos (si dos puertas aceptaron la misma entrada)
-    API->>API: outbox ConflictoDeIngreso → incidencia en Operación
+    API->>API: encolar ConflictoDeIngreso → incidencia en Operación
 ```
 
 ## 5. Ciclos de vida
@@ -224,7 +220,7 @@ flowchart TB
     PICO["Pico: apertura de venta<br/>o noche de inauguración"] --> C1{"¿Petición de cartelera?"}
     C1 -- sí --> CDN["CDN responde<br/>sin tocar el servidor"]
     C1 -- no --> C2{"¿Compra o reserva?"}
-    C2 -- sí --> LIM["Límite de tasa por cuenta e IP"] --> ATOM["Retención atómica"] --> OK["Respuesta < 2 s"]
+    C2 -- sí --> LIM["Límite de tasa por IP en Nginx"] --> ATOM["Retención atómica"] --> OK["Respuesta < 2 s"]
     C2 -- no --> API["API normal"]
     ATOM -. pesado .-> WK["Correos y estadísticas<br/>van al worker, no bloquean"]
 ```

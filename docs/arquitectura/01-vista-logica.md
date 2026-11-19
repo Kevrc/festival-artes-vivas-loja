@@ -19,7 +19,7 @@ flowchart LR
         CON["Convocatorias<br/>postulación y curaduría · spec 003"]
         OPE["Operación<br/>agenda y estadísticas · spec 004"]
         IDE["Identidad<br/>cuentas, roles, avisos · spec 004<br/><i>todos los módulos le consultan<br/>quién es el usuario y qué puede hacer</i>"]
-        BUS{{"Eventos de dominio<br/>(outbox + colas)"}}
+        BUS{{"Eventos de dominio<br/>(cola transaccional en PostgreSQL)"}}
     end
 
     PAG[("Proveedor de pagos")]
@@ -71,7 +71,7 @@ flowchart LR
     end
     subgraph Salida["Adaptadores de salida"]
         REPO["Repositorios<br/>(esquema propio)"]
-        OUT["Outbox"]
+        OUT["Cola de eventos<br/>(misma transacción)"]
         EXT["Clientes externos<br/>(pagos, correo)"]
     end
     HTTP & CONS & JOBS --> CU

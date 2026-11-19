@@ -156,7 +156,7 @@ sequenceDiagram
     autonumber
     actor P as Programador
     participant OPE as Operación
-    participant OB as Outbox + colas
+    participant OB as Cola en PostgreSQL
     participant BOL as Boletería
     participant IDE as Identidad
     participant PRO as Programación

@@ -24,7 +24,6 @@ flowchart TB
             WRK["worker<br/>NestJS"]
         end
         PG[("postgres<br/>esquemas por módulo")]
-        RD[("redis<br/>colas y caché")]
         S3[("almacenamiento de objetos<br/>documentos de postulantes")]
         MON["prometheus + grafana<br/>métricas y alertas"]
     end
@@ -39,7 +38,7 @@ flowchart TB
     VAL --> NGX
     NGX --> WEB & API1 & API2
     WEB --> API1 & API2
-    API1 & API2 & WRK --> PG & RD
+    API1 & API2 & WRK --> PG
     API1 & API2 --> S3
     WRK --> MAIL
     API1 & API2 <--> PAG
@@ -56,19 +55,18 @@ flowchart TB
 | web | `apps/web` | 1 vCPU · 1 GB | 3000 interno | ISR; la CDN absorbe la mayoría de visitas |
 | api-1, api-2 | `apps/api` | 1 vCPU · 1 GB c/u | 4000 interno | Sin estado; se pueden añadir más réplicas |
 | worker | `apps/worker` | 1 vCPU · 1 GB | — | Una sola instancia (los trabajos programados no se duplican) |
-| postgres | `postgres:16` | 2 vCPU · 4 GB | 5432 interno | Volumen persistente, respaldo diario |
-| redis | `redis:7` | 0,5 vCPU · 512 MB | 6379 interno | Persistencia AOF para no perder colas |
+| postgres | `postgres:16` | 2 vCPU · 4 GB | 5432 interno | Datos y colas (pg-boss); volumen persistente, respaldo diario |
 | almacenamiento | MinIO o S3 | — | interno | Archivos privados con URLs firmadas temporales |
 | monitoreo | prometheus + grafana | 0,5 vCPU · 512 MB | interno | Paneles de errores, latencia, entradas por función |
 
-Total aproximado en festival: **8 vCPU y 10 GB de RAM** en un VPS; fuera del festival se reduce a
+Total aproximado en festival: **7,5 vCPU y 9,5 GB de RAM** en un VPS; fuera del festival se reduce a
 una réplica del API.
 
 ## 3. Entornos
 
 ```mermaid
 flowchart LR
-    DEV["Local<br/>docker compose<br/>pagos simulados · correo de prueba"] --> CI["CI (GitHub Actions)<br/>contenedores efímeros<br/>PostgreSQL + Redis"]
+    DEV["Local<br/>docker compose<br/>pagos simulados · correo de prueba"] --> CI["CI (GitHub Actions)<br/>contenedores efímeros<br/>PostgreSQL"]
     CI --> STG["Staging<br/>mismo compose<br/>proveedor de pagos en modo prueba"]
     STG --> PRD["Producción<br/>VPS + CDN<br/>llaves reales"]
 ```
