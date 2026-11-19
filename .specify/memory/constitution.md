@@ -1,6 +1,8 @@
 <!--
 Sync Impact Report
-- Versión: 2.1.0 → 2.1.1 (PATCH: se asignan responsables y revisores por spec en §11)
+- Versión: 2.1.1 → 2.2.0 (MINOR: la puerta Q4 pasa de aprobación obligatoria a CI obligatoria;
+  la revisión de un integrante queda recomendada)
+- Historial: 2.1.0 → 2.1.1 (PATCH: se asignan responsables y revisores por spec en §11)
 - Historial: 2.0.0 → 2.1.0 (MINOR: equipo de 4 integrantes, un spec por persona; la spec 005
   Identidad se integra en la 004 como segundo módulo del mismo responsable)
 - Historial: 1.0.0 → 2.0.0 (MAJOR: principios redefinidos con obligaciones verificables)
@@ -253,7 +255,7 @@ en 5 minutos.
 | Q1 | Compilación y lint | Sin errores ni advertencias nuevas |
 | Q2 | Pruebas | 100 % en verde; cobertura ≥ 80 % en la capa de dominio de cada módulo |
 | Q3 | Contratos | Las pruebas de contrato de los módulos afectados pasan |
-| Q4 | Revisión | Al menos 1 aprobación de un integrante distinto del autor; 2 si se toca Boletería o Identidad |
+| Q4 | Revisión | CI en verde obligatoria (checks requeridos en `main`); revisión de otro integrante recomendada, y siempre pedida al revisor suplente (§11) cuando se toca Boletería o Identidad |
 | Q5 | Trazabilidad | El PR enlaza la spec y las tareas (`T0nn`) que completa |
 | Q6 | Arquitectura | Vista 4+1 y ADR actualizadas si el cambio es estructural |
 | Q7 | Accesibilidad | Sin violaciones nuevas de nivel A/AA en páginas públicas |
@@ -287,7 +289,8 @@ en 5 minutos.
 | `fix/tema` | Corrección urgente sobre `main` | `fix/sobreventa-taquilla` |
 
 **Reglas**
-- `main` protegida: solo por **Pull Request**, con puertas Q1–Q8 y sin *force push*.
+- `main` protegida: solo por **Pull Request** con todos los checks de CI en verde, historial lineal
+  y sin *force push*; la regla también aplica a los administradores.
 - Integración frecuente: la rama se actualiza desde `main` al menos cada dos días y siempre antes
   de pedir revisión; los conflictos los resuelve el autor del PR.
 - PRs pequeños (idealmente < 400 líneas cambiadas sin contar pruebas ni documentos).
@@ -376,4 +379,4 @@ vista lógica y contextos (45 s) → procesos y picos de demanda (45 s) → fís
   principio o sección), PATCH (aclaraciones de redacción).
 - Las excepciones se documentan en el *Complexity Tracking* del plan con fecha de revisión.
 
-**Versión**: 2.1.1 | **Ratificada**: 2026-11-19 | **Última enmienda**: 2026-11-19
+**Versión**: 2.2.0 | **Ratificada**: 2026-11-19 | **Última enmienda**: 2026-11-19
