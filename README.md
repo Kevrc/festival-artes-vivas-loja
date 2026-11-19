@@ -12,8 +12,8 @@ colaborativo por ramas y arquitectura documentada con el **modelo 4+1** en Merma
 | [Constitución](.specify/memory/constitution.md) | Principios I–X, puertas de calidad, flujo por ramas, entregables |
 | [Investigación del caso](docs/investigacion-festival.md) | Historia, ediciones, sedes, boletería, cifras y fuentes |
 | [Modelo del dominio](docs/dominio.md) | Ciclo anual, mapa de contextos, glosario, catálogo de eventos |
-| `docs/arquitectura/` | Vistas 4+1 *(tras `/speckit-plan`)* |
-| `docs/adr/` | Decisiones arquitectónicas *(tras `/speckit-plan`)* |
+| [Arquitectura 4+1](docs/arquitectura/README.md) | Vistas lógica, desarrollo, procesos, física y escenarios (Mermaid) |
+| [ADR](docs/adr/) | 8 decisiones arquitectónicas con alternativas y consecuencias |
 
 ## Specs
 
