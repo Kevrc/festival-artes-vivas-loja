@@ -85,10 +85,10 @@ flowchart LR
 
 | Área | Spec | Responsable (propuesta) | Revisor suplente |
 |------|------|-------------------------|------------------|
-| `modules/programacion` + `web/(publico)` | 001 | @jeimytorresg | @Kevrc |
-| `modules/boleteria` + `web/validador` + taquilla | 002 | @By-Alvarez06 | @jeimytorresg |
+| `modules/programacion` + `web/(publico)` | 001 | @Kevrc | @jeimytorresg |
+| `modules/boleteria` + `web/validador` + taquilla | 002 | @By-Alvarez06 | @Kevrc |
 | `modules/convocatorias` + curaduría | 003 | @Carlos2190 | @By-Alvarez06 |
-| `modules/operacion` + `modules/identidad` + estadísticas | 004 | @Kevrc | @Carlos2190 |
+| `modules/operacion` + `modules/identidad` + estadísticas | 004 | @jeimytorresg | @Carlos2190 |
 | `packages/*`, `docker/`, CI, `docs/arquitectura` | transversal | rotativo | todos |
 
 Cada integrante construye **su módulo de punta a punta** (dominio, API y pantallas), así todos
