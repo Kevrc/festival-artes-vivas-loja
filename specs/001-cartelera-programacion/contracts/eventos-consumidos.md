@@ -21,18 +21,27 @@ Todo evento llega envuelto así:
 | `correlacionId` | uuid | Trazas (constitución IX) |
 | `datos` | objeto | Contenido propio del evento |
 
+## Secuencia al publicar una edición
+
+Al publicar, Operación emite **primero** un `FuncionProgramada` por cada función (con obra, elenco
+y sede completos) y **después** un único `ProgramacionPublicada`. Como no hay orden garantizado
+entre colas, la cartelera guarda las funciones recibidas como no visibles hasta que su edición
+esté `publicada`; si `ProgramacionPublicada` llega antes que alguna función, esa función se hace
+visible en cuanto llegue. Las funciones añadidas después de publicar solo emiten
+`FuncionProgramada` (spec 004, US2-AS3).
+
 ## Eventos
 
 ### `ProgramacionPublicada` · origen Operación
 | Campo de `datos` | Tipo | Efecto |
 |------------------|------|--------|
 | `edicion` | `{id, anio, numero, fechaInicio, fechaFin, paisInvitado}` | Crea o actualiza `edicion_cartelera`, estado `publicada` |
-| `funcionIds` | uuid[] | Funciones que pasan a visibles; revalida todos los días de la edición |
+| `funcionIds` | uuid[] | Lista de control: permite detectar funciones que aún no llegaron (alerta si faltan tras 5 min); revalida todos los días de la edición |
 
 ### `FuncionProgramada` / `FuncionActualizada` · origen Operación
 | Campo de `datos` | Tipo | Efecto |
 |------------------|------|--------|
-| `funcion` | `{id, version, inicio, fin, continua, tipoAcceso, publico, aforoHabilitado}` | Inserta o actualiza `funcion_cartelera` si `version` > `version_origen` |
+| `funcion` | `{id, version, inicio, fin, continua, tipoAcceso, publico, aforoHabilitado}` | Inserta o actualiza `funcion_cartelera` (incluido `aforo_habilitado`) si `version` > `version_origen` |
 | `obra` | `{id, titulo, sinopsis, disciplina, duracionMin, edadMinima, idioma, imagenes, fichaArtistica, componente}` | Inserta o actualiza `obra_cartelera` |
 | `elenco` | `{id, nombre, pais, ciudad}` | Desnormalizado en `obra_cartelera` |
 | `sede` | `{id, nombre, tipo, direccion, lat, lng, recorrido, aforo, accesibilidad}` | Inserta o actualiza `sede_cartelera` |
@@ -57,7 +66,7 @@ Se envían obra, elenco y sede completos para que la cartelera no tenga que cons
 |------------------|------|--------|
 | `funcionId` | uuid | — |
 | `lugaresRestantes` | entero ≥ 0 | Guarda el valor y calcula el nivel con RN-002 |
-| `aforoHabilitado` | entero > 0 | Necesario para el umbral del 10 % |
+| `aforoHabilitado` | entero > 0 | Actualiza `aforo_habilitado`; base del umbral del 10 % |
 | `calculadoEn` | date-time | Si es anterior al guardado, se ignora (llegada fuera de orden) |
 
 Boletería puede **agrupar** cambios (p. ej. como máximo uno por función cada 5 s) para no
