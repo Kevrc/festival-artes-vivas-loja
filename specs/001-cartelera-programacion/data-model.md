@@ -62,6 +62,7 @@ erDiagram
         text estado
         jsonb horario_anterior
         text disponibilidad
+        int aforo_habilitado
         int lugares_restantes
         timestamptz disponibilidad_actualizada_en
         int version_origen
@@ -108,14 +109,17 @@ Desnormaliza los datos del **elenco** para no consultar a Operación al servir l
 | Campo | Regla |
 |-------|-------|
 | `dia_festival` | `(inicio AT TIME ZONE 'America/Guayaquil')::date` (research R3) |
-| `continua` | `true` para exposiciones de varios días: se muestran una vez por día como actividad continua |
+| `continua` | `true` para exposiciones de varios días: aparecen **cada día** entre `dia_festival` y el día de `fin` (en hora de Ecuador), como actividad continua y no como funciones repetidas |
 | `tipo_acceso` | `pagada` \| `gratuita_reserva` \| `gratuita_libre` \| `restringida` |
 | `publico` | `familiar` \| `adultos` \| `estudiantes` |
 | `estado` | `programada` \| `reprogramada` \| `cancelada` \| `finalizada` |
 | `horario_anterior` | `{inicio, fin, sede_id}` cuando `estado = reprogramada` (US1-AS4) |
-| `disponibilidad` | `disponible` \| `ultimos_lugares` \| `agotado` \| `no_aplica` (libre) |
-| `lugares_restantes` | Informado por Boletería; `ultimos_lugares` si ≤ 10 % del aforo habilitado (RN-002) |
+| `disponibilidad` | Valor **guardado**: `disponible` \| `ultimos_lugares` \| `agotado` \| `no_aplica` (libre). La API añade el valor **derivado** `desconocida` cuando `disponibilidad_actualizada_en` tiene más de 5 minutos; nunca se guarda (research R4) |
+| `aforo_habilitado` | Entero > 0 o nulo si la función es de acceso libre; llega en `FuncionProgramada` y `DisponibilidadCambiada`; base del umbral de RN-002 |
+| `lugares_restantes` | Informado por Boletería; `ultimos_lugares` si ≤ 10 % de `aforo_habilitado` (RN-002) |
 | `version_origen` | Versión de la función en Operación; un evento con versión ≤ a la guardada se ignora (orden fuera de secuencia) |
+
+**Funciones del día**: `dia_festival = :dia` **o** (`continua` y `:dia` entre `dia_festival` y el día de `fin`).
 
 **Índices**: `(edicion_id, dia_festival, inicio)` para el listado del día; `(inicio, fin)` para
 "Ahora"; GIN trigram sobre `obra_cartelera.texto_busqueda`.
@@ -164,5 +168,6 @@ opción de entrada, sin importar su disponibilidad (US1-AS3).
 | RN-004 traslado ajustado | `avisosAgenda(favoritas)` → cruces y traslados < 15 min |
 | RN-006 orden | `ordenarDia(funciones)` |
 | R3 día de festival | `diaFestival(inicio)` |
+| Continuas en cada día | `incluidaEnDia(funcion, dia)` |
 | R6 cercanía | `minutosAPie(origen, destino)` |
 | FR-003 filtros | `aplicarFiltros(funciones, filtros)` |

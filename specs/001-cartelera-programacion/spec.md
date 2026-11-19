@@ -31,7 +31,7 @@ entrada?** Hoy la programación se publica en un PDF (programa de mano) y en pá
 ### User Story 1 - Consultar la programación del día (Priority: P1)
 
 Un visitante abre la cartelera en su celular y ve las funciones de un día del festival,
-ordenadas por hora, con obra, elenco, país, disciplina, sede, duración, edad recomendada y tipo
+ordenadas por hora, con obra, elenco, país, disciplina, sede, duración, edad mínima recomendada y tipo
 de acceso (pagada, gratuita con reserva, gratuita libre, público restringido).
 
 **Why this priority**: Es la razón principal por la que la gente visita la plataforma; por sí
@@ -59,7 +59,7 @@ sesión, el visitante ve las funciones del día elegido en orden cronológico co
 
 ### User Story 2 - Filtrar y buscar (Priority: P1)
 
-El visitante combina filtros por fecha o rango de fechas, franja horaria (mañana, tarde, noche),
+El visitante combina filtros por fecha, franja horaria (mañana, tarde, noche),
 sede, disciplina, país, componente (Internacional, Nacional, Camino a Loja, Escuela del
 festival), público (familiar, adultos, estudiantes) y tipo de acceso; o busca por obra o elenco.
 
@@ -85,7 +85,7 @@ aparecen las funciones que cumplen **todos** los criterios.
 
 ### User Story 3 - Fichas de obra, elenco y sede (Priority: P2)
 
-El visitante abre la ficha de una obra (sinopsis, disciplina, duración, edad recomendada,
+El visitante abre la ficha de una obra (sinopsis, disciplina, duración, edad mínima recomendada,
 idioma, imágenes, ficha artística, todas sus funciones), de un elenco (país, ciudad,
 componente, obras en la edición) o de una sede (dirección, mapa, aforo, accesibilidad, cómo
 llegar, funciones programadas).
@@ -103,7 +103,7 @@ con enlace a su sede y su estado.
 2. **Given** una sede con espacio para silla de ruedas, **When** se abre su ficha, **Then** se
    indica la accesibilidad disponible de forma explícita (y "sin información" si no se cargó).
 3. **Given** una obra no apta para menores de 16, **When** se abre su ficha, **Then** la edad
-   recomendada se muestra de forma destacada.
+   mínima recomendada se muestra de forma destacada.
 
 ---
 
@@ -189,7 +189,7 @@ funciones con su estado vigente.
 - **FR-001**: El sistema MUST mostrar públicamente, sin autenticación, la programación de las
   ediciones publicadas.
 - **FR-002**: El sistema MUST listar funciones por día en orden cronológico, con obra, elenco,
-  país, disciplina, componente, sede, hora de inicio y fin, edad recomendada, tipo de acceso,
+  país, disciplina, componente, sede, hora de inicio y fin, edad mínima recomendada, tipo de acceso,
   estado y disponibilidad.
 - **FR-003**: Los visitantes MUST poder combinar filtros por fecha, franja horaria, sede,
   disciplina, país, componente, público y tipo de acceso.
@@ -244,7 +244,7 @@ funciones con su estado vigente.
 
 - **Edición**: año, número romano, fechas, país invitado de honor, precio de entrada, estado
   (borrador, publicada, cerrada).
-- **Obra**: título, sinopsis, disciplina, duración, edad recomendada, idioma, imágenes, ficha
+- **Obra**: título, sinopsis, disciplina, duración, edad mínima recomendada, idioma, imágenes, ficha
   artística; pertenece a un Elenco.
 - **Elenco**: nombre, país, ciudad o provincia, componente.
 - **Sede**: nombre, tipo (teatro, centro cultural, museo, espacio público), dirección,
