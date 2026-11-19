@@ -8,8 +8,8 @@ export const metadata: Metadata = { title: 'Mapa' };
 
 /** FR-008: sedes y funciones del día en un mapa (Leaflet bajo demanda, research R7). */
 export default async function Mapa({ searchParams }: { searchParams: Promise<{ fecha?: string }> }) {
+  const pedida = (await searchParams).fecha; // primero: hace la página dinámica y el build no llama a la API
   const edicion = await obtener<EdicionConFacetas>('/ediciones/actual', ['edicion']);
-  const pedida = (await searchParams).fecha;
   const fecha = pedida && /^\d{4}-\d{2}-\d{2}$/.test(pedida) ? pedida : edicion?.diaSugerido;
   const dia = fecha ? await obtener<DiaCartelera>(`/dias/${fecha}`, [`dia:${fecha}`]) : null;
   return (
