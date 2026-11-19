@@ -7,7 +7,11 @@ on:
 
 permissions:
   contents: read
-  pull-requests: read  # gitleaks lista los commits del PR
+  pull-requests: read # gitleaks lista los commits del PR
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   mermaid:
@@ -50,3 +54,84 @@ jobs:
       - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Q1 y Q2: lint, tipos y pruebas unitarias con cobertura ≥ 80 % del dominio
+  calidad:
+    name: Lint, tipos y unitarias
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:generate
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - name: Unitarias y contratos de eventos (cobertura)
+        run: pnpm test
+
+  # Constitución IV: integración contra PostgreSQL real (Testcontainers)
+  integracion:
+    name: Integración con PostgreSQL
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:generate
+      - run: pnpm --filter @fiavl/api test:int
+
+  # Q7: historias de punta a punta y accesibilidad (axe) en el build de producción
+  e2e:
+    name: E2E y accesibilidad
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: fiavl
+          POSTGRES_PASSWORD: fiavl
+          POSTGRES_DB: fiavl
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U fiavl" --health-interval 2s --health-retries 20
+    env:
+      DATABASE_URL: postgresql://fiavl:fiavl@localhost:5432/fiavl
+      API_URL: http://localhost:4000
+      NEXT_PUBLIC_API_URL: http://localhost:4000
+      WEB_URL: http://localhost:3100
+      REVALIDATE_SECRET: secreto-solo-ci
+      FIAVL_AHORA: '2026-11-14T12:00:00-05:00'
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:generate
+      - run: pnpm db:migrate
+      - run: pnpm db:seed
+      - name: Build de la web
+        run: pnpm --filter @fiavl/web build
+        env:
+          NODE_ENV: production
+      - name: Levantar API y web
+        run: |
+          (cd apps/api && pnpm start > ../../api.log 2>&1 &)
+          (cd apps/web && NODE_ENV=production pnpm start > ../../web.log 2>&1 &)
+          npx --yes wait-on@8.0.1 -t 120000 http://localhost:4000/metrics http://localhost:3100/ahora
+      - run: pnpm --filter @fiavl/web exec playwright install --with-deps chromium
+      - run: pnpm --filter @fiavl/web test:e2e
+      - name: Registros si falla
+        if: failure()
+        run: tail -n 100 api.log web.log
