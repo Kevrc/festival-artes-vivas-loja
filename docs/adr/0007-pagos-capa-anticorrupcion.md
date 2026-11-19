@@ -2,6 +2,7 @@
 
 - Estado: propuesta (proveedor a confirmar)
 - Fecha: 2026-11-19 · Autor: @Kevrc · Specs: 002
+- Drivers: QA-1, QA-9, QA-12, C-3 ([drivers](../arquitectura/00-drivers.md))
 
 ## Contexto
 
@@ -17,6 +18,23 @@ La plataforma no almacena tarjetas (Constitución V). En Ecuador hay proveedores
 - Si el webhook no llega, un trabajo **concilia** cada 2 minutos los pedidos pendientes
   consultando al proveedor.
 - Importes en centavos enteros; cada movimiento se registra de forma inmutable.
+
+## Criterios para elegir el proveedor
+
+El adaptador se escribe para el proveedor que cumpla **todas** las necesidades obligatorias; el
+equipo verifica cada una en la documentación oficial antes de pasar esta ADR a "aceptada".
+
+| Necesidad | Driver | Obligatoria |
+|-----------|--------|:-----------:|
+| Cobro en USD a tarjetas emitidas en Ecuador | C-3 | sí |
+| Modo de prueba (sandbox) con tarjetas de prueba | C-3, constitución IV | sí |
+| Confirmación asíncrona por webhook firmado o consulta de estado | QA-9 | sí |
+| API de devolución total por transacción | 002 US5, FR-012 | sí |
+| Página de pago alojada por el proveedor (la plataforma no toca la tarjeta) | Constitución V | sí |
+| Referencia propia (nuestro id de pedido) en la transacción, para idempotencia | QA-1, QA-9 | sí |
+| Comisión por transacción baja frente a USD 5 por entrada | C-2 | deseable |
+
+Candidatos a evaluar: PayPhone, Kushki, Datafast (u otro que cumpla la tabla).
 
 ## Alternativas
 
