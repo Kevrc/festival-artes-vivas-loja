@@ -19,6 +19,10 @@ describe('máquinas de estados de Convocatorias', () => {
     expect(transicionarAsignacion('asignada', 'iniciar')).toBe('en_evaluacion');
     expect(transicionarAsignacion('en_evaluacion', 'completar')).toBe('completada');
     expect(transicionarAsignacion('en_evaluacion', 'reasignar')).toBe('reasignada');
+    expect(transicionarAsignacion('completada', 'reabrir')).toBe('en_evaluacion');
+    expect(transicionarPostulacion('evaluada', 'reabrir_evaluacion')).toBe('en_evaluacion');
+    expect(transicionarPostulacion('requiere_deliberacion', 'reabrir_evaluacion')).toBe('en_evaluacion');
+    expect(() => transicionarPostulacion('admitida', 'reabrir_evaluacion')).toThrow();
     expect(transicionarEvaluacion('borrador', 'enviar')).toBe('enviada');
     expect(transicionarEvaluacion('enviada', 'reabrir')).toBe('reabierta');
     expect(() => transicionarEvaluacion('enviada', 'enviar')).toThrow();
