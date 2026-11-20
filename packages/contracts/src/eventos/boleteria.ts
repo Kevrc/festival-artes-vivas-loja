@@ -58,7 +58,7 @@ export const PedidoReembolsado = sobre(
     sedeId: z.string().uuid(),
     importeCentavos: z.number().int().positive(),
     canal: z.enum(['web', 'taquilla']),
-    motivo: z.enum(['funcion_cancelada', 'funcion_reprogramada', 'pago_tardio_sin_cupo', 'plazo_7_dias_vencido']),
+    motivo: z.enum(['funcion_cancelada', 'funcion_reprogramada', 'pago_tardio_sin_cupo', 'plazo_7_dias_vencido', 'importe_distinto']),
     cuentaId: z.string().uuid().optional(),
     correoDestino: z.string().email().optional(),
   }),

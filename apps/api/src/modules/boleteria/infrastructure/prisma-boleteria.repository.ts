@@ -327,6 +327,35 @@ export class PrismaBoleteriaRepository implements RepositorioBoleteria {
         return { accion: 'ya_procesado' as const, pedido: mapPedido(pedido), inventario: mapFuncion(pedido.funcion) };
       }
 
+      // Auditoría #4: solo se emiten entradas si se cobró exactamente el importe del pedido
+      if (p.importeCentavos !== pedido.importeCentavos) {
+        if (pedido.estado === 'pendiente') {
+          await tx.$executeRaw`
+            UPDATE "boleteria"."inventario_funcion"
+            SET "retenidos" = "retenidos" - ${pedido.cantidad}, "actualizado_en" = NOW()
+            WHERE "funcion_id" = ${pedido.funcionId}::uuid
+          `;
+        }
+        await tx.movimientoPago.create({
+          data: {
+            id: randomUUID(),
+            pedidoId: pedido.id,
+            tipo: 'cobro',
+            proveedor: p.proveedor,
+            referenciaProveedor: p.referenciaProveedor,
+            importeCentavos: p.importeCentavos,
+            estado: 'importe_distinto',
+            detalle: { esperadoCentavos: pedido.importeCentavos, recibidoCentavos: p.importeCentavos },
+          },
+        });
+        const act = await tx.pedidoBoleteria.update({
+          where: { id: pedido.id },
+          data: { estado: pedido.estado === 'pendiente' ? 'fallido' : pedido.estado, venceEn: null },
+          include: { funcion: { include: { edicion: true } }, entradas: true },
+        });
+        return { accion: 'importe_distinto' as const, pedido: mapPedido(act), inventario: mapFuncion(act.funcion) };
+      }
+
       if (pedido.estado === 'pendiente') {
         await tx.$executeRaw`
           UPDATE "boleteria"."inventario_funcion"
@@ -409,7 +438,7 @@ export class PrismaBoleteriaRepository implements RepositorioBoleteria {
     proveedor: string;
     referenciaDevolucion: string;
     importeCentavos: number;
-    motivo: 'funcion_cancelada' | 'funcion_reprogramada' | 'pago_tardio_sin_cupo' | 'plazo_7_dias_vencido';
+    motivo: 'funcion_cancelada' | 'funcion_reprogramada' | 'pago_tardio_sin_cupo' | 'plazo_7_dias_vencido' | 'importe_distinto';
     correlacionId: string;
     actorId?: string | null;
     rol?: string | null;

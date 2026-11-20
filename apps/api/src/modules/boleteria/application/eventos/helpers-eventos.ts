@@ -85,7 +85,7 @@ export async function publicarPedidoReembolsado(
   p: {
     pedido: PedidoRegistro;
     edicionId: string;
-    motivo: 'funcion_cancelada' | 'funcion_reprogramada' | 'pago_tardio_sin_cupo' | 'plazo_7_dias_vencido';
+    motivo: 'funcion_cancelada' | 'funcion_reprogramada' | 'pago_tardio_sin_cupo' | 'plazo_7_dias_vencido' | 'importe_distinto';
     ahora: Date;
     correlacionId: string;
   },

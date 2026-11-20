@@ -6,9 +6,9 @@ import { enTransaccion } from '../../src/common/datos/transaccion';
 import { PrismaClient } from '../../src/generated/prisma/index.js';
 import { CancelarReserva } from '../../src/modules/boleteria/application/reservas/reservas-servicios';
 import { PublicadorPgBossBoleteria } from '../../src/modules/boleteria/infrastructure/publicador.pgboss';
-import { crearAppBoleteria } from './app';
+import { crearAppBoleteria, firmarWebhookTest } from './app';
 
-// Hallazgos de la auditoría del repositorio
+// Hallazgos de la auditoría del repositorio (1 a 4)
 let ctx: Awaited<ReturnType<typeof crearAppBoleteria>>;
 beforeAll(async () => (ctx = await crearAppBoleteria()));
 afterAll(() => ctx.cerrar());
@@ -132,5 +132,30 @@ describe('auditoría #3: cancelar una reserva mientras se liberan las reservas',
     const inv = await ctx.db.inventarioFuncion.findUniqueOrThrow({ where: { funcionId: f.funcionId } });
     const vigentes = await ctx.db.entradaBoleteria.count({ where: { funcionId: f.funcionId, estado: { in: ['valida', 'usada'] } } });
     expect(inv.emitidos).toBe(vigentes);
+  });
+});
+
+describe('auditoría #4: importe pagado distinto al del pedido', () => {
+  it('no emite entradas, libera los lugares y devuelve lo cobrado', async () => {
+    const f = await ctx.sembrarFuncion({ aforoHabilitado: 10 });
+    const cuenta = randomUUID();
+    const pedido = await ctx
+      .http()
+      .post('/api/boleteria/pedidos')
+      .set('x-cuenta-dev', cuenta)
+      .set('Idempotency-Key', `clave-${randomUUID()}`)
+      .send({ funcionId: f.funcionId, cantidad: 3 })
+      .expect(201);
+    expect(pedido.body.pedido.importeCentavos).toBe(1500);
+
+    const wh = { pedidoId: pedido.body.pedido.id, referenciaProveedor: `ref-${randomUUID()}`, resultado: 'aprobado', importeCentavos: 500 };
+    await ctx.http().post('/api/boleteria/pagos/webhook').set('x-firma-proveedor', firmarWebhookTest(wh)).send(wh).expect(200);
+
+    expect(await ctx.db.entradaBoleteria.count({ where: { pedidoId: wh.pedidoId } })).toBe(0);
+    const inv = await ctx.db.inventarioFuncion.findUniqueOrThrow({ where: { funcionId: f.funcionId } });
+    expect(inv.retenidos).toBe(0);
+    expect(inv.emitidos).toBe(0);
+    const reembolso = await ctx.db.movimientoPago.findFirst({ where: { pedidoId: wh.pedidoId, tipo: 'reembolso' } });
+    expect(reembolso?.importeCentavos).toBe(500);
   });
 });
