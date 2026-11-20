@@ -148,6 +148,7 @@ flowchart LR
 
 ## Notes
 
+- **Pendiente**: endpoint de asignación de curadores. Hoy las asignaciones solo se crean por seed; `EvaluacionesPrismaRepository.asignarCurador` ya aplica RN-004 (conflicto de interés) pero no está expuesto por API, y el balanceo de carga sigue diferido (FR-007).
 - `[P]` solo se usa cuando las tareas pueden hacerse en archivos distintos sin dependencias pendientes.
 - Cada escenario Given/When/Then de las P1 debe aparecer en al menos una prueba automatizada con su ID.
 - Las tareas no completadas se implementan en orden; esta lista no autoriza analyze ni implementación por sí sola.
