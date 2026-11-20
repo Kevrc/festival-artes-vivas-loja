@@ -1,5 +1,5 @@
 import type { PrismaClient } from '../../../generated/prisma/index.js';
-import { enTransaccion } from '../../../common/datos/transaccion';
+import { enTransaccion, transaccionActual } from '../../../common/datos/transaccion';
 import type { RepositorioConvocatoriasPort } from '../application/puertos';
 
 export class PrismaConvocatoriasRepository implements RepositorioConvocatoriasPort {
@@ -20,13 +20,15 @@ export class PrismaConvocatoriasRepository implements RepositorioConvocatoriasPo
     id: string; postulacionId: string; actorCuentaId?: string | null; accion: string;
     estadoAnterior?: string | null; estadoNuevo?: string | null; motivo?: string | null; correlacionId?: string | null;
   }): Promise<void> {
-    await this.db.auditoria.create({ data: input });
+    const db = transaccionActual() ?? this.db;
+    await db.auditoria.create({ data: input });
   }
 
   async registrarDocumento(input: {
     id: string; postulacionId: string; tipo: string; nombreOriginal: string; objectKey: string;
     mimeType: string; bytes: number; sha256: string;
   }): Promise<void> {
-    await this.db.documento.create({ data: input });
+    const db = transaccionActual() ?? this.db;
+    await db.documento.create({ data: input });
   }
 }

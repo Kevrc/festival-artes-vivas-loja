@@ -32,6 +32,12 @@ describe('auditoría append-only de Convocatorias (T019)', () => {
     const repo = new PrismaConvocatoriasRepository(db);
     await expect(repo.obtenerPostulacion(postulacionId)).resolves.toEqual({ id: postulacionId, cuentaPropietariaId: expect.any(String) });
     await repo.registrarAuditoria({ id: randomUUID(), postulacionId, accion: 'registro_por_repositorio' });
+    const rollbackAuditId = randomUUID();
+    await expect(repo.ejecutar(async () => {
+      await repo.registrarAuditoria({ id: rollbackAuditId, postulacionId, accion: 'rollback_test' });
+      throw new Error('rollback auditoría');
+    })).rejects.toThrow('rollback auditoría');
+    expect(await db.auditoria.count({ where: { id: rollbackAuditId } })).toBe(0);
     await expect(db.$executeRaw`UPDATE convocatorias.auditoria SET accion = 'mutada' WHERE id = ${auditoriaId}::uuid`).rejects.toThrow();
     await expect(db.$executeRaw`DELETE FROM convocatorias.auditoria WHERE id = ${auditoriaId}::uuid`).rejects.toThrow();
     const constraints = await db.$queryRaw<Array<{ conname: string }>>`SELECT conname FROM pg_constraint WHERE connamespace = 'convocatorias'::regnamespace`;
