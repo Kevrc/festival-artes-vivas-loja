@@ -72,6 +72,7 @@ export class SimuladorPagosAdapter implements ProveedorPagos {
   }
 
   verificarWebhook(p: { firma: string; cuerpoCrudo: string }): boolean {
+    // Solo desarrollo y pruebas: elegirProveedorPagos impide usar el simulador en producción
     const secreto = process.env.PAYPHONE_WEBHOOK_SECRET ?? 'secreto-webhook-dev';
     if (process.env.NODE_ENV !== 'production' && p.firma === 'simulador-firma-valida') {
       return true;
