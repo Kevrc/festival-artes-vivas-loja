@@ -151,6 +151,35 @@ test.describe('US3 · evaluación ponderada y curaduría', () => {
     for (const p of [uno, dos, panel]) await p.context().close();
   });
 
+  test('Q7: la evaluación se completa solo con teclado y el foco llega a la confirmación', async ({ browser, request }) => {
+    const numero = numeroDelProyecto();
+    await prepararPostulacion(request, numero);
+    const page = await sesion(browser, CURADOR_1);
+    await page.goto('/curaduria');
+    await expect(page).toHaveTitle(/Curaduría: mis asignaciones/);
+    await page.keyboard.press('Tab');
+    await expect(page.getByRole('link', { name: 'Saltar al contenido' })).toBeFocused();
+    await abrirEvaluacion(page, numero);
+
+    await page.getByLabel(/Propuesta artística/).focus();
+    for (const nota of ['90', '90', '90']) {
+      await page.keyboard.press('Control+A');
+      await page.keyboard.type(nota);
+      await page.keyboard.press('Tab');
+    }
+    await expect(page.getByLabel('Observaciones')).toBeFocused();
+    await page.keyboard.type(' Evaluada con teclado.');
+    await page.keyboard.press('Tab');
+    await expect(page.getByRole('button', { name: 'Guardar borrador' })).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(page.getByRole('button', { name: 'Enviar evaluación' })).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('button', { name: 'Confirmar envío' })).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('region', { name: 'Evaluación enviada' })).toContainText('Mi puntaje: 90,00');
+    await page.context().close();
+  });
+
   test('US3-AS3: un curador con conflicto de interés ve la asignación bloqueada y no puede evaluar', async ({ browser, request }) => {
     const page = await sesion(browser, CURADOR_CONFLICTO);
     await page.goto('/curaduria');
