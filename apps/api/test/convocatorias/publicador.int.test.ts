@@ -32,5 +32,7 @@ describe('publicación transaccional de Convocatorias (T020)', () => {
     expect(await encolados(e.id)).toBe(0);
     await enTransaccion(db, () => publicador.publicar(e));
     expect(await encolados(e.id)).toBe(1);
+    await enTransaccion(db, () => publicador.publicar(e));
+    expect(await encolados(e.id)).toBe(1);
   });
 });
