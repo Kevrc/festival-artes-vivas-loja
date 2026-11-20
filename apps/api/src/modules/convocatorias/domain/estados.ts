@@ -8,7 +8,7 @@ export type EstadoEvaluacion = 'borrador' | 'enviada' | 'reabierta';
 export function transicionarPostulacion(
   estado: EstadoPostulacion,
   evento: 'enviar' | 'retirar' | 'pedir_subsanacion' | 'subsanar' | 'vencer_subsanacion' | 'admitir' | 'no_admitir' | 'iniciar_evaluacion' | 'evaluar' | 'deliberar' | 'desistir',
-  contexto?: { ahora: Date; cierraEn: Date },
+  contexto?: { ahora: Date; cierraEn?: Date; venceEn?: Date },
 ): EstadoPostulacion {
   const tabla: Partial<Record<EstadoPostulacion, Partial<Record<typeof evento, EstadoPostulacion>>>> = {
     borrador: { enviar: 'enviada', desistir: 'desistida' },
@@ -21,8 +21,14 @@ export function transicionarPostulacion(
   };
   const siguiente = tabla[estado]?.[evento];
   if (!siguiente) throw new Error(`Transición no permitida: ${estado}/${evento}`);
-  if (estado === 'enviada' && evento === 'retirar' && (!contexto || contexto.ahora >= contexto.cierraEn)) {
+  if (estado === 'enviada' && evento === 'retirar' && (!contexto?.cierraEn || contexto.ahora >= contexto.cierraEn)) {
     throw new Error('Solo se puede retirar antes del cierre');
+  }
+  if (estado === 'requiere_subsanacion' && evento === 'subsanar' && contexto?.venceEn && contexto.ahora > contexto.venceEn) {
+    throw new Error('Plazo de subsanación vencido');
+  }
+  if (estado === 'requiere_subsanacion' && evento === 'vencer_subsanacion' && contexto?.venceEn && contexto.ahora < contexto.venceEn) {
+    throw new Error('La subsanación aún no vence');
   }
   return siguiente;
 }
