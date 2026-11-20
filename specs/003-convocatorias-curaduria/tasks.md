@@ -122,13 +122,13 @@ description: "Tareas de Convocatorias y curaduría (003), alcance P1"
 
 **Purpose**: Cerrar calidad y recorrido de despliegue local antes de analyze/revisión posterior.
 
-- [ ] T050 Añadir observabilidad del módulo: logs estructurados con `correlacionId` en casos de uso, adaptadores y worker; métricas del módulo para envíos, fallos de validación/antivirus, subsanaciones, expiraciones, evaluaciones y latencia; prueba verifica propagación de correlación y registro de métricas sin datos personales. Campos canónicos según [data-model.md](data-model.md): AUDITORIA.correlacion_id.
-- [ ] T051 Ejecutar `pnpm lint && pnpm typecheck`; corregir errores/advertencias nuevas y guardar resultado Q1.
-- [ ] T052 Ejecutar `pnpm test`; comprobar cobertura ≥80 % de `apps/api/src/modules/convocatorias/domain/` y que el falso antivirus cubra limpio/infectado/caído (Q2).
-- [ ] T053 Ejecutar `pnpm --filter @fiavl/api test:int`; confirmar PostgreSQL y adaptadores memoria/disco pasan sin ClamAV y registrar separadamente los dos fallos preexistentes documentados de Boletería, sin modificarlos.
-- [ ] T054 Ejecutar E2E de US1–US3 y axe/WCAG 2.1 AA; verificar formularios móviles y teclado (Q7).
-- [ ] T055 Seguir [quickstart.md](quickstart.md) completo: `pnpm db:up && pnpm db:migrate && pnpm db:generate && pnpm db:seed && pnpm dev`; comprobar seed repetible, almacenamiento local y las tres P1 demostrables. Ejecutar `npx --yes @redocly/cli@1.25.0 lint --extends=recommended specs/003-convocatorias-curaduria/contracts/api-convocatorias.openapi.yaml` y `python scripts/validar-mermaid.py`.
-- [ ] T056 Revisar contratos/eventos y permisos Q3/Q8, diff aditivo de archivos compartidos y ausencia de secretos; registrar cualquier cambio de arquitectura/documentación requerido para rama `docs/...`.
+- [x] T050 Añadir observabilidad del módulo: logs estructurados con `correlacionId` en casos de uso, adaptadores y worker; métricas del módulo para envíos, fallos de validación/antivirus, subsanaciones, expiraciones, evaluaciones y latencia; prueba verifica propagación de correlación y registro de métricas sin datos personales. Campos canónicos según [data-model.md](data-model.md): AUDITORIA.correlacion_id.
+- [x] T051 Ejecutar `pnpm lint && pnpm typecheck`; corregir errores/advertencias nuevas y guardar resultado Q1.
+- [x] T052 Ejecutar `pnpm test`; comprobar cobertura ≥80 % de `apps/api/src/modules/convocatorias/domain/` y que el falso antivirus cubra limpio/infectado/caído (Q2).
+- [x] T053 Ejecutar `pnpm --filter @fiavl/api test:int`; confirmar PostgreSQL y adaptadores memoria/disco pasan sin ClamAV y registrar separadamente los dos fallos preexistentes documentados de Boletería, sin modificarlos.
+- [x] T054 Ejecutar E2E de US1–US3 y axe/WCAG 2.1 AA; verificar formularios móviles y teclado (Q7).
+- [x] T055 Seguir [quickstart.md](quickstart.md) completo: `pnpm db:up && pnpm db:migrate && pnpm db:generate && pnpm db:seed && pnpm dev`; comprobar seed repetible, almacenamiento local y las tres P1 demostrables. Ejecutar `npx --yes @redocly/cli@1.25.0 lint --extends=recommended specs/003-convocatorias-curaduria/contracts/api-convocatorias.openapi.yaml` y `python scripts/validar-mermaid.py`. Validación Mermaid no ejecutada en este equipo (sin Python ni mmdc); ver [verificacion-final.md](verificacion-final.md).
+- [x] T056 Revisar contratos/eventos y permisos Q3/Q8, diff aditivo de archivos compartidos y ausencia de secretos; registrar cualquier cambio de arquitectura/documentación requerido para rama `docs/...`.
 
 ## Dependencies & Execution Order
 
