@@ -11,11 +11,19 @@ export class ProblemaFilter implements ExceptionFilter {
     const status = error instanceof HttpException ? error.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
     if (status >= 500) this.log.error(error);
     const cuerpo = error instanceof HttpException ? error.getResponse() : null;
-    const detail =
-      typeof cuerpo === 'object' && cuerpo && 'message' in cuerpo ? String((cuerpo as { message: unknown }).message) : undefined;
+    const obj = typeof cuerpo === 'object' && cuerpo ? (cuerpo as Record<string, unknown>) : null;
+    const detail = obj && 'message' in obj ? String(obj.message) : undefined;
+    const lugaresDisponibles =
+      obj && typeof obj.lugaresDisponibles === 'number' ? { lugaresDisponibles: obj.lugaresDisponibles } : {};
     res
       .status(status)
       .type('application/problem+json')
-      .json({ type: 'about:blank', title: HttpStatus[status] ?? 'Error', status, ...(status < 500 && detail ? { detail } : {}) });
+      .json({
+        type: 'about:blank',
+        title: HttpStatus[status] ?? 'Error',
+        status,
+        ...(status < 500 && detail ? { detail } : {}),
+        ...(status < 500 ? lugaresDisponibles : {}),
+      });
   }
 }

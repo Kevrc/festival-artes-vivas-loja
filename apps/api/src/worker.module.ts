@@ -1,10 +1,15 @@
 import { Module } from '@nestjs/common';
 import { LoggerModule } from 'nestjs-pino';
+import { BoleteriaModule } from './modules/boleteria/boleteria.module';
 import { ProgramacionModule } from './modules/programacion/programacion.module';
 
 /** Proceso worker (ADR-0008): consumidores de colas y trabajos, sin HTTP. */
 @Module({
-  imports: [LoggerModule.forRoot({ pinoHttp: { level: process.env.LOG_LEVEL ?? 'info' } }), ProgramacionModule.registrar({ consumidores: true })],
+  imports: [
+    LoggerModule.forRoot({ pinoHttp: { level: process.env.LOG_LEVEL ?? 'info' } }),
+    ProgramacionModule.registrar({ consumidores: true }),
+    BoleteriaModule.registrar({ consumidores: true }),
+  ],
 })
 export class WorkerModule {}
 
