@@ -34,7 +34,6 @@ function relojDelEntorno(): Reloj {
 export class ProgramacionModule {
   static registrar(opciones: { consumidores: boolean }): DynamicModule {
     const providers: Provider[] = [
-      PrismaService,
       { provide: RELOJ, useValue: relojDelEntorno() },
       { provide: REPOSITORIO_CARTELERA, inject: [PrismaService], useFactory: (db: PrismaService) => new PrismaCarteleraRepository(db) },
       { provide: LECTURA_CARTELERA, inject: [PrismaService], useFactory: (db: PrismaService) => new PrismaCarteleraLectura(db) },

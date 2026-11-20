@@ -1,3 +1,4 @@
+import { ColaEventos } from '../../src/common/datos/datos.module';
 import { ejemplo } from '@fiavl/contracts';
 import { afterAll, beforeAll, beforeEach, describe, expect, inject, it } from 'vitest';
 import { PrismaClient } from '../../src/generated/prisma/index.js';
@@ -21,7 +22,7 @@ beforeAll(() => db.$connect());
 afterAll(() => db.$disconnect());
 beforeEach(async () => {
   await limpiarBoleteria();
-  publicador = new PublicadorPgBossBoleteria();
+  publicador = new PublicadorPgBossBoleteria(new ColaEventos());
   aplicar = new AplicarEventoOperacion(new PrismaBoleteriaRepository(db), publicador, () => new Date('2026-11-14T12:00:00-05:00'));
 });
 

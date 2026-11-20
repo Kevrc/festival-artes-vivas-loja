@@ -51,7 +51,6 @@ export class BoleteriaModule {
   static registrar(opciones: { consumidores: boolean }): DynamicModule {
     const usaPayPhone = elegirProveedorPagos() === 'payphone';
     const providers: Provider[] = [
-      PrismaService,
       { provide: RELOJ_BOLETERIA, useValue: relojDelEntorno() },
       { provide: LLAVES_QR, useFactory: () => obtenerLlavesQr() },
       {

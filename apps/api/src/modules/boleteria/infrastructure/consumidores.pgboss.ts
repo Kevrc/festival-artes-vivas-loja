@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { TIPOS_EVENTO_BOLETERIA, colaDe } from '@fiavl/contracts';
-import PgBoss from 'pg-boss';
+import { ColaEventos } from '../../../common/datos/datos.module';
 import { CancelacionesServicios } from '../application/cancelaciones/cancelaciones-servicios';
 import { ConciliarPagosPendientes, ExpirarRetenciones } from '../application/compras/procesar-webhook';
 import { AplicarEventoOperacion } from '../application/eventos/aplicar-evento-operacion';
@@ -15,7 +15,6 @@ export const colasBoleteria = TIPOS_EVENTO_BOLETERIA.map((tipo) => colaDe('bolet
 @Injectable()
 export class ConsumidoresBoleteria implements OnModuleInit, OnModuleDestroy {
   private readonly log = new Logger(ConsumidoresBoleteria.name);
-  private boss?: PgBoss;
   private timerRetenciones?: NodeJS.Timeout;
 
   constructor(
@@ -24,22 +23,21 @@ export class ConsumidoresBoleteria implements OnModuleInit, OnModuleDestroy {
     @Inject(ConciliarPagosPendientes) private readonly conciliarPagos: ConciliarPagosPendientes,
     @Inject(LiberarReservasNoValidadas) private readonly liberarReservas: LiberarReservasNoValidadas,
     @Inject(CancelacionesServicios) private readonly cancelaciones: CancelacionesServicios,
+    @Inject(ColaEventos) private readonly cola: ColaEventos,
   ) {}
 
   async onModuleInit() {
-    this.boss = new PgBoss({ connectionString: process.env.DATABASE_URL, schema: 'pgboss' });
-    this.boss.on('error', (e) => this.log.error(e));
-    await this.boss.start();
-    await this.boss.createQueue('boleteria.errores');
+    const boss = await this.cola.obtener();
+    await boss.createQueue('boleteria.errores');
 
     for (const cola of colasBoleteria) {
-      await this.boss.createQueue(cola, {
+      await boss.createQueue(cola, {
         name: cola,
         retryLimit: 5,
         retryBackoff: true,
         deadLetter: 'boleteria.errores',
       });
-      await this.boss.work<Record<string, unknown>>(cola, { batchSize: 10 }, async (trabajos) => {
+      await boss.work<Record<string, unknown>>(cola, { batchSize: 10 }, async (trabajos) => {
         for (const t of trabajos) {
           const { aplicado } = await this.aplicar.ejecutar(t.data);
           this.log.log({ correlacionId: t.data.correlacionId, tipo: t.data.tipo, aplicado }, 'evento boleteria procesado');
@@ -54,9 +52,9 @@ export class ConsumidoresBoleteria implements OnModuleInit, OnModuleDestroy {
       { cola: 'boleteria.job.devoluciones-vencidas', cron: '*/15 * * * *', fn: () => this.cancelaciones.procesarDevolucionesVencidas() },
     ];
     for (const job of trabajosCron) {
-      await this.boss.createQueue(job.cola);
-      await this.boss.schedule(job.cola, job.cron);
-      await this.boss.work(job.cola, async () => {
+      await boss.createQueue(job.cola);
+      await boss.schedule(job.cola, job.cron);
+      await boss.work(job.cola, async () => {
         await job.fn();
       });
     }
@@ -72,6 +70,5 @@ export class ConsumidoresBoleteria implements OnModuleInit, OnModuleDestroy {
 
   async onModuleDestroy() {
     if (this.timerRetenciones) clearInterval(this.timerRetenciones);
-    await this.boss?.stop({ graceful: true });
   }
 }

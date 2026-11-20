@@ -1,7 +1,7 @@
-import { Inject, Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import { TIPOS_EVENTO_CARTELERA, colaDe } from '@fiavl/contracts';
-import PgBoss from 'pg-boss';
 import { Histogram } from 'prom-client';
+import { ColaEventos } from '../../../common/datos/datos.module';
 import { registro } from '../../../common/observabilidad/metricas';
 import { AplicarEvento } from '../application/proyeccion/aplicar-evento';
 
@@ -18,21 +18,20 @@ export const colasCartelera = TIPOS_EVENTO_CARTELERA.map((tipo) => colaDe('progr
 
 /** Consume las colas `programacion.*` de pg-boss (ADR-0003). Solo corre en el proceso worker. */
 @Injectable()
-export class ConsumidoresCartelera implements OnModuleInit, OnModuleDestroy {
+export class ConsumidoresCartelera implements OnModuleInit {
   private readonly log = new Logger(ConsumidoresCartelera.name);
-  private boss?: PgBoss;
-
-  constructor(@Inject(AplicarEvento) private readonly aplicar: AplicarEvento) {}
+  constructor(
+    @Inject(AplicarEvento) private readonly aplicar: AplicarEvento,
+    @Inject(ColaEventos) private readonly cola: ColaEventos,
+  ) {}
 
   async onModuleInit() {
-    this.boss = new PgBoss({ connectionString: process.env.DATABASE_URL, schema: 'pgboss' });
-    this.boss.on('error', (e) => this.log.error(e));
-    await this.boss.start();
+    const boss = await this.cola.obtener();
     // La cola de errores debe existir antes que las colas que la usan como dead letter
-    await this.boss.createQueue('programacion.errores');
+    await boss.createQueue('programacion.errores');
     for (const cola of colasCartelera) {
-      await this.boss.createQueue(cola, { name: cola, retryLimit: 5, retryBackoff: true, deadLetter: 'programacion.errores' });
-      await this.boss.work<Record<string, unknown>>(cola, { batchSize: 10 }, async (trabajos) => {
+      await boss.createQueue(cola, { name: cola, retryLimit: 5, retryBackoff: true, deadLetter: 'programacion.errores' });
+      await boss.work<Record<string, unknown>>(cola, { batchSize: 10 }, async (trabajos) => {
         for (const t of trabajos) {
           const { aplicado } = await this.aplicar.ejecutar(t.data);
           const ocurridoEn = Date.parse(String(t.data.ocurridoEn));
@@ -46,7 +45,4 @@ export class ConsumidoresCartelera implements OnModuleInit, OnModuleDestroy {
     this.log.log(`Escuchando ${colasCartelera.length} colas de la cartelera`);
   }
 
-  async onModuleDestroy() {
-    await this.boss?.stop({ graceful: true });
-  }
 }
