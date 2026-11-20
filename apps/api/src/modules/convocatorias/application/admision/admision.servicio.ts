@@ -1,5 +1,6 @@
-import { ConflictException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import { validarDecisionAdmisibilidad, type DecisionAdmisibilidad } from '../../domain/admisibilidad';
+import type { EstadoPostulacion } from '../../domain/estados';
 import type { AdmisionRepositorioPort } from './admision.port';
 
 export class AdmisionServicio {
@@ -13,7 +14,11 @@ export class AdmisionServicio {
     actorCuentaId: string | null,
     input: { decision: DecisionAdmisibilidad; motivo?: string | null; detalle?: string | null },
   ) {
-    validarDecisionAdmisibilidad(input);
+    try {
+      validarDecisionAdmisibilidad(input);
+    } catch (error) {
+      throw new BadRequestException(error instanceof Error ? error.message : 'Decisión inválida');
+    }
     return this.repositorio.resolverAdmisibilidad({
       postulacionId,
       actorCuentaId,
@@ -36,5 +41,9 @@ export class AdmisionServicio {
 
   expirarVencidas() {
     return this.repositorio.expirarSubsanacionesVencidas(this.reloj());
+  }
+
+  listar(input: { estados?: EstadoPostulacion[]; provincia?: string }) {
+    return this.repositorio.listarParaAdmision(input);
   }
 }

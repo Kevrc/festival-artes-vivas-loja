@@ -8,7 +8,7 @@ import { randomUUID, createHash } from 'node:crypto';
 import { z } from 'zod';
 import type { Request } from 'express';
 import { validar } from '../../../common/http/validar';
-import { ALMACENAMIENTO_DOCUMENTOS, AUTORIZACION_CONVOCATORIAS, ESCANER_ANTIVIRUS, type AlmacenamientoDocumentosPort, type AutorizacionConvocatoriasPort, type EscanerAntivirusPort } from '../application/puertos';
+import { ALMACENAMIENTO_DOCUMENTOS, AUTORIZACION_CONVOCATORIAS, ESCANER_ANTIVIRUS, RELOJ_CONVOCATORIAS, type AlmacenamientoDocumentosPort, type AutorizacionConvocatoriasPort, type EscanerAntivirusPort, type RelojConvocatorias } from '../application/puertos';
 import { GuardarDocumento } from '../application/guardar-documento';
 import { puedeDescargarDocumento } from '../domain/permisos';
 import { validarDocumento, BYTES_MAXIMO_DOCUMENTO } from '../domain/documentos';
@@ -44,7 +44,8 @@ export class PostulacionesController {
     @Inject(AUTORIZACION_CONVOCATORIAS) private readonly auth: AutorizacionConvocatoriasPort,
     @Inject(ALMACENAMIENTO_DOCUMENTOS) private readonly almacenamiento: AlmacenamientoDocumentosPort,
     @Inject(ESCANER_ANTIVIRUS) private readonly escaner: EscanerAntivirusPort,
-  ) { this.servicio = new PostulacionesServicio(repo); }
+    @Inject(RELOJ_CONVOCATORIAS) private readonly reloj: RelojConvocatorias,
+  ) { this.servicio = new PostulacionesServicio(repo, reloj); }
 
   @Get()
   @Header('Cache-Control', 'no-store')
@@ -67,7 +68,13 @@ export class PostulacionesController {
   @RolesConvocatorias('postulante')
   async obtener(@Req() req: PeticionPostulante, @Param('id', ParseUUIDPipe) id: string) {
     const { postulacion, faltantes } = await this.servicio.crearBorradorCompleto(id, this.cuenta(req));
-    return { ...postulacion, faltantes };
+    const detalleSubsanacion = postulacion.estado === 'requiere_subsanacion'
+      ? await this.repo.obtenerDetalleSubsanacion(id)
+      : postulacion.estado === 'no_admitida'
+        ? await this.repo.obtenerDetalleSubsanacion(id, ['postulacion_no_admitida', 'subsanacion_vencida'])
+        : null;
+    // ahoraServidor permite a la web calcular el tiempo restante sin depender del reloj del navegador.
+    return { ...postulacion, faltantes, detalleSubsanacion, ahoraServidor: this.reloj().toISOString() };
   }
 
   @Get('postulaciones/:id/descarga')
@@ -97,7 +104,9 @@ export class PostulacionesController {
     @Body() body: unknown, @UploadedFile() archivo?: { originalname: string; mimetype: string; buffer: Buffer; size: number },
   ) {
     const p = await this.servicio.obtenerPropia(id, this.cuenta(req));
-    if (p.estado !== 'borrador' || new Date() > p.convocatoria.cierraEn) throw new ConflictException('La postulación no admite cambios');
+    const ahora = this.reloj();
+    const corrigeEnPlazo = p.estado === 'requiere_subsanacion' && p.subsanarHasta !== null && ahora <= p.subsanarHasta;
+    if ((p.estado !== 'borrador' && !corrigeEnPlazo) || ahora > p.convocatoria.cierraEn) throw new ConflictException('La postulación no admite cambios');
     if (!archivo) throw new BadRequestException('Debe adjuntar un archivo');
     const { tipo } = validar(DocumentoSchema, body);
     const validacion = validarDocumento(archivo.originalname, archivo.mimetype, archivo.buffer);

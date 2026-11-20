@@ -16,7 +16,7 @@ export interface PostulacionRegistro {
   id: string; convocatoriaId: string; elencoId: string; numero: string; obraFingerprint: string;
   tituloObra: string; disciplina: string; sinopsis: string; duracionMin: number; publico: string;
   fichaTecnica: unknown; videoUrl: string | null; estado: string; enviadaEn: Date | null;
-  primeraEnviadaEn: Date | null; convocatoria: ConvocatoriaPostulacion; elenco: ElencoPostulacion;
+  primeraEnviadaEn: Date | null; subsanarHasta: Date | null; convocatoria: ConvocatoriaPostulacion; elenco: ElencoPostulacion;
   documentos: DocumentoPostulacion[];
 }
 export interface PostulacionConAsignaciones extends PostulacionRegistro {

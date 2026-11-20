@@ -3,7 +3,7 @@ import type { Prisma, PrismaClient } from '../../../generated/prisma/index.js';
 import { ConflictException, ForbiddenException } from '@nestjs/common';
 import { enTransaccion } from '../../../common/datos/transaccion';
 import type { PublicadorConvocatoriasPort } from '../application/puertos';
-import type { AdmisionRepositorioPort, PostulacionAdmision, ReenvioSubsanacion } from '../application/admision/admision.port';
+import type { AdmisionRepositorioPort, ListarAdmisionInput, PostulacionAdmision, PostulacionAdmisionResumen, ReenvioSubsanacion } from '../application/admision/admision.port';
 import type { DatosElenco, DatosObra, DatosPostulacion, PostulacionesRepositorioPort } from '../application/postulaciones/postulaciones.port';
 import { calcularVencimientoSubsanacion, esCaminoALoja, puedeSubsanar, type DecisionAdmisibilidad } from '../domain/admisibilidad';
 import { transicionarPostulacion, type EstadoPostulacion } from '../domain/estados';
@@ -48,7 +48,7 @@ export class PostulacionesPrismaRepository implements PostulacionesRepositorioPo
   }
 
   obtenerPostulacion(id: string) {
-    return this.db.postulacion.findUnique({ where: { id }, include: { convocatoria: true, elenco: true, documentos: true } });
+    return this.db.postulacion.findUnique({ where: { id }, include: { convocatoria: true, elenco: true, documentos: { orderBy: { cargadoEn: 'asc' } } } });
   }
 
   editarBorrador(id: string, cuentaId: string, datos: Omit<DatosPostulacion, 'convocatoriaId'>, ahora: Date) {
@@ -96,6 +96,33 @@ export class PostulacionesPrismaRepository implements PostulacionesRepositorioPo
       const result = await tx.postulacion.update({ where: { id }, data: { estado: 'borrador' }, include: { convocatoria: true, elenco: true, documentos: true } });
       await tx.auditoria.create({ data: { id: randomUUID(), postulacionId: id, actorCuentaId: cuentaId, accion: 'postulacion_retirada', estadoAnterior: 'enviada', estadoNuevo: 'borrador' } });
       return result;
+    });
+  }
+
+  async listarParaAdmision(input: ListarAdmisionInput): Promise<PostulacionAdmisionResumen[]> {
+    const estados = input.estados?.length ? input.estados : ['enviada', 'requiere_subsanacion'];
+    const filas = await this.db.postulacion.findMany({
+      where: {
+        estado: { in: estados },
+        ...(input.provincia ? { convocatoria: { provincia: input.provincia } } : {}),
+      },
+      orderBy: [{ estado: 'asc' }, { enviadaEn: 'asc' }],
+      take: 200,
+      select: {
+        id: true, numero: true, estado: true, tituloObra: true, disciplina: true, enviadaEn: true, subsanarHasta: true,
+        convocatoria: { select: { id: true, codigo: true, componente: true, provincia: true } },
+        elenco: { select: { nombre: true, responsable: true, provinciaPais: true } },
+        documentos: { select: { id: true, tipo: true, nombreOriginal: true, bytes: true }, orderBy: { cargadoEn: 'asc' } },
+      },
+    });
+    return filas.map((fila) => ({ ...fila, estado: fila.estado as EstadoPostulacion }));
+  }
+
+  obtenerDetalleSubsanacion(postulacionId: string, acciones: string[] = ['subsanacion_solicitada']) {
+    return this.db.auditoria.findFirst({
+      where: { postulacionId, accion: { in: acciones } },
+      orderBy: { registradoEn: 'desc' },
+      select: { motivo: true, registradoEn: true },
     });
   }
 
@@ -266,7 +293,7 @@ export class PostulacionesPrismaRepository implements PostulacionesRepositorioPo
   expirarSubsanacionesVencidas(ahora: Date): Promise<number> {
     return enTransaccion(this.db, async (tx) => {
       const vencidas = await tx.postulacion.findMany({
-        where: { estado: 'requiere_subsanacion', subsanarHasta: { lte: ahora } },
+        where: { estado: 'requiere_subsanacion', subsanarHasta: { lt: ahora } },
         select: { id: true },
       });
       let expiradas = 0;
