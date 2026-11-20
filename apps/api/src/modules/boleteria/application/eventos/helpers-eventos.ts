@@ -45,7 +45,8 @@ export async function publicarDisponibilidad(
       funcionId: fn.funcionId,
       lugaresRestantes,
       aforoHabilitado: fn.aforoHabilitado,
-      calculadoEn: ahora.toISOString(),
+      // Hora real, no la de negocio: con FIAVL_AHORA la cartelera descartaría el aviso por "viejo"
+      calculadoEn: new Date().toISOString(),
     },
   };
   const esTerminal = lugaresRestantes === 0 || fn.estadoFuncion === 'cancelada';
