@@ -37,6 +37,14 @@ export interface AutorizacionConvocatoriasPort {
 export interface RepositorioConvocatoriasPort {
   ejecutar<T>(fn: (tx: unknown) => Promise<T>): Promise<T>;
   obtenerPostulacion(id: string): Promise<{ id: string; cuentaPropietariaId: string } | null>;
+  registrarAuditoria(input: {
+    id: string; postulacionId: string; actorCuentaId?: string | null; accion: string;
+    estadoAnterior?: string | null; estadoNuevo?: string | null; motivo?: string | null; correlacionId?: string | null;
+  }): Promise<void>;
+  registrarDocumento(input: {
+    id: string; postulacionId: string; tipo: string; nombreOriginal: string; objectKey: string;
+    mimeType: string; bytes: number; sha256: string;
+  }): Promise<void>;
 }
 
 export type RelojConvocatorias = () => Date;
