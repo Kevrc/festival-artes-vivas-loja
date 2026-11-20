@@ -260,6 +260,9 @@ export class PrismaBoleteriaRepository implements RepositorioBoleteria {
     correlacionId: string;
   }) {
     return this.db.$transaction(async (tx) => {
+      // Bloquea el pedido: la expiración (FOR UPDATE SKIP LOCKED) y otro webhook esperan o lo saltan,
+      // así los lugares retenidos nunca se descuentan dos veces (Constitución V, revisión PR #6).
+      await tx.$queryRaw`SELECT "id" FROM "boleteria"."pedido" WHERE "id" = ${p.pedidoId}::uuid FOR UPDATE`;
       const pedido = await tx.pedidoBoleteria.findUnique({
         where: { id: p.pedidoId },
         include: { funcion: { include: { edicion: true } }, entradas: { orderBy: { emitidaEn: 'asc' } } },
@@ -487,10 +490,12 @@ export class PrismaBoleteriaRepository implements RepositorioBoleteria {
       `;
       const resultados: { pedidoId: string; funcion: FuncionConEdicion }[] = [];
       for (const p of vencidos) {
-        await tx.pedidoBoleteria.update({
-          where: { id: p.id },
+        // Solo si sigue pendiente: un pago confirmado entre medio no se expira ni libera sus lugares
+        const { count } = await tx.pedidoBoleteria.updateMany({
+          where: { id: p.id, estado: 'pendiente' },
           data: { estado: 'expirado', venceEn: null },
         });
+        if (count === 0) continue;
         await tx.$executeRaw`
           UPDATE "boleteria"."inventario_funcion"
           SET "retenidos" = GREATEST(0, "retenidos" - ${p.cantidad}), "actualizado_en" = NOW()
