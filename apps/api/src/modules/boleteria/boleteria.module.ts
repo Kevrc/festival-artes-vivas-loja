@@ -37,6 +37,7 @@ import { SimuladorPagosAdapter } from './infrastructure/pagos-simulador.adapter'
 import { PrismaBoleteriaRepository } from './infrastructure/prisma-boleteria.repository';
 import { PublicadorPgBossBoleteria } from './infrastructure/publicador.pgboss';
 import { CONTROLADORES_BOLETERIA } from './interface';
+import { elegirProveedorPagos } from './infrastructure/pagos-config';
 import { BoleteriaGuard } from './interface/boleteria.guard';
 
 function relojDelEntorno(): RelojBoleteria {
@@ -48,7 +49,7 @@ function relojDelEntorno(): RelojBoleteria {
 @Module({})
 export class BoleteriaModule {
   static registrar(opciones: { consumidores: boolean }): DynamicModule {
-    const usaPayPhone = process.env.BOLETERIA_PAGOS_PROVEEDOR === 'payphone';
+    const usaPayPhone = elegirProveedorPagos() === 'payphone';
     const providers: Provider[] = [
       PrismaService,
       { provide: RELOJ_BOLETERIA, useValue: relojDelEntorno() },
