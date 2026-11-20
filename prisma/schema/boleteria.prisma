@@ -1,0 +1,196 @@
+// Esquema `boleteria` — specs/002-boleteria-entradas/data-model.md
+
+model EdicionBoleteria {
+  id                 String              @id @db.Uuid
+  anio               Int
+  numero             String
+  precioCentavos     Int                 @default(500) @map("precio_centavos")
+  maxPagadasPersona  Int                 @default(6) @map("max_pagadas_persona")
+  maxReservasPersona Int                 @default(4) @map("max_reservas_persona")
+  estado             String              @default("borrador")
+  actualizadoEn      DateTime            @default(now()) @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+  funciones          InventarioFuncion[]
+
+  @@map("edicion_boleteria")
+  @@schema("boleteria")
+}
+
+model InventarioFuncion {
+  funcionId         String             @id @map("funcion_id") @db.Uuid
+  edicionId         String             @map("edicion_id") @db.Uuid
+  obraId            String             @map("obra_id") @db.Uuid
+  obraTitulo        String             @map("obra_titulo")
+  sedeId            String             @map("sede_id") @db.Uuid
+  sedeNombre        String             @map("sede_nombre")
+  inicio            DateTime           @db.Timestamptz(3)
+  fin               DateTime           @db.Timestamptz(3)
+  tipoAcceso        String             @map("tipo_acceso")
+  publico           String             @default("familiar")
+  estadoFuncion     String             @default("programada") @map("estado_funcion")
+  precioCentavos    Int                @default(500) @map("precio_centavos")
+  maxPorPedido      Int                @default(6) @map("max_por_pedido")
+  maxPorPersona     Int                @default(6) @map("max_por_persona")
+  aforoHabilitado   Int                @default(0) @map("aforo_habilitado")
+  retenidos         Int                @default(0)
+  emitidos          Int                @default(0)
+  usados            Int                @default(0)
+  reservasLiberadas Boolean            @default(false) @map("reservas_liberadas")
+  versionOrigen     Int                @default(0) @map("version_origen")
+  actualizadoEn     DateTime           @default(now()) @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+  edicion           EdicionBoleteria   @relation(fields: [edicionId], references: [id])
+  pedidos           PedidoBoleteria[]
+  entradas          EntradaBoleteria[]
+
+  @@index([edicionId, inicio])
+  @@index([tipoAcceso, reservasLiberadas, inicio])
+  @@map("inventario_funcion")
+  @@schema("boleteria")
+}
+
+model PedidoBoleteria {
+  id                     String             @id @db.Uuid
+  funcionId              String             @map("funcion_id") @db.Uuid
+  cuentaId               String?            @map("cuenta_id") @db.Uuid
+  correoComprador        String?            @map("correo_comprador")
+  canal                  String
+  tipo                   String
+  cantidad               Int
+  precioUnitarioCentavos Int                @map("precio_unitario_centavos")
+  importeCentavos        Int                @map("importe_centavos")
+  estado                 String
+  claveIdempotencia      String             @unique @map("clave_idempotencia")
+  venceEn                DateTime?          @map("vence_en") @db.Timestamptz(3)
+  cajaId                 String?            @map("caja_id") @db.Uuid
+  resolucionCancelacion  String?            @map("resolucion_cancelacion")
+  plazoEleccionHasta     DateTime?          @map("plazo_eleccion_hasta") @db.Timestamptz(3)
+  pedidoOrigenId         String?            @map("pedido_origen_id") @db.Uuid
+  creadoEn               DateTime           @default(now()) @map("creado_en") @db.Timestamptz(3)
+  actualizadoEn          DateTime           @default(now()) @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+  funcion                InventarioFuncion  @relation(fields: [funcionId], references: [funcionId])
+  caja                   CajaBoleteria?     @relation(fields: [cajaId], references: [id])
+  entradas               EntradaBoleteria[]
+  movimientosPago        MovimientoPago[]
+  movimientosCaja        MovimientoCaja[]
+
+  @@index([funcionId, estado, venceEn])
+  @@index([cuentaId, funcionId])
+  @@index([estado, plazoEleccionHasta])
+  @@map("pedido")
+  @@schema("boleteria")
+}
+
+model EntradaBoleteria {
+  id            String            @id @db.Uuid
+  pedidoId      String            @map("pedido_id") @db.Uuid
+  funcionId     String            @map("funcion_id") @db.Uuid
+  tokenQr       String            @map("token_qr")
+  codigoCorto   String            @unique @map("codigo_corto")
+  estado        String            @default("valida")
+  emitidaEn     DateTime          @default(now()) @map("emitida_en") @db.Timestamptz(3)
+  actualizadaEn DateTime          @default(now()) @updatedAt @map("actualizada_en") @db.Timestamptz(3)
+  pedido        PedidoBoleteria   @relation(fields: [pedidoId], references: [id])
+  funcion       InventarioFuncion @relation(fields: [funcionId], references: [funcionId])
+  ingresos      IngresoBoleteria[]
+
+  @@index([funcionId, estado])
+  @@index([pedidoId])
+  @@map("entrada")
+  @@schema("boleteria")
+}
+
+model IngresoBoleteria {
+  id             String           @id @db.Uuid
+  entradaId      String           @map("entrada_id") @db.Uuid
+  funcionId      String           @map("funcion_id") @db.Uuid
+  validadorId    String           @map("validador_id") @db.Uuid
+  dispositivoId  String           @map("dispositivo_id")
+  puerta         String
+  escaneadoEn    DateTime         @map("escaneado_en") @db.Timestamptz(3)
+  sincronizadoEn DateTime         @default(now()) @map("sincronizado_en") @db.Timestamptz(3)
+  diferido       Boolean          @default(false)
+  esConflicto    Boolean          @default(false) @map("es_conflicto")
+  entrada        EntradaBoleteria @relation(fields: [entradaId], references: [id])
+
+  @@unique([entradaId, dispositivoId, escaneadoEn])
+  @@index([funcionId, esConflicto])
+  @@map("ingreso")
+  @@schema("boleteria")
+}
+
+model MovimientoPago {
+  id                  String          @id @db.Uuid
+  pedidoId            String          @map("pedido_id") @db.Uuid
+  tipo                String
+  proveedor           String
+  referenciaProveedor String?         @map("referencia_proveedor")
+  importeCentavos     Int             @map("importe_centavos")
+  estado              String
+  detalle             Json            @default("{}")
+  registradoEn        DateTime        @default(now()) @map("registrado_en") @db.Timestamptz(3)
+  pedido              PedidoBoleteria @relation(fields: [pedidoId], references: [id])
+
+  @@index([pedidoId])
+  @@map("movimiento_pago")
+  @@schema("boleteria")
+}
+
+model CajaBoleteria {
+  id                       String            @id @db.Uuid
+  vendedorId               String            @map("vendedor_id") @db.Uuid
+  sedeId                   String            @map("sede_id") @db.Uuid
+  estado                   String            @default("abierta")
+  fondoInicialCentavos     Int               @map("fondo_inicial_centavos")
+  efectivoEsperadoCentavos Int?              @map("efectivo_esperado_centavos")
+  efectivoDeclaradoCentavos Int?             @map("efectivo_declarado_centavos")
+  diferenciaCentavos       Int?              @map("diferencia_centavos")
+  abiertaEn                DateTime          @default(now()) @map("abierta_en") @db.Timestamptz(3)
+  cerradaEn                DateTime?         @map("cerrada_en") @db.Timestamptz(3)
+  pedidos                  PedidoBoleteria[]
+  movimientos              MovimientoCaja[]
+
+  @@index([vendedorId, sedeId, estado])
+  @@map("caja")
+  @@schema("boleteria")
+}
+
+model MovimientoCaja {
+  id              String          @id @db.Uuid
+  cajaId          String          @map("caja_id") @db.Uuid
+  pedidoId        String          @map("pedido_id") @db.Uuid
+  tipo            String
+  medioPago       String          @map("medio_pago")
+  importeCentavos Int             @map("importe_centavos")
+  registradoEn    DateTime        @default(now()) @map("registrado_en") @db.Timestamptz(3)
+  caja            CajaBoleteria   @relation(fields: [cajaId], references: [id])
+  pedido          PedidoBoleteria @relation(fields: [pedidoId], references: [id])
+
+  @@index([cajaId])
+  @@map("movimiento_caja")
+  @@schema("boleteria")
+}
+
+model AuditoriaBoleteria {
+  id            String   @id @db.Uuid
+  accion        String
+  actorId       String?  @map("actor_id") @db.Uuid
+  rol           String?
+  entidad       String
+  entidadId     String   @map("entidad_id") @db.Uuid
+  motivo        String?
+  datos         Json     @default("{}")
+  correlacionId String   @map("correlacion_id") @db.Uuid
+  registradoEn  DateTime @default(now()) @map("registrado_en") @db.Timestamptz(3)
+
+  @@index([entidad, entidadId])
+  @@map("auditoria_boleteria")
+  @@schema("boleteria")
+}
+
+model EventoProcesadoBoleteria {
+  eventoId    String   @id @map("evento_id") @db.Uuid
+  tipo        String
+  procesadoEn DateTime @default(now()) @map("procesado_en") @db.Timestamptz(3)
+
+  @@map("evento_procesado")
+  @@schema("boleteria")
+}

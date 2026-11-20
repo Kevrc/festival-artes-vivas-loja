@@ -19,6 +19,9 @@ export const EdicionDto = z.object({
   fechaInicio: fecha,
   fechaFin: fecha,
   paisInvitado: z.string().optional(),
+  precioCentavos: z.number().int().min(0).optional(),
+  maxPagadasPersona: z.number().int().positive().optional(),
+  maxReservasPersona: z.number().int().positive().optional(),
 });
 
 export const FuncionDto = z
@@ -96,4 +99,14 @@ export const FuncionReprogramada = sobre(
 export const FuncionCancelada = sobre(
   'FuncionCancelada',
   z.object({ funcionId: z.string().uuid(), version: z.number().int().min(1) }),
+);
+
+export const AforoCambiado = sobre(
+  'AforoCambiado',
+  z.object({
+    funcionId: z.string().uuid(),
+    version: z.number().int().min(1),
+    aforoAnterior: z.number().int().min(0),
+    aforoHabilitado: z.number().int().min(0),
+  }),
 );

@@ -1,13 +1,14 @@
 /**
- * Publica un evento de prueba en la cola de la cartelera, como lo harían Operación o Boletería
- * mientras no existan (tasks.md T027). Requiere el worker en marcha para aplicarlo.
+ * Publica eventos de prueba en las colas de Cartelera y Boletería, como lo haría Operación (004)
+ * o Boletería mientras no existan todos los módulos. Requiere el worker en marcha para aplicarlos.
  *
  *   pnpm events:emit funcion-cancelada --id <funcionId>
  *   pnpm events:emit funcion-reprogramada --id <funcionId> --inicio 2026-11-14T21:00 --fin 2026-11-14T22:00 [--motivo lluvia]
+ *   pnpm events:emit aforo-cambiado --id <funcionId> --aforo 150
  *   pnpm events:emit disponibilidad --id <funcionId> --restantes 5 --aforo 300
  */
 import { parseArgs } from 'node:util';
-import { EventoCartelera, colaDe, ejemplo } from '@fiavl/contracts';
+import { EventoCartelera, EventoOperacionBoleteria, colaDe, ejemplo } from '@fiavl/contracts';
 import PgBoss from 'pg-boss';
 import { PrismaClient } from '../apps/api/src/generated/prisma/index.js';
 
@@ -29,8 +30,10 @@ if (!values.id || !tipo) throw new Error('Uso: pnpm events:emit <tipo> --id <fun
 // Solo para desarrollo: lee la versión actual para simular la que enviaría Operación.
 const db = new PrismaClient();
 const f = await db.funcionCartelera.findUniqueOrThrow({ where: { id: values.id } });
+const inv = await db.inventarioFuncion.findUnique({ where: { funcionId: values.id } });
 await db.$disconnect();
-const version = f.versionOrigen + 1;
+
+const version = Math.max(f.versionOrigen, inv?.versionOrigen ?? 0) + 1;
 const zona = (local: string) => (/[+-]\d\d:\d\d$|Z$/.test(local) ? local : `${local}:00-05:00`);
 
 const eventos = {
@@ -43,6 +46,13 @@ const eventos = {
       nuevo: { inicio: zona(values.inicio ?? ''), fin: zona(values.fin ?? ''), sedeId: f.sedeId },
       motivo: values.motivo ?? 'prueba',
     }),
+  'aforo-cambiado': () =>
+    ejemplo.aforoCambiado(f.edicionId, {
+      funcionId: f.id,
+      version,
+      aforoAnterior: inv?.aforoHabilitado ?? f.aforoHabilitado ?? 0,
+      aforoHabilitado: Number(values.aforo ?? 0),
+    }),
   disponibilidad: () =>
     ejemplo.disponibilidadCambiada(f.edicionId, {
       funcionId: f.id,
@@ -54,12 +64,23 @@ const eventos = {
 
 const crear = eventos[tipo as keyof typeof eventos];
 if (!crear) throw new Error(`Tipo desconocido: ${tipo}. Opciones: ${Object.keys(eventos).join(', ')}`);
-const evento = EventoCartelera.parse(crear());
+const evento = crear();
 
 const boss = new PgBoss({ connectionString: process.env.DATABASE_URL, schema: 'pgboss' });
 await boss.start();
-const cola = colaDe('programacion', evento.tipo);
-await boss.createQueue(cola);
-await boss.send(cola, evento);
+
+if (EventoCartelera.safeParse(evento).success) {
+  const cola = colaDe('programacion', evento.tipo);
+  await boss.createQueue(cola);
+  await boss.send(cola, evento);
+  console.log(`Publicado ${evento.tipo} (${evento.id}) en ${cola}`);
+}
+
+if (EventoOperacionBoleteria.safeParse(evento).success) {
+  const colaBol = colaDe('boleteria', evento.tipo);
+  await boss.createQueue(colaBol);
+  await boss.send(colaBol, evento);
+  console.log(`Publicado ${evento.tipo} (${evento.id}) en ${colaBol}`);
+}
+
 await boss.stop({ graceful: true });
-console.log(`Publicado ${evento.tipo} (${evento.id}) en ${cola}`);
