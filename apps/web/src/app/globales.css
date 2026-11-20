@@ -66,9 +66,9 @@ a:hover { color: var(--acento); }
 .buscador input { flex: 1 1 auto; width: 100%; min-width: 0; }
 .cabecera > * { min-width: 0; }
 
-input[type='search'], input[type='text'], select {
+input[type='search'], input[type='text'], input[type='number'], input[type='email'], select {
   font: inherit; padding: 8px 10px; border: 1px solid var(--borde); border-radius: 8px;
-  background: var(--superficie); color: var(--texto);
+  background: var(--superficie); color: var(--texto); max-width: 100%; min-width: 0;
 }
 
 button, .boton {
@@ -113,6 +113,7 @@ h2 { font-size: 1.2rem; margin-top: 24px; }
 }
 .tarjeta.cancelada .tarjeta-cuerpo h3 { text-decoration: line-through; }
 .tarjeta-hora { font-weight: 800; font-size: 1.1rem; }
+.tarjeta-cuerpo { min-width: 0; }
 .tarjeta-cuerpo h3 { margin: 0; font-size: 1.1rem; }
 .tarjeta-cuerpo p { margin: 2px 0; }
 .tarjeta-acciones { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
@@ -153,3 +154,36 @@ h2 { font-size: 1.2rem; margin-top: 24px; }
   .tarjeta { border: 0; border-bottom: 1px solid #999; border-radius: 0; break-inside: avoid; padding: 6px 0; }
   a { text-decoration: none; }
 }
+
+.form-boleteria {
+  display: grid; gap: 12px; background: var(--superficie); border: 1px solid var(--borde);
+  border-radius: var(--radio); padding: 14px; margin: 12px 0;
+}
+.campo-boleteria { display: grid; gap: 4px; min-width: 0; }
+.campo-boleteria label { font-weight: 700; font-size: .95rem; }
+.campo-boleteria input, .campo-boleteria select { width: 100%; }
+
+.boleto-qr {
+  display: grid; gap: 8px; justify-items: start;
+  background: var(--superficie); border: 1px solid var(--borde); border-radius: var(--radio); padding: 12px;
+}
+.qr-svg { background: #ffffff; padding: 8px; border-radius: 6px; border: 1px solid var(--borde); max-width: 100%; }
+.codigo-corto code { font-size: 1.05rem; font-weight: 800; letter-spacing: .04em; }
+
+.metricas-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin: 14px 0;
+}
+.metrica-caja {
+  background: var(--superficie); border: 1px solid var(--borde); border-radius: var(--radio); padding: 12px;
+}
+.metrica-caja dt { font-size: .85rem; color: var(--suave); }
+.metrica-caja dd { margin: 4px 0 0; font-size: 1.5rem; font-weight: 800; }
+
+.panel-semaforo {
+  border-radius: var(--radio); border: 3px solid var(--borde); padding: 16px; margin: 14px 0;
+  background: var(--superficie); color: var(--texto);
+}
+.panel-semaforo h2 { margin: 0 0 6px; font-size: 1.3rem; }
+.semaforo-verde { border-color: var(--exito); box-shadow: inset 6px 0 0 var(--exito); }
+.semaforo-ambar { border-color: var(--aviso); box-shadow: inset 6px 0 0 var(--aviso); }
+.semaforo-rojo { border-color: var(--peligro); box-shadow: inset 6px 0 0 var(--peligro); }
