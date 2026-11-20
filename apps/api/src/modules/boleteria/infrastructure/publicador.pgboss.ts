@@ -21,8 +21,9 @@ export class PublicadorPgBossBoleteria implements PublicadorEventosBoleteria, On
   private readonly log = new Logger(PublicadorPgBossBoleteria.name);
   private boss?: PgBoss;
   private readonly colasCreadas = new Set<string>();
-  /** Captura en memoria útil en pruebas de integración sin worker activo. */
+  /** Captura en memoria solo en pruebas (NODE_ENV=test); en otros entornos crecería sin límite (revisión PR #6). */
   public readonly publicados: EventoPublicadoBoleteria[] = [];
+  private readonly capturar = process.env.NODE_ENV === 'test';
 
   async onModuleInit() {
     if (process.env.BOLETERIA_PGBOSS_DESACTIVADO === 'true' || !process.env.DATABASE_URL) return;
@@ -46,7 +47,7 @@ export class PublicadorPgBossBoleteria implements PublicadorEventosBoleteria, On
     opciones?: { singletonKey?: string; singletonSeconds?: number },
   ): Promise<void> {
     const evento = EventoPublicadoBoleteria.parse(eventoBruto);
-    this.publicados.push(evento);
+    if (this.capturar) this.publicados.push(evento);
     this.log.log({ correlacionId: evento.correlacionId, tipo: evento.tipo, eventoId: evento.id }, 'evento publicado');
 
     if (!this.boss) return;
