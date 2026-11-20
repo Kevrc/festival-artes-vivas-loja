@@ -14,5 +14,10 @@ services:
       test: ["CMD-SHELL", "pg_isready -U fiavl"]
       interval: 2s
       retries: 20
+  clamav:
+    image: clamav/clamav:latest
+    profiles: ["antivirus"]
+    ports:
+      - "3310:3310"
 volumes:
   datos:

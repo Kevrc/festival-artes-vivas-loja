@@ -16,15 +16,15 @@ Investigación de decisiones de la fase plan. Las decisiones siguen ADR-0001 (mo
 
 ## R3. Archivos y validación
 
-**Decisión**: aceptar PDF, JPEG y PNG hasta 10 MB (10 000 000 bytes) por archivo; comprobar firma mágica además del MIME declarado y extensión; escanear el contenido antes de persistirlo; guardar con key aleatoria opaca y bucket privado. Videos permanecen como enlaces validados, no se suben. El endpoint de carga transmite el archivo al backend, que valida y escribe por `AlmacenamientoDocumentosPort`; no se concede URL de carga sin validar. Las descargas comprueban pertenencia o rol/alcance antes de firmar un `GetObject` por 5 minutos. `EscanerAntivirusPort` se implementa con ClamAV en producción y con `FalsoEscanerAntivirus` configurable en pruebas. El falso cubre resultados `limpio`, `infectado` y `caido`; infectado y caído rechazan la carga sin persistir objeto ni metadata. ClamAV se configura en Compose bajo profile opcional `antivirus`, nunca requerido por `pnpm test`, `pnpm test:int` ni CI. En producción cualquier error de conexión/scan falla cerrado.
+**Decisión**: aceptar PDF, JPEG y PNG hasta 10 MB (10 000 000 bytes) por archivo; comprobar firma mágica además del MIME declarado y extensión; escanear antes de persistir; guardar con key aleatoria opaca. Los bytes se almacenan detrás de `AlmacenamientoDocumentosPort`: en memoria para test/CI, en disco local `.almacen-dev/` para desarrollo y en S3 para producción. Videos permanecen como enlaces validados. No se concede URL de carga sin validar. La descarga se autoriza en el API y se firma por cinco minutos: memoria/disco usan HMAC y un endpoint de descarga de la API; S3 usa `GetObject` prefirmado. `EscanerAntivirusPort` usa ClamAV en producción y `FalsoEscanerAntivirus` configurable en pruebas (`limpio`, `infectado`, `caido`); los dos últimos rechazan sin persistir objeto ni metadata. ClamAV solo se inicia con profile Compose `antivirus`; no es requerido por tests ni CI. En producción cualquier error de scan falla cerrado.
 
 **Alternativas descartadas**: URLs públicas o keys adivinables (violan Constitución VI); guardar bytes en PostgreSQL (respaldo inflado); aceptar MIME de cliente como única validación.
 
-**Cifrado en reposo**: MinIO soporta cifrado de servidor SSE-KMS/SSE-S3 cuando se configura un KMS externo y una clave de cifrado; no es una capacidad que deba darse por activa en una instancia local sin ese KMS ([documentación oficial de MinIO sobre SSE](https://min.io/docs/minio/linux/administration/server-side-encryption.html)). Para mantener el entorno local reproducible, esta fase no simulará cifrado en reposo ni incluirá una clave de desarrollo versionada. La limitación se documenta como riesgo local: datos de prueba no reales y volumen Docker local protegido por el host. Producción debe configurar SSE-KMS/KMS administrado antes de almacenar documentos reales. Esto no elimina TLS/controles de acceso para despliegue.
+**Cifrado en reposo**: los archivos del adaptador de disco son datos locales de desarrollo y no se consideran almacenamiento seguro para datos reales. Producción debe usar S3 con cifrado administrado (SSE-KMS/KMS), TLS y permisos mínimos. La configuración S3 se documenta, pero este entorno no ejecutará pruebas contra un backend real.
 
 ## R4. Adaptador S3 y URLs firmadas
 
-**Decisión**: usar AWS SDK JavaScript v3 (`@aws-sdk/client-s3` y `@aws-sdk/s3-request-presigner`) con endpoint, path-style y credenciales configurables para MinIO. La firma de descarga la genera servidor tras autorización. El SDK ofrece el flujo `GetObjectCommand` + `getSignedUrl` para crear URLs prefirmadas ([documentación oficial AWS SDK v3](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/Package/-aws-sdk-s3-request-presigner/)).
+**Decisión**: usar AWS SDK JavaScript v3 (`@aws-sdk/client-s3` y `@aws-sdk/s3-request-presigner`) para S3 de producción. La firma de descarga la genera el servidor tras autorizar; `GetObjectCommand` + `getSignedUrl` crea URLs prefirmadas ([documentación oficial AWS SDK v3](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/Package/-aws-sdk-s3-request-presigner/)). El adaptador se prueba con cliente SDK simulado; el endpoint/proveedor real y su configuración de bucket/KMS quedan para smoke test previo al despliegue.
 
 **Alternativa descartada**: cliente específico de MinIO, que reduce compatibilidad con el proveedor S3 de despliegue.
 
@@ -60,7 +60,7 @@ Investigación de decisiones de la fase plan. Las decisiones siguen ADR-0001 (mo
 |---|---|---|
 | Estados, ventana de convocatoria, número, validaciones y puntaje | Unitarias de dominio, ≥80 % cobertura | Vitest + coverage-v8 |
 | Unicidad/número y transiciones concurrentes | PostgreSQL real, reintentos y constraints | Vitest + Testcontainers |
-| Validación/aislamiento de documentos y URL firmada | Integración MinIO (permisos, MIME real, 10 MB (10 000 000 bytes), expiry) y falso antivirus | Vitest + MinIO |
+| Validación/aislamiento de documentos y URL firmada | Integración de memoria/disco (permisos, MIME real, 10 MB, HMAC, expiry) y cliente AWS SDK simulado | Vitest |
 | Escáner antivirus | Falso configurable: `limpio` permite persistir; `infectado` y `caido` fallan cerrado sin persistir ni objeto ni metadata | Vitest unitario e integración |
 | Publicación evento transaccional y deduplicación | Contrato Zod y cola pg-boss | Vitest |
 | US1–US3 y accesibilidad | Flujos navegador postulante/coord./curador | Playwright + axe |
@@ -74,3 +74,7 @@ Dependencias nuevas esperadas: `@aws-sdk/client-s3` y `@aws-sdk/s3-request-presi
 **Límite de terceros**: fuera del propietario, solo coordinación autorizada y curadores asignados a esa postulación pueden acceder. Cualquier otra cuenta, incluido otro postulante y un curador sin asignación, recibe 403. La URL firmada se emite después de autorizar y no se registra en logs.
 
 Esta es una interpretación explícita para armonizar FR-015 con FR-016 y US1; no amplía acceso a documentos de otros elencos.
+
+## R12. Backends de almacenamiento sin imagen local
+
+**Decisión**: no iniciar ni depender de imágenes de MinIO o de otro servidor S3 local. Ninguna imagen de MinIO disponible fue accesible desde el entorno (Quay respondió 401 y `minio/minio` no existe en Docker Hub). Los tests usan memoria/disco; el adaptador S3 de producción se verifica con cliente simulado y requiere smoke test explícito en un backend real antes del despliegue.

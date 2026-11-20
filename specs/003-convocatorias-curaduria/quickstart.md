@@ -5,8 +5,8 @@ Guía para ejecutar los escenarios de las historias P1 una vez implementados. Lo
 ## Requisitos y preparación
 
 - Node.js 22+, pnpm 11 y Docker.
-- Copiar `.env.example` a `.env`; configurar `DATABASE_URL`, `CONVOCATORIAS_S3_*` para MinIO local y `CONVOCATORIAS_ANTIVIRUS=simulador`.
-- MinIO expone API solo a localhost y consola local; credenciales de desarrollo no se reutilizan fuera de local.
+- Copiar `.env.example` a `.env`; configurar `DATABASE_URL`, `CONVOCATORIAS_ALMACENAMIENTO=disco` y `CONVOCATORIAS_ANTIVIRUS=simulador`.
+- Los documentos de desarrollo se escriben en `.almacen-dev/`, excluido de Git. No se necesita servicio adicional de almacenamiento.
 
 ```bash
 pnpm install
@@ -17,7 +17,7 @@ pnpm db:seed
 pnpm dev
 ```
 
-El seed de Convocatorias es idempotente y se invoca desde `prisma/seed/index.ts`. Carga la convocatoria ejemplo abierta, criterios, perfiles/postulaciones, sube documentos ficticios al bucket MinIO y crea asignaciones. No crea cuentas ni implementa notificaciones. En desarrollo se pasan los headers de `contracts/autorizacion-identidad.md`; los tests unitarios/de integración usan el escáner falso y no requieren el profile antivirus.
+El seed de Convocatorias es idempotente y se invoca desde `prisma/seed/index.ts`. Carga la convocatoria ejemplo abierta, criterios, perfiles/postulaciones, escribe documentos ficticios mediante `AlmacenamientoDocumentosPort` y crea asignaciones. No crea cuentas ni implementa notificaciones. En desarrollo se pasan los headers de `contracts/autorizacion-identidad.md`; los tests usan almacenamiento en memoria y escáner falso. El backend S3 no forma parte del quickstart local.
 
 Para probar ClamAV real de forma opcional, levantar Compose con el profile `antivirus` y usar `CONVOCATORIAS_ANTIVIRUS=clamav`. En producción el adaptador real falla cerrado si ClamAV no está disponible.
 
@@ -41,7 +41,7 @@ Para probar ClamAV real de forma opcional, levantar Compose con el profile `anti
 
 - `pnpm lint && pnpm typecheck`
 - `pnpm test` con cobertura ≥ 80 % de `convocatorias/domain`.
-- `pnpm --filter @fiavl/api test:int` incluyendo PostgreSQL y MinIO; ClamAV se sustituye por el falso configurable.
+- `pnpm --filter @fiavl/api test:int` incluyendo PostgreSQL y adaptadores en memoria/disco; ClamAV se sustituye por el falso configurable.
 - E2E y accesibilidad de las tres P1 con Playwright/axe.
 - Smoke test de arranque con `pnpm db:up && pnpm db:migrate && pnpm db:seed && pnpm dev`.
 - Pruebas del escáner falso para resultados limpio, infectado y caído; no requieren ClamAV real.

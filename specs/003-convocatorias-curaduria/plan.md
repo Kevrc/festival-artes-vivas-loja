@@ -8,16 +8,16 @@
 
 El módulo `convocatorias` será dueño del esquema PostgreSQL `convocatorias` y de los perfiles de elenco, postulaciones, documentos, asignaciones, evaluaciones y auditoría relacionados con las P1. Seguirá el monolito modular NestJS y la separación `domain / application / infrastructure / interface` de ADR-0001. El modelo relacional y los invariantes se detallan en [data-model.md](data-model.md); los endpoints, eventos y rutas de demostración están descritos en [contracts/](contracts/).
 
-Los documentos se cargarán por un puerto de almacenamiento desde application y un adaptador compatible con S3 en infrastructure, con MinIO local. El servidor valida firma mágica, formato y tamaño máximo de 10 MB (10 000 000 bytes), y escanea antes de persistir. `EscanerAntivirusPort` permite un falso configurable en pruebas que simula archivo limpio, infectado o motor caído. El falso se usa en `pnpm test`, `pnpm test:int` y CI; ClamAV real queda en un profile opcional de Compose. En producción se configura el adaptador real y cualquier fallo del escáner rechaza la carga. La descarga devuelve una URL firmada de lectura de 5 minutos únicamente tras validar propiedad de la postulación o permiso de coordinación/curador asignado. La estrategia de cifrado local y su limitación se registran en [research.md](research.md).
+Los documentos se cargarán por `AlmacenamientoDocumentosPort` con tres adaptadores: memoria para `test`, `test:int` y CI; disco local en `.almacen-dev/` para desarrollo, con enlaces de corta duración firmados por la API; y S3 para producción, con URLs prefirmadas de cinco minutos. No se requiere ni se inicia un servicio de objetos local. El servidor valida firma mágica, formato y tamaño máximo de 10 MB (10 000 000 bytes), y escanea antes de persistir. `EscanerAntivirusPort` permite un falso configurable en pruebas que simula archivo limpio, infectado o motor caído. ClamAV real queda en un profile opcional de Compose. En producción, cualquier fallo del escáner rechaza la carga. La descarga solo se firma tras validar propiedad o permiso de coordinación/curador asignado; el adaptador S3 no se probará contra backend real en este entorno y se verifica con cliente simulado.
 
 La autorización tiene un puerto anticorrupción propio y un adaptador de desarrollo propio, alineado con los headers/cookie que usa Boletería sin modificar ese módulo; Convocatorias nunca consulta las tablas de Identidad. Los roles canónicos y el DTO esperado para Identidad están en [contracts/autorizacion-identidad.md](contracts/autorizacion-identidad.md). El adaptador falla cerrado fuera de `development`/`test`; sustituirlo por el adaptador de Identidad no cambia los casos de uso.
 
 ## Technical Context
 
 **Language/Version**: TypeScript 5.x, Node.js 22, NestJS 11.
-**Primary Dependencies**: Prisma 6.19 (`multiSchema`), Zod 3, AWS SDK for JavaScript v3 (`@aws-sdk/client-s3`, `@aws-sdk/s3-request-presigner`) para MinIO/S3; dependencias existentes de pruebas Vitest, Testcontainers y Playwright.
-**Storage**: PostgreSQL 16 en el esquema propio `convocatorias`; MinIO local para objetos privados; pg-boss/PostgreSQL para eventos conforme a ADR-0003.
-**Testing**: Vitest para dominio (cobertura ≥ 80 %), integración con PostgreSQL y MinIO, adaptador falso de antivirus configurable (limpio/infectado/caído) en unitarias e integración, pruebas de contrato, E2E Playwright para US1–US3 y revisión WCAG 2.1 AA. Ninguna tarea de test requiere ClamAV real.
+**Primary Dependencies**: Prisma 6.19 (`multiSchema`), Zod 3, AWS SDK for JavaScript v3 (`@aws-sdk/client-s3`, `@aws-sdk/s3-request-presigner`) para S3; dependencias existentes de pruebas Vitest y Playwright.
+**Storage**: PostgreSQL 16 en el esquema propio `convocatorias`; adaptadores de objetos memoria/disco/S3; pg-boss/PostgreSQL para eventos conforme a ADR-0003.
+**Testing**: Vitest para dominio (cobertura ≥ 80 %), integración con PostgreSQL y almacenamiento en memoria/disco, adaptador falso de antivirus configurable (limpio/infectado/caído), pruebas de contrato, E2E Playwright para US1–US3 y revisión WCAG 2.1 AA. Ninguna tarea de test requiere ClamAV real ni backend S3 real.
 **Target Platform**: API NestJS y web Next.js existente; Docker Compose local.
 **Project Type**: monorepo existente (`apps/api`, `apps/web`, `packages/contracts`, `prisma`).
 **Performance Goals**: aceptación dentro de la ventana de cierre definida por convocatoria; archivos de hasta 10 MB (10 000 000 bytes); URL firmada vigente por 5 minutos; cálculo de evaluación con precisión decimal de dos lugares.
@@ -31,10 +31,11 @@ La autorización tiene un puerto anticorrupción propio y un adaptador de desarr
 | Entorno | Autorización | Antivirus | Almacenamiento |
 |---|---|---|---|
 | `test` | Puerto sustituido por fixture de identidad de prueba; sin credenciales reales | `FalsoEscanerAntivirus`, seleccionable por caso (`limpio`, `infectado`, `caido`) | Adaptador falso en unitarias |
-| `test:int` | Adaptador dev/test con headers y cuentas fixture | Falso configurable; ClamAV no requerido | MinIO Testcontainers para integración S3 y URL firmada |
-| CI | Adaptador dev/test con headers y sujetos deterministas | Falso; variable `CONVOCATORIAS_ANTIVIRUS=simulador` | `test:int`: MinIO Testcontainers; E2E: MinIO iniciado con Docker CLI y bucket creado por el código |
-| Desarrollo local | `AutorizacionConvocatoriasDevAdapter`, headers/cookie descritos en [contrato](contracts/autorizacion-identidad.md) | Simulador por defecto; profile ClamAV optativo | MinIO por Compose, bucket privado creado idempotentemente por el seed/adaptador |
-| Producción | Adaptador conectado al contrato de Identidad; roles y alcance validados en servidor | ClamAV/escáner real obligatorio; caída o error rechaza la carga | S3 privado, TLS y cifrado en reposo con KMS administrado |
+| `test` | Puerto sustituido por fixture de identidad de prueba | Falso configurable | Memoria volátil |
+| `test:int` | Adaptador dev/test con headers y cuentas fixture | Falso configurable; ClamAV no requerido | Memoria volátil y disco temporal aislado |
+| CI | Adaptador dev/test con sujetos deterministas | Falso (`CONVOCATORIAS_ANTIVIRUS=simulador`) | Memoria volátil; CI no añade servicios ni pasos |
+| Desarrollo local | `AutorizacionConvocatoriasDevAdapter`, headers/cookie descritos en [contrato](contracts/autorizacion-identidad.md) | Simulador por defecto; profile ClamAV optativo | Disco local `.almacen-dev/`, enlaces HMAC servidos por la API |
+| Producción | Adaptador conectado al contrato de Identidad; roles y alcance validados en servidor | ClamAV/escáner real obligatorio; caída o error rechaza la carga | S3 privado, TLS y cifrado en reposo administrado; URLs GET prefirmadas por cinco minutos |
 
 ### Reglas de negocio puras y pruebas requeridas
 
@@ -55,7 +56,7 @@ La autorización tiene un puerto anticorrupción propio y un adaptador de desarr
 | Riesgo | Mitigación |
 |---|---|
 | Identidad aún no entrega un adaptador de roles/alcances para Convocatorias | Puerto anticorrupción y DTO exacto en contrato; adaptar solo infrastructure al integrarse 004; bloquear acceso fuera de dev/test hasta entonces. |
-| MinIO local no habilita SSE-KMS sin KMS; documentos locales sin cifrado de reposo | Solo fixtures locales; producción requiere KMS/TLS antes de guardar documentos reales (detalle en [research.md](research.md)). |
+| El S3 de producción no está disponible en este entorno para prueba de extremo a extremo | Verificar el adaptador con cliente AWS SDK simulado; antes de desplegar, smoke test en bucket privado real con TLS, KMS, permisos mínimos y URLs de cinco minutos. |
 | Escáner caído detiene cargas | Fail-closed, error observable y retry después de restablecer servicio; no almacenar archivo pendiente de escaneo. |
 | Fallo entre escritura S3 y transacción PostgreSQL | Borrar objeto si falla transacción de metadatos; limpieza de objetos huérfanos verificable y operación idempotente. |
 | Huella textual no detecta obras equivalentes con metadatos distintos | Documentar alcance de deduplicación P1; conservar revisión de coordinación y evitar bloqueo basado en similitud aproximada. |
@@ -74,7 +75,7 @@ La autorización tiene un puerto anticorrupción propio y un adaptador de desarr
 | VII. Acceso público e inclusivo | Convocatoria pública consultable sin cuenta; formularios de postulante y paneles accesibles, móviles y en español. | ✅ |
 | VIII. Resiliencia | Envío y transición de estados en transacciones; eventos en la misma transacción mediante pg-boss; objetos subidos sin dejar metadatos huérfanos. | ✅ |
 | IX. Observabilidad y trazabilidad | Auditoría append-only con actor, fecha, estado, motivo y correlación; eventos con sobre común. | ✅ |
-| X. Simplicidad | Sin servicios de identidad, correo o CRUD duplicados; MinIO y ClamAV son servicios locales acotados para cumplir almacenamiento privado y rechazo de malware definidos por la spec. | ✅ |
+| X. Simplicidad | Sin servicios de identidad, correo o CRUD duplicados; almacenamiento memoria/disco cubre pruebas y desarrollo, S3 queda aislado tras un puerto, y ClamAV es optativo localmente. | ✅ |
 
 **Puertas de calidad Q1–Q8**
 
@@ -125,7 +126,7 @@ apps/web/src/app/(publico)/convocatorias/...
 apps/web/src/app/(panel)/convocatorias/...
 ```
 
-Los cambios previstos en archivos compartidos son aditivos: añadir `convocatorias` a la lista de schemas de `prisma/schema/schema.prisma`, exportar nuevos contratos desde `packages/contracts/src/index.ts`, registrar el módulo en `apps/api/src/app.module.ts`, invocar la semilla nueva desde `prisma/seed/index.ts`, y añadir MinIO/variables a Compose y `.env.example`. Se verificará que cada diff preserve orden y contenido previo.
+Los cambios previstos en archivos compartidos son aditivos: añadir `convocatorias` a `prisma/schema/schema.prisma`, exportar eventos desde `packages/contracts/src/index.ts`, registrar el módulo en `apps/api/src/app.module.ts`, invocar la semilla desde `prisma/seed/index.ts`, añadir variables de almacenamiento/antivirus a `.env.example` y mantener ClamAV opcional bajo profile de Compose. `ci.yml` no se modifica.
 
 ## Dependency boundaries
 
@@ -134,13 +135,13 @@ Los cambios previstos en archivos compartidos son aditivos: añadir `convocatori
 | Sesión, cuenta, rol y alcance | Identidad (004), detrás de `AutorizacionConvocatoriasPort` | Sin consultas a sus tablas; roles pendientes señalados arriba. |
 | Notificar envío/subsanación | Eventos publicados a Identidad por pg-boss | No implementar correo ni notificación local. |
 | Obra seleccionada para Operación | Fuera de alcance (US4 P2) | No publicar `PostulacionSeleccionada` en esta fase. |
-| Archivos | `AlmacenamientoDocumentosPort` y adaptador S3 | Bucket privado; key opaca; no registrar URL firmada ni contenido sensible. |
+| Archivos | `AlmacenamientoDocumentosPort` y adaptadores memoria/disco/S3 | Key opaca; firma de corta duración; no registrar URL firmada ni contenido sensible. |
 
 ## Complexity Tracking
 
 | Excepción | Motivo | Control |
 |---|---|---|
-| MinIO local + SDK S3 | Requisito de documentos privados y almacenamiento compatible con S3 fijado por la spec/decisión de clarify. | Un bucket local; SDK S3 detrás del puerto de almacenamiento. |
+| Tres adaptadores de almacenamiento | Tests sin servicios externos, desarrollo local demostrable y despliegue S3. | Memoria en test/CI, disco en `.almacen-dev/`, S3 en producción; adaptador S3 verificado con cliente simulado. |
 | ClamAV opcional | La spec exige rechazar archivos infectados. | Profile Compose solo para demostración real; tests/CI usan falso configurable; producción falla cerrado. |
 | Adaptador temporal de autorización | Identidad aún está en otra spec. | Adaptador propio de desarrollo; contrato de Identidad explícito; fail-closed fuera de development/test. |
 
@@ -149,52 +150,20 @@ Los cambios previstos en archivos compartidos son aditivos: añadir `convocatori
 | Archivo compartido | Diff previsto | Motivo |
 |---|---|---|
 | `prisma/schema/schema.prisma` | Añadir solo `"convocatorias"` a `datasource db.schemas`; conservar proveedor, URL, extensiones y schemas existentes. | Registrar el schema propiedad de este módulo para Prisma multiSchema. |
-| `docker/docker-compose.yml` | Añadir servicio `minio/minio` con volumen persistente, API `9000`, consola `9001`, credenciales locales de ejemplo, healthcheck y creación del bucket privado. Añadir `clamav/clamav` solo bajo `profiles: ["antivirus"]` (puerto interno 3310); no hacer que `db:up` arranque ClamAV. | Storage de documentos en demo; escáner real optativo. |
-| `.env.example` | Añadir `CONVOCATORIAS_S3_ENDPOINT`, `CONVOCATORIAS_S3_BUCKET`, `CONVOCATORIAS_S3_ACCESS_KEY`, `CONVOCATORIAS_S3_SECRET_KEY`, `CONVOCATORIAS_S3_REGION`, `CONVOCATORIAS_S3_PATH_STYLE`, `CONVOCATORIAS_ANTIVIRUS` y `CONVOCATORIAS_CLAMAV_HOST/PORT`; simulador solo dev/test, adaptador real obligatorio en producción. | Configuración sin secretos reales y arranque local reproducible. |
+| `.gitignore` | Añadir `.pnpm-store/` para excluir el store local de pnpm; conservar patrones existentes. | Evitar que la caché de paquetes se incluya en commits. |
+| `docker/docker-compose.yml` | Conservar `clamav/clamav` solo bajo `profiles: ["antivirus"]`; no añadir servicio de objetos ni hacer que `db:up` arranque ClamAV. | Escáner real optativo local. |
+| `.env.example` | Añadir `CONVOCATORIAS_ALMACENAMIENTO=disco`, `CONVOCATORIAS_DISCO_DIRECTORIO=.almacen-dev`, `CONVOCATORIAS_ANTIVIRUS=simulador|clamav` y configuración S3/ClamAV sin secretos. | Selección del adaptador por entorno. |
+| `.gitignore` | Añadir `.pnpm-store/` y `.almacen-dev/` en commits separados. | Excluir caché y documentos locales. |
 | `apps/api/src/app.module.ts` | Añadir import y registro de `ConvocatoriasModule`; no mover ni reordenar imports/providers existentes. | Activar el módulo en el API. |
 | `apps/api/src/worker.module.ts` | Añadir import y registro del consumidor de expiración de Convocatorias; preservar imports y registros existentes. | Registrar el job pg-boss idempotente de vencimiento de subsanaciones (T037). |
-| `apps/api/package.json` | Añadir `@aws-sdk/client-s3` y `@aws-sdk/s3-request-presigner`; no añadir cliente ClamAV si se usa protocolo TCP simple. | S3 compatible y URLs firmadas. |
+| `apps/api/package.json` | Añadir solo `@aws-sdk/client-s3` y `@aws-sdk/s3-request-presigner`; no añadir Testcontainers para almacenamiento. | S3 de producción y URLs prefirmadas. |
 | `pnpm-lock.yaml` | Actualización generada por pnpm para las dos dependencias AWS SDK y sus dependencias transitivas; sin edición manual ni actualización ajena de versiones. | Reproducibilidad de instalación. |
 | `packages/contracts/src/index.ts` | Añadir exports de los esquemas/tipos `PostulacionEnviada` y `SubsanacionSolicitada` desde el archivo nuevo de eventos; conservar exports actuales en su orden. | Contrato consumible por Identidad. |
 | `packages/contracts/src/eventos/convocatorias.ts` | Crear archivo nuevo con el sobre/esquemas aditivos de los dos eventos P1; sin editar archivos de eventos de otras specs. | Contrato propio del contexto. |
 | `prisma/seed/index.ts` | Añadir una llamada a `seedConvocatorias` después de inicializar base/fixtures comunes, sin reordenar ni modificar el flujo existente. | Sembrar convocatoria y datos de demo de forma aditiva. |
-| `.github/workflows/ci.yml` | No tocar el job `integracion`: `test:int` inicia MinIO mediante Testcontainers. En `e2e`, añadir variables S3/antivirus y dos pasos nuevos antes del seed: `docker run -d ... minio/minio server /data` y espera de readiness. No modificar ningún paso existente ni añadir `mc`; T019 crea el bucket en código. | Validar almacenamiento/descarga reproducible en CI sin requerir el escáner real. |
 
-Los archivos nuevos propios de 003 (módulo, Prisma, seed, eventos y puertos/adaptadores) no alteran esos archivos compartidos. El seed sube documentos ficticios a MinIO para que la descarga privada se pueda demostrar.
+Los archivos nuevos propios de 003 (módulo, Prisma, seed, eventos y puertos/adaptadores) no alteran otros contextos.
 
-### Diff previsto final para `.github/workflows/ci.yml`
-
-El cambio es únicamente aditivo: no modifica ningún paso existente ni toca el job `integracion`. `test:int` inicia MinIO mediante Testcontainers. En `e2e` se agregan variables S3/antivirus y dos pasos nuevos antes del seed. No se agrega ClamAV ni `mc`; T019 crea el bucket mediante código.
-
-```diff
- jobs:
-   e2e:
-     services:
-       postgres:
-         # Definición existente, sin cambios.
-     env:
-       DATABASE_URL: ... # existente, sin cambios
-+      CONVOCATORIAS_S3_ENDPOINT: http://localhost:9000
-+      CONVOCATORIAS_S3_BUCKET: convocatorias
-+      CONVOCATORIAS_S3_ACCESS_KEY: fiavl
-+      CONVOCATORIAS_S3_SECRET_KEY: fiavl-minio-ci
-+      CONVOCATORIAS_S3_REGION: us-east-1
-+      CONVOCATORIAS_S3_PATH_STYLE: 'true'
-+      CONVOCATORIAS_ANTIVIRUS: simulador
-     steps:
-      # Agregar los dos pasos siguientes antes del seed ya existente.
-+      - name: Iniciar MinIO para E2E
-+        run: docker run -d --name fiavl-minio -p 9000:9000 -e MINIO_ROOT_USER=fiavl -e MINIO_ROOT_PASSWORD=fiavl-minio-ci minio/minio server /data
-+      - name: Esperar a MinIO
-+        run: |
-+          for intento in {1..30}; do
-+            curl --fail --silent http://localhost:9000/minio/health/ready && exit 0
-+            sleep 2
-+          done
-+          exit 1
-+      # Todos los pasos existentes permanecen sin cambios.
- ```
-+`services.postgres`, las variables existentes y todos los pasos actuales de ambos jobs quedan idénticos. `integracion` no recibe cambios: Testcontainers arranca MinIO dentro de `test:int`.
 ## Invariantes de estado, fingerprint y validación
 
 - Postulación usa el conjunto cerrado descrito en [data-model.md](data-model.md): `borrador`, `enviada`, `requiere_subsanacion`, `no_admitida`, `admitida`, `en_evaluacion`, `evaluada`, `requiere_deliberacion`, `seleccionada`, `lista_espera`, `no_seleccionada`, `desistida`. Las transiciones a los últimos cuatro estados pertenecen a US4, fuera de este alcance. Para los demás estados se implementan las transiciones de la tabla de ciclo de vida de `spec.md`, líneas 241–251, más `evaluada → requiere_deliberacion` (US3-AS5, líneas 106–107) y la reapertura de evaluación (US3-AS6, línea 109). En particular, se conserva `enviada → borrador` solo antes del cierre (US1-AS4, líneas 55–56).
@@ -204,5 +173,5 @@ El cambio es únicamente aditivo: no modifica ningún paso existente ni toca el 
 - `obra_fingerprint` será SHA-256 de campos canónicos de la obra; índice único por convocatoria. La spec prohíbe repetir una obra en la convocatoria y limita el elenco “hasta el máximo de la convocatoria” (`spec.md`, Edge Cases, línea 186), pero no especifica cifra; la convocatoria de demo fija 3 como configuración de fixture.
 - Criterios no tienen snapshot en P1 porque RN-007 dice: “Criterios y pesos son inmutables una vez recibida la primera postulación” (`spec.md`, línea 233). Si una fase posterior hace mutables/versionables los criterios, se añadirá snapshot en CALIFICACION.
 - Los `CHECK` de rangos y estados se escribirán con SQL en la migración: Prisma no declara CHECK constraints.
-- El seed idempotente subirá archivos de ejemplo a MinIO. Validación respeta FR-004: “PDF o imagen, máximo 10 MB por archivo” (`spec.md`, líneas 200–201); se fija en PDF/JPEG/PNG y 10 MB = 10 000 000 bytes según FR-004. La subsanación vence 72 horas después de solicitarse (US2-AS1, línea 77); dispersión estrictamente mayor que 25 activa deliberación (US3-AS5, líneas 106–107).
-- Pruebas del falso antivirus: `limpio` permite almacenar; `infectado` devuelve rechazo y no escribe en S3/metadata; `caido` simula timeout/error y también rechaza sin persistir. Se ejecutan en unitarias e integración; ningún caso arranca ClamAV real.
+- El seed idempotente escribirá archivos de ejemplo con el adaptador en memoria para pruebas y con disco en desarrollo. Validación respeta FR-004: “PDF o imagen, máximo 10 MB por archivo” (`spec.md`, líneas 200–201); se fija en PDF/JPEG/PNG y 10 MB = 10 000 000 bytes según FR-004. La subsanación vence 72 horas después de solicitarse (US2-AS1, línea 77); dispersión estrictamente mayor que 25 activa deliberación (US3-AS5, líneas 106–107).
+- Pruebas del falso antivirus: `limpio` permite almacenar; `infectado` devuelve rechazo y no escribe en almacenamiento/metadata; `caido` simula timeout/error y también rechaza sin persistir. Se ejecutan en unitarias e integración; ningún caso arranca ClamAV real.
