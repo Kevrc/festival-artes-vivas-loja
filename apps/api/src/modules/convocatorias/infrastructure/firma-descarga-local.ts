@@ -1,4 +1,17 @@
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+
+let efimero: string | undefined;
+
+/**
+ * Secreto con el que se firman y verifican las URLs de descarga local (adaptadores memoria y disco).
+ * Siempre el mismo para firmar y verificar: `CONVOCATORIAS_FIRMA_SECRET` o, si no se define, uno aleatorio por proceso
+ * (sin valores escritos a mano). Las URLs duran cinco minutos, así que reiniciar la API solo las invalida.
+ */
+export function secretoFirmaDescarga(env: Record<string, string | undefined> = process.env): string {
+  if (env.CONVOCATORIAS_FIRMA_SECRET) return env.CONVOCATORIAS_FIRMA_SECRET;
+  efimero ??= randomBytes(32).toString('hex');
+  return efimero;
+}
 
 export function urlDescargaLocal(baseUrl: string, secret: string, objectKey: string, venceEn: Date): string {
   const exp = Math.floor(venceEn.getTime() / 1000);

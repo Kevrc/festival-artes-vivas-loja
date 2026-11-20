@@ -3,15 +3,16 @@ import type { AlmacenamientoDocumentosPort } from '../application/puertos';
 import { DiscoAlmacenamientoDocumentos } from './almacenamiento-disco.adapter';
 import { MemoriaAlmacenamientoDocumentos } from './almacenamiento-memoria.adapter';
 import { S3AlmacenamientoDocumentos } from './almacenamiento-s3.adapter';
+import { secretoFirmaDescarga } from './firma-descarga-local';
 
 export function crearAlmacenamientoDocumentos(env = process.env): AlmacenamientoDocumentosPort {
   const modo = env.CONVOCATORIAS_ALMACENAMIENTO ?? (env.NODE_ENV === 'test' ? 'memoria' : 'disco');
   if (env.NODE_ENV === 'production' && modo !== 's3') throw new Error('Producción requiere almacenamiento S3');
-  if (modo === 'memoria') return new MemoriaAlmacenamientoDocumentos(env.CONVOCATORIAS_FIRMA_SECRET, env.API_URL);
+  if (modo === 'memoria') return new MemoriaAlmacenamientoDocumentos(secretoFirmaDescarga(env), env.API_URL);
   if (modo === 'disco') {
     return new DiscoAlmacenamientoDocumentos(
       env.CONVOCATORIAS_DISCO_DIRECTORIO ?? '.almacen-dev',
-      env.CONVOCATORIAS_FIRMA_SECRET ?? 'solo-desarrollo-cambiar',
+      secretoFirmaDescarga(env),
       env.API_URL,
     );
   }

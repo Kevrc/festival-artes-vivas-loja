@@ -14,7 +14,7 @@ import { puedeDescargarDocumento } from '../domain/permisos';
 import { validarDocumento, BYTES_MAXIMO_DOCUMENTO } from '../domain/documentos';
 import { PostulacionesServicio } from '../application/postulaciones/postulaciones.servicio';
 import { PostulacionesPrismaRepository } from '../infrastructure/postulaciones-prisma.repository';
-import { validarFirmaDescargaLocal } from '../infrastructure/firma-descarga-local';
+import { secretoFirmaDescarga, validarFirmaDescargaLocal } from '../infrastructure/firma-descarga-local';
 import { AlcanceEnControlador, RolesConvocatorias, ConvocatoriasGuard } from './convocatorias.guard';
 import { puedeCoordinarProvincia } from '../application/politicas-autorizacion';
 import { validacionFallida } from '../infrastructure/observabilidad-convocatorias';
@@ -147,7 +147,7 @@ export class PostulacionesController {
   @Header('Cache-Control', 'private, no-store')
   async contenido(@Query('key') key: string, @Query('exp') expRaw: string, @Query('sig') sig: string) {
     const exp = Number(expRaw);
-    if (!key || !validarFirmaDescargaLocal(process.env.CONVOCATORIAS_FIRMA_SECRET ?? 'solo-desarrollo-cambiar', key, exp, sig)) throw new ForbiddenException('URL vencida o inválida');
+    if (!key || !validarFirmaDescargaLocal(secretoFirmaDescarga(), key, exp, sig)) throw new ForbiddenException('URL vencida o inválida');
     const doc = await this.repoDocumentoPorKey(key);
     if (!doc) throw new NotFoundException('Documento inexistente');
     return new StreamableFile(await this.almacenamiento.leer(key), { type: doc.mimeType, disposition: `attachment; filename="${encodeURIComponent(doc.nombreOriginal)}"` });
