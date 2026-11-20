@@ -15,6 +15,7 @@ describe('selección de adaptadores Convocatorias', () => {
     expect(crearAlmacenamientoDocumentos({ NODE_ENV: 'production', CONVOCATORIAS_ALMACENAMIENTO: 's3', CONVOCATORIAS_S3_BUCKET: 'privado' })).toBeInstanceOf(S3AlmacenamientoDocumentos);
   });
   it('elige el falso configurable o ClamAV TCP sin levantarlo en las pruebas', () => {
+    expect(() => crearEscanerAntivirus({ NODE_ENV: 'production', CONVOCATORIAS_ANTIVIRUS: 'simulador' })).toThrow(/requiere ClamAV/);
     expect(crearEscanerAntivirus({ CONVOCATORIAS_ANTIVIRUS: 'simulador', CONVOCATORIAS_ANTIVIRUS_RESULTADO: 'infectado' })).toBeInstanceOf(FalsoEscanerAntivirus);
     expect(crearEscanerAntivirus({ CONVOCATORIAS_ANTIVIRUS: 'clamav', CONVOCATORIAS_CLAMAV_HOST: 'clamav', CONVOCATORIAS_CLAMAV_PORT: '3310' })).toBeInstanceOf(ClamAvTcpEscaner);
   });
