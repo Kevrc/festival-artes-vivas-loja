@@ -78,3 +78,5 @@ Esta es una interpretación explícita para armonizar FR-015 con FR-016 y US1; n
 ## R12. Backends de almacenamiento sin imagen local
 
 **Decisión**: no iniciar ni depender de imágenes de MinIO o de otro servidor S3 local. Ninguna imagen de MinIO disponible fue accesible desde el entorno (Quay respondió 401 y `minio/minio` no existe en Docker Hub). Los tests usan memoria/disco; el adaptador S3 de producción se verifica con cliente simulado y requiere smoke test explícito en un backend real antes del despliegue.
+
+La auditoría conserva su política de retención mínima de cinco años sin purga automática: la tabla es append-only y no se programa endpoint, tarea ni job de borrado. Una política futura de disposición requiere revisión explícita de cumplimiento.
