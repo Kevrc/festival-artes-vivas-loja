@@ -1,0 +1,372 @@
+﻿openapi: 3.1.0
+info:
+  title: API de Convocatorias y curaduría (FIAVL)
+  version: 0.1.0
+  description: >-
+    Contrato del alcance P1: postulación, subsanación y evaluación ponderada.
+    Las operaciones de panel requieren autorización en servidor. Documentos privados;
+    el postulante propietario accede solo a sus propios documentos, además de coordinación
+    autorizada y curadores asignados; las URL de descarga duran cinco minutos.
+servers:
+  - url: /api/convocatorias
+security:
+  - sesion: []
+tags:
+  - name: convocatorias
+  - name: postulaciones
+  - name: documentos
+  - name: admisibilidad
+  - name: curaduria
+paths:
+  /:
+    get:
+      operationId: listarConvocatoriasAbiertas
+      tags: [convocatorias]
+      summary: Listar convocatorias abiertas al público
+      security: []
+      responses:
+        '200':
+          description: Convocatorias abiertas y cronograma
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ConvocatoriaPublica' }
+  /{convocatoriaId}:
+    get:
+      operationId: obtenerConvocatoriaPublica
+      tags: [convocatorias]
+      summary: Consultar bases, requisitos y fechas
+      security: []
+      parameters:
+        - name: convocatoriaId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Convocatoria
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConvocatoriaPublica' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+  /postulaciones:
+    post:
+      operationId: crearBorradorPostulacion
+      tags: [postulaciones]
+      summary: Crear borrador para la cuenta postulante autenticada
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BorradorPostulacion' }
+      responses:
+        '201':
+          description: Borrador creado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Postulacion' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/NoAutorizado' }
+        '422': { $ref: '#/components/responses/ReglaNegocio' }
+  /postulaciones/{postulacionId}:
+    get:
+      operationId: obtenerPostulacion
+      tags: [postulaciones]
+      summary: Obtener postulación propia o autorizada
+      parameters:
+        - name: postulacionId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Ficha y estado de postulación
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Postulacion' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/NoAutorizado' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+    patch:
+      operationId: actualizarBorradorPostulacion
+      tags: [postulaciones]
+      summary: Guardar o editar ficha permitida por el estado
+      parameters:
+        - name: postulacionId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BorradorPostulacion' }
+      responses:
+        '200': { description: Ficha actualizada }
+        '403': { $ref: '#/components/responses/NoAutorizado' }
+        '409': { $ref: '#/components/responses/ConflictoEstado' }
+        '422': { $ref: '#/components/responses/ReglaNegocio' }
+  /postulaciones/{postulacionId}/documentos:
+    post:
+      operationId: cargarDocumentoPostulacion
+      tags: [documentos]
+      summary: Cargar documento validado (PDF/JPEG/PNG, máximo 10 MB (10 000 000 bytes))
+      parameters:
+        - name: postulacionId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [tipo, archivo]
+              properties:
+                tipo: { type: string }
+                archivo:
+                  type: string
+                  format: binary
+                  description: Máximo 10 MB decimales (10 000 000 bytes), medidos por bytes por el servidor.
+      responses:
+        '201': { description: Metadatos de documento creado }
+        '400': { $ref: '#/components/responses/EntradaInvalida' }
+        '413': { description: Archivo excede 10 MB (10 000 000 bytes) }
+        '415': { description: Tipo o firma de archivo no permitido }
+        '403': { $ref: '#/components/responses/NoAutorizado' }
+  /documentos/{documentoId}/descarga:
+    get:
+      operationId: obtenerUrlDescargaDocumento
+      tags: [documentos]
+      summary: Obtener URL firmada para el propietario, coordinación o curador asignado
+      parameters:
+        - name: documentoId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: URL de descarga temporal
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [url, expiraEn]
+                properties:
+                  url: { type: string, format: uri }
+                  expiraEn: { type: string, format: date-time }
+        '403': { $ref: '#/components/responses/NoAutorizado' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+  /postulaciones/{postulacionId}/enviar:
+    post:
+      operationId: enviarPostulacion
+      tags: [postulaciones]
+      summary: Validar y enviar borrador dentro de la convocatoria
+      parameters:
+        - name: postulacionId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Acuse con folio y estado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AcuseEnvio' }
+        '409': { $ref: '#/components/responses/ConflictoEstado' }
+        '422': { $ref: '#/components/responses/ReglaNegocio' }
+  /postulaciones/{postulacionId}/retirar:
+    post:
+      operationId: retirarPostulacion
+      tags: [postulaciones]
+      summary: Retirar a borrador antes del cierre conservando número
+      parameters:
+        - name: postulacionId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Postulación devuelta a borrador }
+        '409': { $ref: '#/components/responses/ConflictoEstado' }
+  /panel/postulaciones/{postulacionId}/admisibilidad:
+    post:
+      operationId: resolverAdmisibilidad
+      tags: [admisibilidad]
+      summary: Admitir, pedir subsanación o no admitir con motivo
+      parameters:
+        - name: postulacionId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision]
+              properties:
+                decision: { type: string, enum: [admitir, subsanar, no_admitir] }
+                motivo: { type: string, maxLength: 2000 }
+                detalle: { type: string, maxLength: 4000 }
+      responses:
+        '200': { description: Estado actualizado y auditado }
+        '403': { $ref: '#/components/responses/NoAutorizado' }
+        '409': { $ref: '#/components/responses/ConflictoEstado' }
+  /postulaciones/{postulacionId}/subsanar:
+    post:
+      operationId: reenviarSubsanacion
+      tags: [postulaciones]
+      summary: Reenviar correcciones antes del vencimiento
+      parameters:
+        - name: postulacionId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Regresó a revisión de admisibilidad }
+        '403': { $ref: '#/components/responses/NoAutorizado' }
+        '409': { $ref: '#/components/responses/ConflictoEstado' }
+  /curaduria/asignaciones:
+    get:
+      operationId: listarAsignacionesPropias
+      tags: [curaduria]
+      summary: Listar solo asignaciones del curador autenticado
+      responses:
+        '200': { description: Asignaciones y materiales autorizados }
+        '403': { $ref: '#/components/responses/NoAutorizado' }
+  /curaduria/asignaciones/{asignacionId}/evaluacion:
+    get:
+      operationId: obtenerEvaluacionPropia
+      tags: [curaduria]
+      summary: Consultar o guardar evaluación propia sin exponer puntajes ajenos
+      parameters:
+        - name: asignacionId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Evaluación propia y criterios }
+        '403': { $ref: '#/components/responses/NoAutorizado' }
+    put:
+      operationId: guardarEvaluacion
+      tags: [curaduria]
+      summary: Guardar borrador de puntuaciones y observaciones
+      parameters:
+        - name: asignacionId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EvaluacionInput' }
+      responses:
+        '200': { description: Evaluación en borrador }
+        '403': { $ref: '#/components/responses/NoAutorizado' }
+        '422': { $ref: '#/components/responses/ReglaNegocio' }
+  /curaduria/asignaciones/{asignacionId}/enviar:
+    post:
+      operationId: enviarEvaluacion
+      tags: [curaduria]
+      summary: Cerrar la evaluación propia y calcular puntaje
+      parameters:
+        - name: asignacionId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Evaluación enviada y puntaje calculado }
+        '403': { $ref: '#/components/responses/NoAutorizado' }
+        '409': { $ref: '#/components/responses/ConflictoEstado' }
+  /panel/evaluaciones/{evaluacionId}/reabrir:
+    post:
+      operationId: reabrirEvaluacion
+      tags: [curaduria]
+      summary: Reabrir evaluación enviada, solo por coordinación y con motivo
+      parameters:
+        - name: evaluacionId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [motivo]
+              properties:
+                motivo: { type: string, minLength: 1, maxLength: 2000 }
+      responses:
+        '200': { description: Evaluación reabierta y auditada }
+        '403': { $ref: '#/components/responses/NoAutorizado' }
+        '409': { $ref: '#/components/responses/ConflictoEstado' }
+components:
+  securitySchemes:
+    sesion:
+      type: http
+      scheme: bearer
+      description: Sesión provista por Identidad; detalles definidos por contrato de spec 004.
+  schemas:
+    ConvocatoriaPublica:
+      type: object
+      required: [id, codigo, nombre, componente, abreEn, cierraEn, requisitos]
+      properties:
+        id: { type: string, format: uuid }
+        codigo: { type: string }
+        nombre: { type: string }
+        componente: { type: string }
+        provincia: { type: [string, 'null'] }
+        abreEn: { type: string, format: date-time }
+        cierraEn: { type: string, format: date-time }
+        requisitos: { type: array, items: { type: object } }
+    BorradorPostulacion:
+      type: object
+      required: [convocatoriaId, elenco, obra]
+      properties:
+        convocatoriaId: { type: string, format: uuid }
+        elenco: { type: object, additionalProperties: true }
+        obra: { type: object, additionalProperties: true }
+    Postulacion:
+      type: object
+      required: [id, numero, estado, obra]
+      properties:
+        id: { type: string, format: uuid }
+        numero: { type: string }
+        estado:
+          type: string
+          enum: [borrador, enviada, requiere_subsanacion, no_admitida, admitida, en_evaluacion, evaluada, requiere_deliberacion, seleccionada, lista_espera, no_seleccionada, desistida]
+        obra: { type: object, additionalProperties: true }
+        faltantes: { type: array, items: { type: string } }
+    AcuseEnvio:
+      type: object
+      required: [postulacionId, numero, estado, enviadaEn]
+      properties:
+        postulacionId: { type: string, format: uuid }
+        numero: { type: string, example: PN-2026-0001 }
+        estado: { const: enviada }
+        enviadaEn: { type: string, format: date-time }
+    EvaluacionInput:
+      type: object
+      required: [calificaciones, observaciones]
+      properties:
+        calificaciones:
+          type: array
+          items:
+            type: object
+            required: [criterioId, puntaje]
+            properties:
+              criterioId: { type: string, format: uuid }
+              puntaje: { type: integer, minimum: 0, maximum: 100 }
+        observaciones: { type: string, maxLength: 4000 }
+  responses:
+    NoAutenticado: { description: Sesión requerida }
+    NoAutorizado: { description: Rol, propiedad o asignación insuficiente }
+    NoEncontrado: { description: Recurso no encontrado }
+    EntradaInvalida: { description: Entrada inválida }
+    ConflictoEstado: { description: Estado incompatible o plazo vencido }
+    ReglaNegocio: { description: Requisitos incompletos o regla de negocio incumplida }
