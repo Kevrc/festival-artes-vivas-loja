@@ -169,4 +169,20 @@ describe('API de admisibilidad y subsanación US2', () => {
       .expect(409);
     expect((await db.postulacion.findUniqueOrThrow({ where: { id: fixture.postulacionId } })).estado).toBe('no_admitida');
   });
+
+  it('T034: la descarga de documentos de coordinación provincial se limita a su provincia', async () => {
+    const fixture = await crearPostulacion({ estado: 'borrador', provincia: 'Loja' });
+    const subida = await request(app.getHttpServer())
+      .post(`/api/convocatorias/postulaciones/${fixture.postulacionId}/documentos`)
+      .set(auth(fixture.cuentaId, 'postulante'))
+      .field('tipo', 'dossier')
+      .attach('archivo', Buffer.from('%PDF-1.7\nFIAVL'), { filename: 'dossier.pdf', contentType: 'application/pdf' })
+      .expect(201);
+    const documentoId = subida.body.id as string;
+    const ruta = `/api/convocatorias/documentos/${documentoId}/descarga`;
+    const propia = await request(app.getHttpServer()).get(ruta).set(auth(provincialLoja, 'coordinación provincial', 'Loja')).expect(200);
+    expect(propia.body.url).toEqual(expect.any(String));
+    await request(app.getHttpServer()).get(ruta).set(auth(provincialOtra, 'coordinación provincial', 'Pichincha')).expect(403);
+    await request(app.getHttpServer()).get(ruta).set(auth(coordinacion, 'coordinación de convocatorias')).expect(200);
+  });
 });
