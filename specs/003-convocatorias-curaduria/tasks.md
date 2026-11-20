@@ -18,7 +18,7 @@ description: "Tareas de Convocatorias y curaduría (003), alcance P1"
 
 **Purpose**: Registrar el schema, almacenamiento local, contratos, módulo e inicialización de datos sin modificar implementaciones de otras specs.
 
-- [ ] T001 Añadir `convocatorias` a `datasource db.schemas` en `prisma/schema/schema.prisma`, crear `prisma/schema/convocatorias.prisma` y migración inicial con CHECK SQL (`bytes BETWEEN 1 AND 10000000` y estados cerrados); verificar `pnpm db:migrate && pnpm db:generate`.
+- [x] T001 Añadir `convocatorias` a `datasource db.schemas` en `prisma/schema/schema.prisma`, crear `prisma/schema/convocatorias.prisma` y migración inicial con CHECK SQL (`bytes BETWEEN 1 AND 10000000` y estados cerrados); verificar `pnpm db:migrate && pnpm db:generate`.
 - [ ] T002 [P] Añadir `@aws-sdk/client-s3` y `@aws-sdk/s3-request-presigner` a `apps/api/package.json` (actualización pnpm-lock), MinIO con volumen privado y healthcheck a `docker/docker-compose.yml`, ClamAV solo bajo profile `antivirus` y variables `CONVOCATORIAS_S3_*`/antivirus a `.env.example`; no añadir MinIO al job `integracion` y reservar únicamente pasos nuevos de MinIO para `e2e` en CI. Verificar Compose y CI aditivos y acceso MinIO sin levantar ClamAV.
 - [ ] T003 [P] Crear `packages/contracts/src/eventos/convocatorias.ts` para `PostulacionEnviada` y `SubsanacionSolicitada`, exportarlos aditivamente en `packages/contracts/src/index.ts`; prueba Zod con cargas válidas e inválidas y sobre de evento común.
 - [ ] T004 Registrar `ConvocatoriasModule` en `apps/api/src/app.module.ts` y crear el esqueleto `domain/application/infrastructure/interface`; prueba de módulo/API confirma inicialización sin acceder a tablas de otros contextos.

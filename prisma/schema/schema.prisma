@@ -8,6 +8,6 @@ generator client {
 datasource db {
   provider   = "postgresql"
   url        = env("DATABASE_URL")
-  schemas    = ["programacion", "boleteria"]
+  schemas    = ["programacion", "boleteria", "convocatorias"]
   extensions = [pg_trgm(schema: "public")]
 }

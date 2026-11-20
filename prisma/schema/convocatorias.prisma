@@ -1,0 +1,180 @@
+// Esquema `convocatorias` — specs/003-convocatorias-curaduria/data-model.md
+
+model Convocatoria {
+  id                 String         @id @db.Uuid
+  edicionId          String         @map("edicion_id") @db.Uuid
+  codigo             String         @unique
+  componente         String
+  provincia          String?
+  abreEn             DateTime       @map("abre_en") @db.Timestamptz(3)
+  cierraEn           DateTime       @map("cierra_en") @db.Timestamptz(3)
+  siguienteNumero    Int            @default(1) @map("siguiente_numero")
+  maxObrasPorElenco  Int            @map("max_obras_por_elenco")
+  estado             String         @default("borrador")
+  criterios          Criterio[]
+  postulaciones      Postulacion[]
+
+  @@map("convocatoria")
+  @@schema("convocatorias")
+}
+
+model Criterio {
+  id             String          @id @db.Uuid
+  convocatoriaId String          @map("convocatoria_id") @db.Uuid
+  nombre         String
+  descripcion    String
+  peso           Int
+  convocatoria   Convocatoria    @relation(fields: [convocatoriaId], references: [id], onDelete: Restrict)
+  calificaciones Calificacion[]
+
+  @@unique([convocatoriaId, nombre])
+  @@map("criterio")
+  @@schema("convocatorias")
+}
+
+model Elenco {
+  id              String         @id @db.Uuid
+  cuentaId        String         @map("cuenta_id") @db.Uuid
+  nombre          String
+  responsable     String
+  correoContacto  String         @map("correo_contacto")
+  provinciaPais   String         @map("provincia_pais")
+  integrantes     Json
+  trayectoria     String
+  postulaciones   Postulacion[]
+
+  @@index([cuentaId])
+  @@map("elenco")
+  @@schema("convocatorias")
+}
+
+model Postulacion {
+  id                 String               @id @db.Uuid
+  convocatoriaId     String               @map("convocatoria_id") @db.Uuid
+  elencoId           String               @map("elenco_id") @db.Uuid
+  numero             String
+  obraFingerprint    String               @map("obra_fingerprint")
+  tituloObra         String               @map("titulo_obra")
+  disciplina         String
+  sinopsis           String
+  duracionMin        Int                  @map("duracion_min")
+  publico            String
+  fichaTecnica       Json                 @map("ficha_tecnica")
+  videoUrl           String?              @map("video_url")
+  estado             String               @default("borrador")
+  enviadaEn          DateTime?            @map("enviada_en") @db.Timestamptz(3)
+  primeraEnviadaEn   DateTime?            @map("primera_enviada_en") @db.Timestamptz(3)
+  subsanarHasta       DateTime?            @map("subsanar_hasta") @db.Timestamptz(3)
+  puntajeFinal        Decimal?             @map("puntaje_final") @db.Decimal(5, 2)
+  convocatoria       Convocatoria         @relation(fields: [convocatoriaId], references: [id], onDelete: Restrict)
+  elenco             Elenco               @relation(fields: [elencoId], references: [id], onDelete: Restrict)
+  documentos         Documento[]
+  asignaciones       Asignacion[]
+  auditorias         Auditoria[]
+
+  @@unique([convocatoriaId, numero])
+  @@unique([convocatoriaId, obraFingerprint])
+  @@index([elencoId, convocatoriaId])
+  @@index([estado, subsanarHasta])
+  @@map("postulacion")
+  @@schema("convocatorias")
+}
+
+model Documento {
+  id             String      @id @db.Uuid
+  postulacionId  String      @map("postulacion_id") @db.Uuid
+  tipo           String
+  nombreOriginal String      @map("nombre_original")
+  objectKey      String      @unique @map("object_key")
+  mimeType       String      @map("mime_type")
+  bytes          Int
+  sha256         String
+  cargadoEn      DateTime    @default(now()) @map("cargado_en") @db.Timestamptz(3)
+  postulacion    Postulacion @relation(fields: [postulacionId], references: [id], onDelete: Restrict)
+
+  @@index([postulacionId])
+  @@map("documento")
+  @@schema("convocatorias")
+}
+
+model Curador {
+  id            String       @id @db.Uuid
+  cuentaId      String       @unique @map("cuenta_id") @db.Uuid
+  disciplinas   Json
+  conflictos    Json
+  asignaciones  Asignacion[]
+
+  @@map("curador")
+  @@schema("convocatorias")
+}
+
+model Asignacion {
+  id             String       @id @db.Uuid
+  postulacionId  String       @map("postulacion_id") @db.Uuid
+  curadorId      String       @map("curador_id") @db.Uuid
+  estado         String       @default("asignada")
+  asignadaEn     DateTime     @default(now()) @map("asignada_en") @db.Timestamptz(3)
+  postulacion   Postulacion  @relation(fields: [postulacionId], references: [id], onDelete: Restrict)
+  curador       Curador      @relation(fields: [curadorId], references: [id], onDelete: Restrict)
+  evaluacion    Evaluacion?
+
+  @@unique([postulacionId, curadorId])
+  @@index([curadorId, estado])
+  @@map("asignacion")
+  @@schema("convocatorias")
+}
+
+model Evaluacion {
+  id             String         @id @db.Uuid
+  asignacionId   String         @unique @map("asignacion_id") @db.Uuid
+  estado         String         @default("borrador")
+  puntaje        Decimal?       @db.Decimal(5, 2)
+  observaciones  String?
+  enviadaEn      DateTime?      @map("enviada_en") @db.Timestamptz(3)
+  asignacion     Asignacion     @relation(fields: [asignacionId], references: [id], onDelete: Restrict)
+  calificaciones Calificacion[]
+
+  @@map("evaluacion")
+  @@schema("convocatorias")
+}
+
+model Calificacion {
+  id            String     @id @db.Uuid
+  evaluacionId  String     @map("evaluacion_id") @db.Uuid
+  criterioId    String     @map("criterio_id") @db.Uuid
+  puntaje       Int
+  evaluacion    Evaluacion @relation(fields: [evaluacionId], references: [id], onDelete: Restrict)
+  criterio      Criterio   @relation(fields: [criterioId], references: [id], onDelete: Restrict)
+
+  @@unique([evaluacionId, criterioId])
+  @@map("calificacion")
+  @@schema("convocatorias")
+}
+
+model Auditoria {
+  id             String       @id @db.Uuid
+  actorCuentaId  String?      @map("actor_cuenta_id") @db.Uuid
+  postulacionId  String       @map("postulacion_id") @db.Uuid
+  accion         String
+  estadoAnterior String?      @map("estado_anterior")
+  estadoNuevo    String?      @map("estado_nuevo")
+  motivo         String?
+  correlacionId  String?      @map("correlacion_id") @db.Uuid
+  registradoEn   DateTime     @default(now()) @map("registrado_en") @db.Timestamptz(3)
+  postulacion    Postulacion  @relation(fields: [postulacionId], references: [id], onDelete: Restrict)
+
+  @@index([postulacionId, registradoEn])
+  @@map("auditoria")
+  @@schema("convocatorias")
+}
+
+model HistorialObraCamino {
+  id                String   @id @db.Uuid
+  obraFingerprint   String   @unique @map("obra_fingerprint")
+  edicionAnio       Int      @map("edicion_anio")
+  registradaEn      DateTime @default(now()) @map("registrada_en") @db.Timestamptz(3)
+  referenciaFuente  String   @map("referencia_fuente")
+
+  @@map("historial_obra_camino")
+  @@schema("convocatorias")
+}
