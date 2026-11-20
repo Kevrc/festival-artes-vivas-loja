@@ -4,6 +4,7 @@ import { FalsoEscanerAntivirus, type ResultadoFalsoAntivirus } from './escaner-a
 
 export function crearEscanerAntivirus(env = process.env): EscanerAntivirusPort {
   const modo = env.CONVOCATORIAS_ANTIVIRUS ?? 'simulador';
+  if (env.NODE_ENV === 'production' && modo !== 'clamav') throw new Error('Producción requiere ClamAV');
   if (modo === 'simulador') {
     return new FalsoEscanerAntivirus((env.CONVOCATORIAS_ANTIVIRUS_RESULTADO ?? 'limpio') as ResultadoFalsoAntivirus);
   }
