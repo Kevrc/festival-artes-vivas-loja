@@ -22,4 +22,11 @@ export class PrismaConvocatoriasRepository implements RepositorioConvocatoriasPo
   }): Promise<void> {
     await this.db.auditoria.create({ data: input });
   }
+
+  async registrarDocumento(input: {
+    id: string; postulacionId: string; tipo: string; nombreOriginal: string; objectKey: string;
+    mimeType: string; bytes: number; sha256: string;
+  }): Promise<void> {
+    await this.db.documento.create({ data: input });
+  }
 }
