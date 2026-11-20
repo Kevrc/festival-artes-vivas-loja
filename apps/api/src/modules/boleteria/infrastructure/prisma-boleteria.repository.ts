@@ -666,6 +666,8 @@ export class PrismaBoleteriaRepository implements RepositorioBoleteria {
 
   async cancelarReserva(p: { pedidoId: string; cuentaId: string; ahora: Date; correlacionId: string }) {
     return this.db.$transaction(async (tx) => {
+      // Auditoría #3: bloquea el pedido y resta solo las entradas que esta operación anula de verdad
+      await tx.$queryRaw`SELECT "id" FROM "boleteria"."pedido" WHERE "id" = ${p.pedidoId}::uuid FOR UPDATE`;
       const pedido = await tx.pedidoBoleteria.findUnique({
         where: { id: p.pedidoId },
         include: { funcion: { include: { edicion: true } }, entradas: true },
@@ -681,15 +683,14 @@ export class PrismaBoleteriaRepository implements RepositorioBoleteria {
         return { ok: false as const, motivo: 'no_permitido' as const, detalle: 'No se puede cancelar una reserva después del inicio.' };
       }
 
-      const validas = pedido.entradas.filter((e) => e.estado === 'valida').length;
+      const { count: validas } = await tx.entradaBoleteria.updateMany({
+        where: { pedidoId: pedido.id, estado: 'valida' },
+        data: { estado: 'anulada' },
+      });
       if (validas > 0) {
-        await tx.entradaBoleteria.updateMany({
-          where: { pedidoId: pedido.id, estado: 'valida' },
-          data: { estado: 'anulada' },
-        });
         await tx.$executeRaw`
           UPDATE "boleteria"."inventario_funcion"
-          SET "emitidos" = GREATEST(0, "emitidos" - ${validas}), "actualizado_en" = NOW()
+          SET "emitidos" = "emitidos" - ${validas}, "actualizado_en" = NOW()
           WHERE "funcion_id" = ${pedido.funcionId}::uuid
         `;
       }
@@ -1026,6 +1027,8 @@ export class PrismaBoleteriaRepository implements RepositorioBoleteria {
       if (caja.vendedorId !== p.vendedorId) {
         return { ok: false as const, motivo: 'no_autorizado' as const, detalle: 'Caja perteneciente a otro vendedor.' };
       }
+      // Auditoría #2: bloquea el pedido; un segundo clic espera y ve que ya está reembolsado
+      await tx.$queryRaw`SELECT "id" FROM "boleteria"."pedido" WHERE "id" = ${p.pedidoId}::uuid FOR UPDATE`;
       const pedido = await tx.pedidoBoleteria.findUnique({
         where: { id: p.pedidoId },
         include: { funcion: { include: { edicion: true } }, entradas: true },
@@ -1037,15 +1040,14 @@ export class PrismaBoleteriaRepository implements RepositorioBoleteria {
         return { ok: false as const, motivo: 'no_autorizado' as const, detalle: 'La devolución debe hacerse en la sede de la función.' };
       }
 
-      const validas = pedido.entradas.filter((e) => e.estado === 'valida').length;
+      const { count: validas } = await tx.entradaBoleteria.updateMany({
+        where: { pedidoId: pedido.id, estado: 'valida' },
+        data: { estado: 'anulada' },
+      });
       if (validas > 0) {
-        await tx.entradaBoleteria.updateMany({
-          where: { pedidoId: pedido.id, estado: 'valida' },
-          data: { estado: 'anulada' },
-        });
         await tx.$executeRaw`
           UPDATE "boleteria"."inventario_funcion"
-          SET "emitidos" = GREATEST(0, "emitidos" - ${validas}), "actualizado_en" = NOW()
+          SET "emitidos" = "emitidos" - ${validas}, "actualizado_en" = NOW()
           WHERE "funcion_id" = ${pedido.funcionId}::uuid
         `;
       }
