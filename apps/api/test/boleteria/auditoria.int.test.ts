@@ -1,7 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { ejemplo } from '@fiavl/contracts';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, inject, it } from 'vitest';
+import { ColaEventos } from '../../src/common/datos/datos.module';
+import { enTransaccion } from '../../src/common/datos/transaccion';
+import { PrismaClient } from '../../src/generated/prisma/index.js';
 import { CancelarReserva } from '../../src/modules/boleteria/application/reservas/reservas-servicios';
+import { PublicadorPgBossBoleteria } from '../../src/modules/boleteria/infrastructure/publicador.pgboss';
 import { crearAppBoleteria } from './app';
 
 // Hallazgos de la auditoría del repositorio
@@ -14,6 +18,53 @@ beforeEach(async () => {
 });
 
 const taquilla = (cuenta: string, sedeId: string) => ({ 'x-cuenta-dev': cuenta, 'x-rol-dev': 'taquilla', 'x-sede-dev': sedeId });
+
+describe('auditoría #1: el evento se confirma junto con el cambio', () => {
+  /** Cola real (pg-boss sobre el PostgreSQL de pruebas) aunque NODE_ENV=test. */
+  class ColaReal extends ColaEventos {
+    override get habilitada() {
+      return true;
+    }
+  }
+  const db = new PrismaClient({ datasourceUrl: inject('databaseUrl') });
+  const cola = new ColaReal();
+  const publicador = new PublicadorPgBossBoleteria(cola);
+  const evento = () =>
+    ejemplo.disponibilidadCambiada(randomUUID(), {
+      funcionId: randomUUID(),
+      lugaresRestantes: 3,
+      aforoHabilitado: 10,
+      calculadoEn: new Date().toISOString(),
+    });
+  const encolados = async (id: string) =>
+    (await db.$queryRawUnsafe<{ n: number }[]>(`SELECT count(*)::int AS n FROM pgboss.job WHERE data->>'id' = $1`, id))[0]!.n;
+
+  beforeAll(async () => {
+    process.env.DATABASE_URL = inject('databaseUrl');
+    await publicador.onModuleInit();
+  });
+  afterAll(async () => {
+    await cola.onModuleDestroy();
+    await db.$disconnect();
+  });
+
+  it('si la transacción se revierte, el evento no queda en la cola', async () => {
+    const e = evento();
+    await expect(
+      enTransaccion(db, async () => {
+        await publicador.publicar(e);
+        throw new Error('falla después de publicar');
+      }),
+    ).rejects.toThrow('falla después de publicar');
+    expect(await encolados(e.id)).toBe(0);
+  });
+
+  it('si la transacción se confirma, el evento queda en la cola', async () => {
+    const e = evento();
+    await enTransaccion(db, () => publicador.publicar(e));
+    expect(await encolados(e.id)).toBe(1);
+  });
+});
 
 describe('auditoría #2: devolución en taquilla con doble clic', () => {
   it('solo sale efectivo una vez y el inventario resta una vez', async () => {

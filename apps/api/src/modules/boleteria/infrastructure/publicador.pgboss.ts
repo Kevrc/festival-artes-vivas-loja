@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import { EventoPublicadoBoleteria, colaDe } from '@fiavl/contracts';
 import { ColaEventos } from '../../../common/datos/datos.module';
+import { transaccionActual } from '../../../common/datos/transaccion';
 import type { PublicadorEventosBoleteria } from '../application/puertos';
 
 const DESTINOS: Record<EventoPublicadoBoleteria['tipo'], readonly string[]> = {
@@ -13,8 +14,9 @@ const DESTINOS: Record<EventoPublicadoBoleteria['tipo'], readonly string[]> = {
 };
 
 /**
- * Publica los eventos de Boletería en la cola pg-boss compartida del proceso (ADR-0003). Si la cola
- * no está disponible, falla: nunca descarta eventos en silencio.
+ * Publica los eventos de Boletería en pg-boss (ADR-0003). Si hay una transacción ambiente, encola
+ * dentro de ella: el cambio y su evento se confirman juntos o ninguno (auditoría #1). Si la cola no
+ * está disponible, falla: nunca descarta eventos en silencio.
  */
 @Injectable()
 export class PublicadorPgBossBoleteria implements PublicadorEventosBoleteria, OnModuleInit {
@@ -47,9 +49,14 @@ export class PublicadorPgBossBoleteria implements PublicadorEventosBoleteria, On
     if (!this.cola.habilitada) return;
 
     const boss = await this.cola.obtener();
+    const tx = transaccionActual();
+    const db = tx && {
+      executeSql: async (text: string, values: unknown[]) => ({ rows: await tx.$queryRawUnsafe<unknown[]>(text, ...values) }),
+    };
     for (const mod of DESTINOS[evento.tipo]) {
       const cola = colaDe(mod, evento.tipo);
       await boss.send(cola, evento, {
+        ...(db ? { db } : {}),
         ...(opciones?.singletonKey && opciones.singletonSeconds
           ? { singletonKey: `${cola}:${opciones.singletonKey}`, singletonSeconds: opciones.singletonSeconds }
           : {}),

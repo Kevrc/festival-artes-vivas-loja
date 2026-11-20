@@ -16,6 +16,8 @@ import {
   type PublicadorEventosBoleteria,
   RELOJ_BOLETERIA,
   REPOSITORIO_BOLETERIA,
+  UNIDAD_TRABAJO,
+  type UnidadDeTrabajo,
   type RelojBoleteria,
   type RepositorioBoleteria,
 } from '../puertos';
@@ -27,6 +29,7 @@ export class ValidadorServicios {
   constructor(
     @Inject(REPOSITORIO_BOLETERIA) private readonly repo: RepositorioBoleteria,
     @Inject(PUBLICADOR_BOLETERIA) private readonly publicador: PublicadorEventosBoleteria,
+    @Inject(UNIDAD_TRABAJO) private readonly uow: UnidadDeTrabajo,
     @Inject(RELOJ_BOLETERIA) private readonly reloj: RelojBoleteria,
     @Inject(LLAVES_QR) private readonly llaves: ParLlavesQr,
   ) {}
@@ -124,28 +127,30 @@ export class ValidadorServicios {
       });
 
       if (evalRes.semaforo === 'verde' && encontrada) {
-        const ing = await this.repo.registrarIngresoEnLinea({
-          entradaId: encontrada.id,
-          funcionId: p.funcionId,
-          validadorId: p.usuario.cuentaId,
-          dispositivoId: p.dispositivoId,
-          puerta: p.puerta,
-          escaneadoEn: ahora,
-        });
-        if (!ing.duplicado) {
-          await publicarIngresoRegistrado(this.publicador, {
-            ingresoId: ing.ingresoId,
+        await this.uow.ejecutar(async () => {
+          const r = await this.repo.registrarIngresoEnLinea({
             entradaId: encontrada.id,
             funcionId: p.funcionId,
-            sedeId: fn.sedeId,
-            edicionId: fn.edicionId,
             validadorId: p.usuario.cuentaId,
+            dispositivoId: p.dispositivoId,
+            puerta: p.puerta,
             escaneadoEn: ahora,
-            diferido: false,
-            ahora,
-            correlacionId,
           });
-        }
+          if (!r.duplicado) {
+            await publicarIngresoRegistrado(this.publicador, {
+              ingresoId: r.ingresoId,
+              entradaId: encontrada.id,
+              funcionId: p.funcionId,
+              sedeId: fn.sedeId,
+              edicionId: fn.edicionId,
+              validadorId: p.usuario.cuentaId,
+              escaneadoEn: ahora,
+              diferido: false,
+              ahora,
+              correlacionId,
+            });
+          }
+        });
       }
 
       boleteriaValidacionesTotal.inc({ semaforo: evalRes.semaforo, modo: 'online' });
@@ -204,35 +209,27 @@ export class ValidadorServicios {
       escaneadoEn: new Date(Date.parse(i.escaneadoEn) + i.desfaseMs),
     }));
 
-    const res = await this.repo.sincronizarIngresosLote({
-      validadorId: p.usuario.cuentaId,
-      ingresos: corregidos,
-      ahora,
+    const res = await this.uow.ejecutar(async () => {
+      const r = await this.repo.sincronizarIngresosLote({ validadorId: p.usuario.cuentaId, ingresos: corregidos, ahora });
+      for (const ing of r.nuevosIngresos) {
+        await publicarIngresoRegistrado(this.publicador, { ...ing, diferido: true, ahora, correlacionId });
+      }
+      for (const conf of r.conflictos) {
+        await publicarConflictoDeIngreso(this.publicador, {
+          entradaId: conf.entradaId,
+          funcionId: conf.funcionId,
+          sedeId: conf.sedeId,
+          edicionId: conf.edicionId,
+          primerDispositivoId: conf.primerDispositivoId,
+          segundoDispositivoId: conf.segundoDispositivoId,
+          detectadoEn: ahora,
+          correlacionId,
+        });
+      }
+      return r;
     });
-
-    for (const ing of res.nuevosIngresos) {
-      boleteriaValidacionesTotal.inc({ semaforo: 'verde', modo: 'offline' });
-      await publicarIngresoRegistrado(this.publicador, {
-        ...ing,
-        diferido: true,
-        ahora,
-        correlacionId,
-      });
-    }
-
-    for (const conf of res.conflictos) {
-      boleteriaConflictosIngresoTotal.inc();
-      await publicarConflictoDeIngreso(this.publicador, {
-        entradaId: conf.entradaId,
-        funcionId: conf.funcionId,
-        sedeId: conf.sedeId,
-        edicionId: conf.edicionId,
-        primerDispositivoId: conf.primerDispositivoId,
-        segundoDispositivoId: conf.segundoDispositivoId,
-        detectadoEn: ahora,
-        correlacionId,
-      });
-    }
+    boleteriaValidacionesTotal.inc({ semaforo: 'verde', modo: 'offline' }, res.nuevosIngresos.length);
+    boleteriaConflictosIngresoTotal.inc(res.conflictos.length);
 
     return {
       aplicados: res.aplicados,

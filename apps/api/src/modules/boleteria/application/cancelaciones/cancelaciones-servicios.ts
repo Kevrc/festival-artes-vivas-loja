@@ -24,6 +24,8 @@ import {
   type PublicadorEventosBoleteria,
   RELOJ_BOLETERIA,
   REPOSITORIO_BOLETERIA,
+  UNIDAD_TRABAJO,
+  type UnidadDeTrabajo,
   type RelojBoleteria,
   type RepositorioBoleteria,
 } from '../puertos';
@@ -34,6 +36,7 @@ export class CancelacionesServicios {
     @Inject(REPOSITORIO_BOLETERIA) private readonly repo: RepositorioBoleteria,
     @Inject(PROVEEDOR_PAGOS) private readonly proveedor: ProveedorPagos,
     @Inject(PUBLICADOR_BOLETERIA) private readonly publicador: PublicadorEventosBoleteria,
+    @Inject(UNIDAD_TRABAJO) private readonly uow: UnidadDeTrabajo,
     @Inject(RELOJ_BOLETERIA) private readonly reloj: RelojBoleteria,
     @Inject(LLAVES_QR) private readonly llaves: ParLlavesQr,
   ) {}
@@ -61,13 +64,21 @@ export class CancelacionesServicios {
 
     if (p.eleccion === 'cambio') {
       if (!p.nuevaFuncionId) throw new BadRequestException('Debes indicar nuevaFuncionId para cambiar de función.');
-      const res = await this.repo.cambiarFuncionPorCancelacion({
-        pedidoId: p.pedidoId,
-        cuentaId: p.cuentaId,
-        nuevaFuncionId: p.nuevaFuncionId,
-        ahora,
-        llaves: this.llaves,
-        correlacionId,
+      const nuevaFuncionId = p.nuevaFuncionId;
+      const res = await this.uow.ejecutar(async () => {
+        const r = await this.repo.cambiarFuncionPorCancelacion({
+          pedidoId: p.pedidoId,
+          cuentaId: p.cuentaId,
+          nuevaFuncionId,
+          ahora,
+          llaves: this.llaves,
+          correlacionId,
+        });
+        if (r.ok) {
+          await publicarEntradasEmitidas(this.publicador, { pedido: r.nuevoPedido, edicionId: r.nuevaFuncion.edicionId, ahora, correlacionId });
+          await publicarDisponibilidad(this.publicador, r.nuevaFuncion, ahora, correlacionId);
+        }
+        return r;
       });
       if (!res.ok) {
         if (res.motivo === 'no_encontrado') throw new NotFoundException(res.detalle);
@@ -77,13 +88,6 @@ export class CancelacionesServicios {
         }
         throw new UnprocessableEntityException(res.detalle);
       }
-      await publicarEntradasEmitidas(this.publicador, {
-        pedido: res.nuevoPedido,
-        edicionId: res.nuevaFuncion.edicionId,
-        ahora,
-        correlacionId,
-      });
-      await publicarDisponibilidad(this.publicador, res.nuevaFuncion, ahora, correlacionId);
       boleteriaPedidosTotal.inc({ canal: 'cambio', tipo: res.nuevoPedido.tipo, resultado: 'cambiado' });
       return res.nuevoPedido;
     }
@@ -101,29 +105,26 @@ export class CancelacionesServicios {
     });
 
     const motivo = fn.estadoFuncion === 'cancelada' ? 'funcion_cancelada' : 'funcion_reprogramada';
-    const reemb = await this.repo.registrarReembolsoConfirmado({
-      pedidoId: pedido.id,
-      proveedor: this.proveedor.nombre,
-      referenciaDevolucion: dev.referenciaDevolucion,
-      importeCentavos: pedido.importeCentavos,
-      motivo,
-      correlacionId,
-      actorId: p.cuentaId,
-      rol: 'asistente',
-      marcarResolucionDevolucion: true,
+    const reemb = await this.uow.ejecutar(async () => {
+      const r = await this.repo.registrarReembolsoConfirmado({
+        pedidoId: pedido.id,
+        proveedor: this.proveedor.nombre,
+        referenciaDevolucion: dev.referenciaDevolucion,
+        importeCentavos: pedido.importeCentavos,
+        motivo,
+        correlacionId,
+        actorId: p.cuentaId,
+        rol: 'asistente',
+        marcarResolucionDevolucion: true,
+      });
+      if (r.pedido && !r.yaRegistrado) {
+        await publicarPedidoReembolsado(this.publicador, { pedido: r.pedido, edicionId: fn.edicionId, motivo, ahora, correlacionId });
+        if (r.inventario) await publicarDisponibilidad(this.publicador, r.inventario, ahora, correlacionId);
+      }
+      return r;
     });
 
     if (reemb.pedido && !reemb.yaRegistrado) {
-      await publicarPedidoReembolsado(this.publicador, {
-        pedido: reemb.pedido,
-        edicionId: fn.edicionId,
-        motivo,
-        ahora,
-        correlacionId,
-      });
-      if (reemb.inventario) {
-        await publicarDisponibilidad(this.publicador, reemb.inventario, ahora, correlacionId);
-      }
       boleteriaPedidosTotal.inc({ canal: pedido.canal, tipo: pedido.tipo, resultado: 'reembolsado' });
     }
     return reemb.pedido!;
@@ -144,16 +145,17 @@ export class CancelacionesServicios {
         importeCentavos: pedido.importeCentavos,
       });
       if (!dev.aprobada) continue;
-      const reemb = await this.repo.registrarReembolsoConfirmado({
-        pedidoId: pedido.id,
-        proveedor: this.proveedor.nombre,
-        referenciaDevolucion: dev.referenciaDevolucion,
-        importeCentavos: pedido.importeCentavos,
-        motivo: 'plazo_7_dias_vencido',
-        correlacionId,
-        marcarResolucionDevolucion: true,
-      });
-      if (reemb.pedido && !reemb.yaRegistrado && reemb.inventario) {
+      const aplicado = await this.uow.ejecutar(async () => {
+        const reemb = await this.repo.registrarReembolsoConfirmado({
+          pedidoId: pedido.id,
+          proveedor: this.proveedor.nombre,
+          referenciaDevolucion: dev.referenciaDevolucion,
+          importeCentavos: pedido.importeCentavos,
+          motivo: 'plazo_7_dias_vencido',
+          correlacionId,
+          marcarResolucionDevolucion: true,
+        });
+        if (!reemb.pedido || reemb.yaRegistrado || !reemb.inventario) return false;
         await publicarPedidoReembolsado(this.publicador, {
           pedido: reemb.pedido,
           edicionId: reemb.inventario.edicionId,
@@ -161,8 +163,9 @@ export class CancelacionesServicios {
           ahora,
           correlacionId,
         });
-        procesados++;
-      }
+        return true;
+      });
+      if (aplicado) procesados++;
     }
     return procesados;
   }

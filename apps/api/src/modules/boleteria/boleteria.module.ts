@@ -1,4 +1,5 @@
 import { type DynamicModule, Module, type Provider, type Type } from '@nestjs/common';
+import { enTransaccion } from '../../common/datos/transaccion';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { CancelacionesServicios } from './application/cancelaciones/cancelaciones-servicios';
 import { CrearPedidoPagado } from './application/compras/crear-pedido-pagado';
@@ -19,6 +20,8 @@ import {
   type PublicadorEventosBoleteria,
   RELOJ_BOLETERIA,
   REPOSITORIO_BOLETERIA,
+  UNIDAD_TRABAJO,
+  type UnidadDeTrabajo,
   type RelojBoleteria,
   type RepositorioBoleteria,
 } from './application/puertos';
@@ -62,17 +65,19 @@ export class BoleteriaModule {
         provide: PROVEEDOR_PAGOS,
         useClass: usaPayPhone ? PayPhonePagosAdapter : SimuladorPagosAdapter,
       },
+      { provide: UNIDAD_TRABAJO, inject: [PrismaService], useFactory: (db: PrismaService): UnidadDeTrabajo => ({ ejecutar: (fn) => enTransaccion(db, () => fn()) }) },
       PublicadorPgBossBoleteria,
       { provide: PUBLICADOR_BOLETERIA, useExisting: PublicadorPgBossBoleteria },
       { provide: AUTORIZACION_BOLETERIA, useClass: AutorizacionDevAdapter },
       {
         provide: AplicarEventoOperacion,
-        inject: [REPOSITORIO_BOLETERIA, PUBLICADOR_BOLETERIA, RELOJ_BOLETERIA],
+        inject: [REPOSITORIO_BOLETERIA, PUBLICADOR_BOLETERIA, RELOJ_BOLETERIA, UNIDAD_TRABAJO],
         useFactory: (
           repo: RepositorioBoleteria,
           publicador: PublicadorEventosBoleteria,
           reloj: RelojBoleteria,
-        ) => new AplicarEventoOperacion(repo, publicador, reloj),
+          uow: UnidadDeTrabajo,
+        ) => new AplicarEventoOperacion(repo, publicador, reloj, uow),
       },
       ConsultasBoleteria,
       ConsultarOcupacionEnVivo,

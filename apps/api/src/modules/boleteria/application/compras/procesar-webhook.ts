@@ -22,6 +22,8 @@ import {
   type PublicadorEventosBoleteria,
   RELOJ_BOLETERIA,
   REPOSITORIO_BOLETERIA,
+  UNIDAD_TRABAJO,
+  type UnidadDeTrabajo,
   type RelojBoleteria,
   type RepositorioBoleteria,
 } from '../puertos';
@@ -32,6 +34,7 @@ export class ProcesarWebhookPago {
     @Inject(REPOSITORIO_BOLETERIA) private readonly repo: RepositorioBoleteria,
     @Inject(PROVEEDOR_PAGOS) private readonly proveedor: ProveedorPagos,
     @Inject(PUBLICADOR_BOLETERIA) private readonly publicador: PublicadorEventosBoleteria,
+    @Inject(UNIDAD_TRABAJO) private readonly uow: UnidadDeTrabajo,
     @Inject(RELOJ_BOLETERIA) private readonly reloj: RelojBoleteria,
     @Inject(LLAVES_QR) private readonly llaves: ParLlavesQr,
   ) {}
@@ -61,64 +64,59 @@ export class ProcesarWebhookPago {
     const correlacionId = p.correlacionId ?? randomUUID();
     const ahora = this.reloj();
 
-    const res = await this.repo.procesarResultadoPago({
-      pedidoId: p.pedidoId,
-      proveedor: this.proveedor.nombre,
-      referenciaProveedor: p.referenciaProveedor,
-      resultado: p.resultado,
-      importeCentavos: p.importeCentavos,
-      ahora,
-      llaves: this.llaves,
-      correlacionId,
+    // Resultado del pago y sus eventos en una misma transacción (ADR-0003)
+    const res = await this.uow.ejecutar(async () => {
+      const r = await this.repo.procesarResultadoPago({
+        pedidoId: p.pedidoId,
+        proveedor: this.proveedor.nombre,
+        referenciaProveedor: p.referenciaProveedor,
+        resultado: p.resultado,
+        importeCentavos: p.importeCentavos,
+        ahora,
+        llaves: this.llaves,
+        correlacionId,
+      });
+      if (r.pedido && (r.accion === 'pagado' || r.accion === 'tardio_pagado')) {
+        await publicarEntradasEmitidas(this.publicador, { pedido: r.pedido, edicionId: r.inventario!.edicionId, ahora, correlacionId });
+        await publicarDisponibilidad(this.publicador, r.inventario!, ahora, correlacionId);
+      }
+      if (r.pedido && r.accion === 'rechazado' && r.inventario) {
+        await publicarDisponibilidad(this.publicador, r.inventario, ahora, correlacionId);
+      }
+      return r;
     });
 
     if (res.accion === 'no_encontrado' || !res.pedido) {
       throw new NotFoundException('Pedido no encontrado.');
     }
 
-    if (res.accion === 'pagado' || res.accion === 'tardio_pagado') {
-      await publicarEntradasEmitidas(this.publicador, {
-        pedido: res.pedido,
-        edicionId: res.inventario!.edicionId,
-        ahora,
-        correlacionId,
-      });
-      await publicarDisponibilidad(this.publicador, res.inventario!, ahora, correlacionId);
+    if (res.accion === 'pagado' || res.accion === 'tardio_pagado' || res.accion === 'rechazado') {
       boleteriaPedidosTotal.inc({ canal: res.pedido.canal, tipo: res.pedido.tipo, resultado: res.accion });
       return { procesado: true, estadoPedido: res.pedido.estado };
     }
 
-    if (res.accion === 'rechazado') {
-      if (res.inventario) await publicarDisponibilidad(this.publicador, res.inventario, ahora, correlacionId);
-      boleteriaPedidosTotal.inc({ canal: res.pedido.canal, tipo: res.pedido.tipo, resultado: 'rechazado' });
-      return { procesado: true, estadoPedido: res.pedido.estado };
-    }
-
+    // Pago tardío sin cupo: se devuelve lo cobrado
     if (res.accion === 'tardio_requiere_reembolso') {
-      const dev = await this.proveedor.devolverPago({
-        pedidoId: res.pedido.id,
-        referenciaCobro: p.referenciaProveedor,
-        importeCentavos: res.pedido.importeCentavos,
-      });
+      const motivo = 'pago_tardio_sin_cupo' as const;
+      const importe = res.pedido.importeCentavos;
+      boleteriaPedidosTotal.inc({ canal: res.pedido.canal, tipo: res.pedido.tipo, resultado: res.accion });
+      if (importe <= 0) return { procesado: true, estadoPedido: res.pedido.estado };
+      const dev = await this.proveedor.devolverPago({ pedidoId: res.pedido.id, referenciaCobro: p.referenciaProveedor, importeCentavos: importe });
       if (dev.aprobada) {
-        const reemb = await this.repo.registrarReembolsoConfirmado({
-          pedidoId: res.pedido.id,
-          proveedor: this.proveedor.nombre,
-          referenciaDevolucion: dev.referenciaDevolucion,
-          importeCentavos: res.pedido.importeCentavos,
-          motivo: 'pago_tardio_sin_cupo',
-          correlacionId,
-        });
-        if (reemb.pedido && !reemb.yaRegistrado) {
-          await publicarPedidoReembolsado(this.publicador, {
-            pedido: reemb.pedido,
-            edicionId: res.inventario!.edicionId,
-            motivo: 'pago_tardio_sin_cupo',
-            ahora,
+        const pedido = res.pedido;
+        await this.uow.ejecutar(async () => {
+          const reemb = await this.repo.registrarReembolsoConfirmado({
+            pedidoId: pedido.id,
+            proveedor: this.proveedor.nombre,
+            referenciaDevolucion: dev.referenciaDevolucion,
+            importeCentavos: importe,
+            motivo,
             correlacionId,
           });
-        }
-        boleteriaPedidosTotal.inc({ canal: res.pedido.canal, tipo: res.pedido.tipo, resultado: 'reembolsado_tardio' });
+          if (reemb.pedido && !reemb.yaRegistrado) {
+            await publicarPedidoReembolsado(this.publicador, { pedido: reemb.pedido, edicionId: res.inventario!.edicionId, motivo, ahora, correlacionId });
+          }
+        });
         return { procesado: true, estadoPedido: 'reembolsado' as const };
       }
     }
@@ -132,16 +130,18 @@ export class ExpirarRetenciones {
   constructor(
     @Inject(REPOSITORIO_BOLETERIA) private readonly repo: RepositorioBoleteria,
     @Inject(PUBLICADOR_BOLETERIA) private readonly publicador: PublicadorEventosBoleteria,
+    @Inject(UNIDAD_TRABAJO) private readonly uow: UnidadDeTrabajo,
     @Inject(RELOJ_BOLETERIA) private readonly reloj: RelojBoleteria,
   ) {}
 
   async ejecutar(correlacionId: string = randomUUID()): Promise<number> {
     const ahora = this.reloj();
-    const expirados = await this.repo.expirarRetencionesVencidas(ahora);
-    for (const item of expirados) {
-      await publicarDisponibilidad(this.publicador, item.funcion, ahora, correlacionId);
-      boleteriaPedidosTotal.inc({ canal: 'web', tipo: 'compra', resultado: 'expirado' });
-    }
+    const expirados = await this.uow.ejecutar(async () => {
+      const lista = await this.repo.expirarRetencionesVencidas(ahora);
+      for (const item of lista) await publicarDisponibilidad(this.publicador, item.funcion, ahora, correlacionId);
+      return lista;
+    });
+    boleteriaPedidosTotal.inc({ canal: 'web', tipo: 'compra', resultado: 'expirado' }, expirados.length);
     return expirados.length;
   }
 }
@@ -181,6 +181,7 @@ export class ReenviarEntradasCorreo {
   constructor(
     @Inject(REPOSITORIO_BOLETERIA) private readonly repo: RepositorioBoleteria,
     @Inject(PUBLICADOR_BOLETERIA) private readonly publicador: PublicadorEventosBoleteria,
+    @Inject(UNIDAD_TRABAJO) private readonly uow: UnidadDeTrabajo,
     @Inject(RELOJ_BOLETERIA) private readonly reloj: RelojBoleteria,
   ) {}
 
