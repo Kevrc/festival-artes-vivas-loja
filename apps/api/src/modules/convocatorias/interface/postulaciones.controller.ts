@@ -15,7 +15,8 @@ import { validarDocumento, BYTES_MAXIMO_DOCUMENTO } from '../domain/documentos';
 import { PostulacionesServicio } from '../application/postulaciones/postulaciones.servicio';
 import { PostulacionesPrismaRepository } from '../infrastructure/postulaciones-prisma.repository';
 import { validarFirmaDescargaLocal } from '../infrastructure/firma-descarga-local';
-import { RolesConvocatorias, ConvocatoriasGuard } from './convocatorias.guard';
+import { AlcanceEnControlador, RolesConvocatorias, ConvocatoriasGuard } from './convocatorias.guard';
+import { puedeCoordinarProvincia } from '../application/politicas-autorizacion';
 import type { ContextoConvocatorias } from '../application/puertos';
 import { ConvocatoriasHttpFilter } from './convocatorias-http.filter';
 
@@ -120,6 +121,7 @@ export class PostulacionesController {
   @Get('documentos/:id/descarga')
   @UseGuards(ConvocatoriasGuard)
   @RolesConvocatorias('postulante', 'coordinación de convocatorias', 'coordinación provincial', 'curador')
+  @AlcanceEnControlador()
   async solicitarDescarga(@Req() req: PeticionPostulante, @Param('id', ParseUUIDPipe) id: string) {
     const doc = await this.repo.obtenerDocumento(id);
     if (!doc) throw new NotFoundException('Documento inexistente');
@@ -128,6 +130,9 @@ export class PostulacionesController {
     const asignado = doc.postulacion.asignaciones.some((a: { curador: { cuentaId: string } }) => a.curador.cuentaId === sujeto.cuentaId);
     const permitido = puedeDescargarDocumento({ postulanteCuentaId: doc.postulacion.elenco.cuentaId, actorCuentaId: sujeto.cuentaId, rol, curadorAsignado: asignado });
     if (!permitido) throw new ForbiddenException();
+    if (rol === 'coordinación provincial' && !puedeCoordinarProvincia(sujeto, doc.postulacion.convocatoria.provincia ?? '')) {
+      throw new ForbiddenException('El documento está fuera de su alcance provincial');
+    }
     const expiraEn = new Date(Date.now() + 5 * 60_000);
     return { url: await this.almacenamiento.crearUrlDescarga(doc.objectKey, expiraEn), expiraEn: expiraEn.toISOString() };
   }
