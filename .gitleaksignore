@@ -1,0 +1,5 @@
+# Falsos positivos revisados de gitleaks (generic-api-key): sin credenciales reales.
+# 1) test: object key de prueba; 2) factory: lee accessKeyId/secretAccessKey de variables de entorno; 3) .env.example: variable sin valor.
+923aa95c468ee1160e60f629c6125acb88e11d30:apps/api/src/modules/convocatorias/infrastructure/almacenamiento-documentos.adapter.test.ts:generic-api-key:9
+2cf84272b2ddf2c50f4e4fc39300399eee0245ae:apps/api/src/modules/convocatorias/infrastructure/almacenamiento.factory.ts:generic-api-key:26
+a804d90ef1fbbcdef061a3f501237a13720bcf65:.env.example:generic-api-key:24
