@@ -17,6 +17,33 @@ export function encabezadosDemo(rol = 'postulante'): Record<string, string> {
   return { 'x-cuenta-dev': cuentaDemo(), 'x-rol-dev': rol };
 }
 
+/** Sesión de desarrollo de coordinación (Identidad real llega con la spec 004). */
+export function encabezadosCoordinacion(): Record<string, string> {
+  let cuenta = localStorage.getItem('fiavl-coordinacion-cuenta');
+  if (!cuenta) {
+    cuenta = crypto.randomUUID();
+    localStorage.setItem('fiavl-coordinacion-cuenta', cuenta);
+  }
+  return { 'x-cuenta-dev': cuenta, 'x-rol-dev': encodeURIComponent('coordinación de convocatorias') };
+}
+
+/** Solo el documento más reciente de cada tipo: un reemplazo en subsanación conserva el anterior en el servidor. */
+export function documentosVigentes<T extends { tipo: string }>(documentos: T[]): T[] {
+  const vigentes = new Map<string, T>();
+  for (const documento of documentos) vigentes.set(documento.tipo, documento);
+  return [...vigentes.values()];
+}
+
+export function fechaEcuador(iso: string): string {
+  return new Intl.DateTimeFormat('es-EC', { dateStyle: 'long', timeStyle: 'short', timeZone: 'America/Guayaquil' }).format(new Date(iso));
+}
+
+export function tiempoRestante(ms: number): string {
+  if (ms <= 0) return 'Plazo vencido';
+  const minutos = Math.floor(ms / 60_000);
+  return `${Math.floor(minutos / 60)} h ${String(minutos % 60).padStart(2, '0')} min`;
+}
+
 export async function respuestaApi<T>(ruta: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(`${API_CONVOCATORIAS}${ruta}`, {
     ...init,
