@@ -17,6 +17,7 @@ import { PostulacionesPrismaRepository } from '../infrastructure/postulaciones-p
 import { validarFirmaDescargaLocal } from '../infrastructure/firma-descarga-local';
 import { AlcanceEnControlador, RolesConvocatorias, ConvocatoriasGuard } from './convocatorias.guard';
 import { puedeCoordinarProvincia } from '../application/politicas-autorizacion';
+import { validacionFallida } from '../infrastructure/observabilidad-convocatorias';
 import type { ContextoConvocatorias } from '../application/puertos';
 import { ConvocatoriasHttpFilter } from './convocatorias-http.filter';
 
@@ -111,10 +112,15 @@ export class PostulacionesController {
     if (!archivo) throw new BadRequestException('Debe adjuntar un archivo');
     const { tipo } = validar(DocumentoSchema, body);
     const validacion = validarDocumento(archivo.originalname, archivo.mimetype, archivo.buffer);
-    if (!validacion.valido) throw new BadRequestException(validacion.motivo);
+    if (!validacion.valido) { validacionFallida('documento'); throw new BadRequestException(validacion.motivo); }
     const objectKey = randomUUID();
     const input = { id: randomUUID(), postulacionId: id, tipo, nombreOriginal: archivo.originalname, objectKey, mimeType: archivo.mimetype, bytes: archivo.size, sha256: createHash('sha256').update(archivo.buffer).digest('hex'), contenido: archivo.buffer };
-    await new GuardarDocumento(this.escaner, this.almacenamiento, this.repo).ejecutar(input);
+    try {
+      await new GuardarDocumento(this.escaner, this.almacenamiento, this.repo).ejecutar(input);
+    } catch (error) {
+      validacionFallida('antivirus');
+      throw error;
+    }
     return { id: input.id, postulacionId: id, tipo, nombreOriginal: archivo.originalname, bytes: archivo.size };
   }
 
@@ -152,7 +158,10 @@ export class PostulacionesController {
   @RolesConvocatorias('postulante')
   @HttpCode(200)
   async enviar(@Req() req: PeticionPostulante, @Param('id', ParseUUIDPipe) id: string) {
-    const p = await this.servicio.enviar(id, this.cuenta(req));
+    const p = await this.servicio.enviar(id, this.cuenta(req)).catch((error: unknown) => {
+      if (error instanceof BadRequestException && Array.isArray((error.getResponse() as { faltantes?: unknown }).faltantes)) validacionFallida('faltantes');
+      throw error;
+    });
     return { postulacionId: p.id, numero: p.numero, estado: p.estado, enviadaEn: p.enviadaEn?.toISOString() };
   }
 

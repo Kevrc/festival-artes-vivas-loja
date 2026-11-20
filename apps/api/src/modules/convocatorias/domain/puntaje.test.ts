@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  calcularPuntajePonderado, formatearPuntaje, hayDispersion, promediarPuntajes, UMBRAL_DELIBERACION,
+  calcularPuntajePonderado, centesimasDesdeDecimal, formatearPuntaje, hayDispersion, promediarPuntajes, UMBRAL_DELIBERACION,
 } from './puntaje';
 
 const criterios = [
@@ -71,5 +71,14 @@ describe('US3-AS5 · dispersión para deliberación (FR-010)', () => {
 
   it('no hay dispersión con una sola evaluación', () => {
     expect(hayDispersion([7900])).toBe(false);
+  });
+});
+
+describe('lectura de decimales persistidos', () => {
+  it('convierte "79", "79.5" y "82.00" a centésimas exactas', () => {
+    expect(centesimasDesdeDecimal('79')).toBe(7900);
+    expect(centesimasDesdeDecimal('79.5')).toBe(7950);
+    expect(centesimasDesdeDecimal('82.00')).toBe(8200);
+    expect(centesimasDesdeDecimal(62.5)).toBe(6250);
   });
 });

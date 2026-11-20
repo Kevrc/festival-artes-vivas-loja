@@ -18,7 +18,7 @@ export class ConsumidoresConvocatorias implements OnModuleInit {
     await boss.schedule(colaJob, '* * * * *');
     await boss.work(colaJob, async () => {
       const expiradas = await this.admision.expirarVencidas();
-      if (expiradas > 0) this.log.log({ expiradas }, 'subsanaciones vencidas actualizadas');
+      if (expiradas > 0) this.log.log({ cantidad: expiradas, operacion: 'expirar_subsanaciones' }, 'subsanaciones vencidas actualizadas');
     });
     const expiradas = await this.admision.expirarVencidas();
     this.log.log(`Expiración de subsanaciones activa; ${expiradas} vencidas al arrancar`);

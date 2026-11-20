@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   calcularVencimientoSubsanacion,
+  esCaminoALoja,
   puedeSubsanar,
   validarDecisionAdmisibilidad,
   PLAZO_SUBSANACION_HORAS,
@@ -47,5 +48,12 @@ describe('US2 · reglas de admisibilidad y subsanación (AS1-AS3)', () => {
     expect(transicionarPostulacion('enviada', 'no_admitir')).toBe('no_admitida');
     expect(() => transicionarPostulacion('admitida', 'pedir_subsanacion')).toThrow();
     expect(() => transicionarPostulacion('no_admitida', 'admitir')).toThrow();
+  });
+});
+
+describe('RN-005 · componente Camino a Loja', () => {
+  it('reconoce las grafías del componente sin importar mayúsculas ni separadores', () => {
+    for (const valor of ['Camino a Loja', 'camino_a_loja', ' CAMINO-A-LOJA ']) expect(esCaminoALoja(valor)).toBe(true);
+    expect(esCaminoALoja('nacional')).toBe(false);
   });
 });

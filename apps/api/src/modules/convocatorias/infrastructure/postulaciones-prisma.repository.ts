@@ -8,6 +8,7 @@ import type { DatosElenco, DatosObra, DatosPostulacion, PostulacionesRepositorio
 import { calcularVencimientoSubsanacion, esCaminoALoja, puedeSubsanar, type DecisionAdmisibilidad } from '../domain/admisibilidad';
 import { transicionarPostulacion, type EstadoPostulacion } from '../domain/estados';
 import { calcularObraFingerprint } from '../domain/reglas-convocatoria';
+import { notificarAuditoria, Observada } from './observabilidad-convocatorias';
 
 export class PostulacionesPrismaRepository implements PostulacionesRepositorioPort, AdmisionRepositorioPort {
   constructor(private readonly db: PrismaClient, private readonly publicador: PublicadorConvocatoriasPort) {}
@@ -65,6 +66,7 @@ export class PostulacionesPrismaRepository implements PostulacionesRepositorioPo
     });
   }
 
+  @Observada('enviar')
   enviar(id: string, cuentaId: string, ahora: Date) {
     return enTransaccion(this.db, async (tx) => {
       const p = await tx.postulacion.findUniqueOrThrow({ where: { id }, include: { convocatoria: true, elenco: true, documentos: true } });
@@ -82,12 +84,14 @@ export class PostulacionesPrismaRepository implements PostulacionesRepositorioPo
       const actualizado = await tx.postulacion.update({ where: { id }, data: { estado: 'enviada', numero, enviadaEn: ahora, ...(primera ? { primeraEnviadaEn: ahora } : {}) }, include: { convocatoria: true, elenco: true, documentos: true } });
       const correlacionId = randomUUID();
       await tx.auditoria.create({ data: { id: randomUUID(), postulacionId: id, actorCuentaId: cuentaId, accion: 'postulacion_enviada', estadoAnterior: 'borrador', estadoNuevo: 'enviada', correlacionId } });
+      notificarAuditoria({ postulacionId: id, accion: 'postulacion_enviada', estadoAnterior: 'borrador', estadoNuevo: 'enviada', correlacionId });
       const ocurridoEn = ahora.toISOString();
       await this.publicador.publicar({ id: randomUUID(), tipo: 'PostulacionEnviada', version: 1, ocurridoEn, edicionId: p.convocatoria.edicionId, correlacionId, datos: { postulacionId: id, convocatoriaId: p.convocatoriaId, cuentaPostulanteId: cuentaId, numero, enviadaEn: ocurridoEn } }, { singletonKey: `postulacion:${id}:${ahora.getTime()}` });
       return actualizado;
     });
   }
 
+  @Observada('retirar')
   retirar(id: string, cuentaId: string, ahora: Date) {
     return enTransaccion(this.db, async (tx) => {
       const p = await tx.postulacion.findUniqueOrThrow({ where: { id }, include: { convocatoria: true, elenco: true } });
@@ -95,6 +99,7 @@ export class PostulacionesPrismaRepository implements PostulacionesRepositorioPo
       if (p.estado !== 'enviada' || ahora >= p.convocatoria.cierraEn) throw new ConflictException('Solo se puede retirar antes del cierre');
       const result = await tx.postulacion.update({ where: { id }, data: { estado: 'borrador' }, include: { convocatoria: true, elenco: true, documentos: true } });
       await tx.auditoria.create({ data: { id: randomUUID(), postulacionId: id, actorCuentaId: cuentaId, accion: 'postulacion_retirada', estadoAnterior: 'enviada', estadoNuevo: 'borrador' } });
+      notificarAuditoria({ postulacionId: id, accion: 'postulacion_retirada', estadoAnterior: 'enviada', estadoNuevo: 'borrador' });
       return result;
     });
   }
@@ -135,6 +140,7 @@ export class PostulacionesPrismaRepository implements PostulacionesRepositorioPo
     return this.db.documento.create({ data: input }).then(() => undefined);
   }
 
+  @Observada('resolver_admisibilidad')
   resolverAdmisibilidad(input: {
     postulacionId: string;
     actorCuentaId?: string | null;
@@ -219,6 +225,7 @@ export class PostulacionesPrismaRepository implements PostulacionesRepositorioPo
     });
   }
 
+  @Observada('reenviar_subsanacion')
   reenviarSubsanacion(input: { postulacionId: string; cuentaId: string; ahora: Date }): Promise<ReenvioSubsanacion> {
     return enTransaccion(this.db, async (tx) => {
       const postulacion = await tx.postulacion.findUniqueOrThrow({
@@ -290,6 +297,7 @@ export class PostulacionesPrismaRepository implements PostulacionesRepositorioPo
     });
   }
 
+  @Observada('expirar_subsanaciones')
   expirarSubsanacionesVencidas(ahora: Date): Promise<number> {
     return enTransaccion(this.db, async (tx) => {
       const vencidas = await tx.postulacion.findMany({
@@ -335,6 +343,7 @@ export class PostulacionesPrismaRepository implements PostulacionesRepositorioPo
     },
   ): Promise<void> {
     await tx.auditoria.create({ data: { id: randomUUID(), ...input } });
+    notificarAuditoria({ postulacionId: input.postulacionId, accion: input.accion, estadoAnterior: input.estadoAnterior ?? null, estadoNuevo: input.estadoNuevo ?? null, correlacionId: input.correlacionId ?? null });
   }
 
   private mapearAdmision(postulacion: {

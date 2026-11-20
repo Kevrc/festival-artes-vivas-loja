@@ -7,6 +7,7 @@ import type {
   ResultadoEnvio, ResultadoReapertura, ResumenEvaluacionPostulacion,
 } from '../application/evaluaciones/evaluaciones.port';
 import { detectarConflicto } from '../domain/conflictos';
+import { notificarAuditoria, Observada } from './observabilidad-convocatorias';
 import {
   transicionarAsignacion, transicionarEvaluacion, transicionarPostulacion,
   type EstadoAsignacion, type EstadoEvaluacion, type EstadoPostulacion,
@@ -28,7 +29,7 @@ const incluirAsignacion = {
     include: {
       elenco: true,
       documentos: { orderBy: { cargadoEn: 'asc' as const } },
-      convocatoria: { include: { criterios: { orderBy: { nombre: 'asc' as const } } } },
+      convocatoria: { include: { criterios: { orderBy: [{ peso: 'desc' as const }, { nombre: 'asc' as const }] } } },
     },
   },
 } satisfies Prisma.AsignacionInclude;
@@ -92,6 +93,7 @@ export class EvaluacionesPrismaRepository implements EvaluacionesRepositorioPort
     };
   }
 
+  @Observada('guardar_evaluacion')
   guardarEvaluacion(cuentaId: string, asignacionId: string, input: EvaluacionInput): Promise<EvaluacionPropia> {
     return enTransaccion(this.db, async (tx) => {
       const fila = await this.propia(tx, cuentaId, asignacionId);
@@ -114,6 +116,7 @@ export class EvaluacionesPrismaRepository implements EvaluacionesRepositorioPort
     });
   }
 
+  @Observada('enviar_evaluacion')
   enviarEvaluacion(cuentaId: string, asignacionId: string, ahora: Date): Promise<ResultadoEnvio> {
     return enTransaccion(this.db, async (tx) => {
       const fila = await this.propia(tx, cuentaId, asignacionId);
@@ -168,6 +171,7 @@ export class EvaluacionesPrismaRepository implements EvaluacionesRepositorioPort
     });
   }
 
+  @Observada('reabrir_evaluacion')
   reabrirEvaluacion(input: {
     evaluacionId: string; actorCuentaId: string; motivo: string; ahora: Date; provinciaPermitida: (provincia: string | null) => boolean;
   }): Promise<ResultadoReapertura> {
@@ -221,6 +225,7 @@ export class EvaluacionesPrismaRepository implements EvaluacionesRepositorioPort
   }
 
   /** Alta de una asignación bloqueada por RN-004. No es un endpoint de P1: las asignaciones vienen del seed. */
+  @Observada('asignar_curador')
   async asignarCurador(postulacionId: string, curadorId: string, actorCuentaId: string | null = null) {
     return enTransaccion(this.db, async (tx) => {
       const postulacion = await tx.postulacion.findUnique({ where: { id: postulacionId }, include: { elenco: true } });
@@ -324,6 +329,7 @@ export class EvaluacionesPrismaRepository implements EvaluacionesRepositorioPort
     tx: Prisma.TransactionClient,
     input: { postulacionId: string; actorCuentaId?: string | null; accion: string; estadoAnterior?: string | null; estadoNuevo?: string | null; motivo?: string | null; correlacionId: string },
   ) {
+    notificarAuditoria({ postulacionId: input.postulacionId, accion: input.accion, estadoAnterior: input.estadoAnterior ?? null, estadoNuevo: input.estadoNuevo ?? null, correlacionId: input.correlacionId });
     return tx.auditoria.create({
       data: {
         id: randomUUID(), postulacionId: input.postulacionId, actorCuentaId: input.actorCuentaId ?? null, accion: input.accion,
