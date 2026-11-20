@@ -44,6 +44,22 @@ export function tiempoRestante(ms: number): string {
   return `${Math.floor(minutos / 60)} h ${String(minutos % 60).padStart(2, '0')} min`;
 }
 
+const CLAVE_CURADOR = 'fiavl-curador-cuenta';
+
+/** Cuenta de curador de la sesión de desarrollo (se elige en /curaduria; Identidad real llega con la spec 004). */
+export function cuentaCurador(): string { return localStorage.getItem(CLAVE_CURADOR) ?? ''; }
+export function fijarCuentaCurador(cuenta: string): void { localStorage.setItem(CLAVE_CURADOR, cuenta.trim()); }
+export function encabezadosCurador(): Record<string, string> { return { 'x-cuenta-dev': cuentaCurador(), 'x-rol-dev': encodeURIComponent('curador') }; }
+
+/** "79.00" (API) → "79,00" (es-EC). */
+export function puntajeEc(valor: string | null | undefined): string { return valor ? valor.replace('.', ',') : '—'; }
+
+export const ETIQUETA_ESTADO: Record<string, string> = {
+  en_evaluacion: 'en evaluación', evaluada: 'evaluada', requiere_deliberacion: 'requiere deliberación', admitida: 'admitida',
+  borrador: 'borrador', enviada: 'enviada', reabierta: 'reabierta', sin_iniciar: 'sin iniciar',
+  asignada: 'asignada', completada: 'completada',
+};
+
 export async function respuestaApi<T>(ruta: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(`${API_CONVOCATORIAS}${ruta}`, {
     ...init,
