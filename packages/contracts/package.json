@@ -8,7 +8,7 @@
     "./api": "./src/api/index.ts"
   },
   "scripts": {
-    "gen": "openapi-typescript ../../specs/001-cartelera-programacion/contracts/api-cartelera.openapi.yaml -o src/api/cartelera.ts",
+    "gen": "openapi-typescript ../../specs/001-cartelera-programacion/contracts/api-cartelera.openapi.yaml -o src/api/cartelera.ts && openapi-typescript ../../specs/002-boleteria-entradas/contracts/api-boleteria.openapi.yaml -o src/api/boleteria.ts",
     "test": "vitest run",
     "typecheck": "tsc -p .",
     "lint": "eslint ."

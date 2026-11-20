@@ -1,6 +1,14 @@
 import { z } from 'zod';
-import { DisponibilidadCambiada } from './boleteria';
 import {
+  AforoExcedido,
+  ConflictoDeIngreso,
+  DisponibilidadCambiada,
+  EntradasEmitidas,
+  IngresoRegistrado,
+  PedidoReembolsado,
+} from './boleteria';
+import {
+  AforoCambiado,
   FuncionActualizada,
   FuncionCancelada,
   FuncionProgramada,
@@ -24,6 +32,29 @@ export const EventoCartelera = z.discriminatedUnion('tipo', [
 export type EventoCartelera = z.infer<typeof EventoCartelera>;
 export type TipoEventoCartelera = EventoCartelera['tipo'];
 
+/** Eventos de Operación que consume Boletería (spec 002). */
+export const EventoOperacionBoleteria = z.discriminatedUnion('tipo', [
+  ProgramacionPublicada,
+  FuncionProgramada,
+  FuncionActualizada,
+  FuncionReprogramada,
+  FuncionCancelada,
+  AforoCambiado,
+]);
+export type EventoOperacionBoleteria = z.infer<typeof EventoOperacionBoleteria>;
+export type TipoEventoOperacionBoleteria = EventoOperacionBoleteria['tipo'];
+
+/** Eventos de dominio publicados por Boletería (spec 002). */
+export const EventoPublicadoBoleteria = z.discriminatedUnion('tipo', [
+  DisponibilidadCambiada,
+  EntradasEmitidas,
+  IngresoRegistrado,
+  PedidoReembolsado,
+  ConflictoDeIngreso,
+  AforoExcedido,
+]);
+export type EventoPublicadoBoleteria = z.infer<typeof EventoPublicadoBoleteria>;
+
 /** Nombre de cola pg-boss de un evento para un módulo: programacion.funcion-cancelada (ADR-0003). */
 export const colaDe = (modulo: string, tipo: string) =>
   `${modulo}.${tipo.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase()}`;
@@ -36,3 +67,12 @@ export const TIPOS_EVENTO_CARTELERA = [
   'FuncionCancelada',
   'DisponibilidadCambiada',
 ] as const satisfies readonly TipoEventoCartelera[];
+
+export const TIPOS_EVENTO_BOLETERIA = [
+  'ProgramacionPublicada',
+  'FuncionProgramada',
+  'FuncionActualizada',
+  'FuncionReprogramada',
+  'FuncionCancelada',
+  'AforoCambiado',
+] as const satisfies readonly TipoEventoOperacionBoleteria[];
