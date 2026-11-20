@@ -66,7 +66,6 @@ export class BoleteriaModule {
       PublicadorPgBossBoleteria,
       { provide: PUBLICADOR_BOLETERIA, useExisting: PublicadorPgBossBoleteria },
       { provide: AUTORIZACION_BOLETERIA, useClass: AutorizacionDevAdapter },
-      BoleteriaGuard,
       {
         provide: AplicarEventoOperacion,
         inject: [REPOSITORIO_BOLETERIA, PUBLICADOR_BOLETERIA, RELOJ_BOLETERIA],
@@ -90,7 +89,8 @@ export class BoleteriaModule {
       ValidadorServicios,
       CancelacionesServicios,
     ];
-    if (opciones.consumidores) providers.push(ConsumidoresBoleteria);
+    // El worker no tiene HTTP ni Reflector: el guard solo existe en la API (si no, el worker no arranca)
+    providers.push(opciones.consumidores ? ConsumidoresBoleteria : BoleteriaGuard);
     return {
       module: BoleteriaModule,
       providers,
