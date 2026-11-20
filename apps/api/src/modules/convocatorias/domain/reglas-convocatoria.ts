@@ -21,7 +21,7 @@ export function calcularPuntajePonderado(calificaciones: number[], pesos: number
   if (calificaciones.some((n) => !Number.isInteger(n) || n < 0 || n > 100) || pesos.some((n) => !Number.isInteger(n) || n < 0)) {
     throw new Error('Puntaje o peso fuera de rango');
   }
-  const hundredths = calificaciones.reduce((sum, score, i) => sum + score * pesos[i], 0);
+  const hundredths = calificaciones.reduce((sum, score, i) => sum + score * pesos[i]!, 0);
   return hundredths / 100;
 }
 
