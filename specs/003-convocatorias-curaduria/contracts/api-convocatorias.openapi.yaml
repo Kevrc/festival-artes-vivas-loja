@@ -260,6 +260,41 @@ paths:
         '200': { description: Regresó a revisión de admisibilidad }
         '403': { $ref: '#/components/responses/NoAutorizado' }
         '409': { $ref: '#/components/responses/ConflictoEstado' }
+  /panel/postulaciones:
+    get:
+      operationId: listarPostulacionesAdmision
+      tags: [admisibilidad]
+      summary: Listar postulaciones por revisar; coordinación provincial solo ve su provincia
+      parameters:
+        - name: estado
+          in: query
+          required: false
+          schema: { type: string, enum: [enviada, requiere_subsanacion, no_admitida, admitida] }
+      responses:
+        '200': { description: 'Postulaciones con elenco, documentos y plazo de subsanación' }
+        '403': { $ref: '#/components/responses/NoAutorizado' }
+  /panel/evaluaciones:
+    get:
+      operationId: listarEvaluacionesPanel
+      tags: [curaduria]
+      summary: Avance de curaduría por postulación (puntaje final, pendientes, deliberación)
+      responses:
+        '200': { description: 'Postulaciones en evaluación visibles para el rol y su alcance provincial' }
+        '403': { $ref: '#/components/responses/NoAutorizado' }
+  /panel/postulaciones/{postulacionId}/evaluacion:
+    get:
+      operationId: consultarAgregadoEvaluacion
+      tags: [curaduria]
+      summary: Agregado calculado de las evaluaciones de una postulación
+      parameters:
+        - name: postulacionId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: 'Puntajes por evaluación, puntaje final y estado' }
+        '403': { $ref: '#/components/responses/NoAutorizado' }
+        '404': { description: Postulación inexistente }
   /curaduria/asignaciones:
     get:
       operationId: listarAsignacionesPropias
@@ -396,7 +431,7 @@ components:
         observaciones: { type: string, maxLength: 4000 }
   responses:
     NoAutenticado: { description: Sesión requerida }
-    NoAutorizado: { description: Rol, propiedad o asignación insuficiente }
+    NoAutorizado: { description: 'Rol, propiedad o asignación insuficiente' }
     NoEncontrado: { description: Recurso no encontrado }
     EntradaInvalida: { description: Entrada inválida }
     ConflictoEstado: { description: Estado incompatible o plazo vencido }
