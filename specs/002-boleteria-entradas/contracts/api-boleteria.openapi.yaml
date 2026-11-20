@@ -1,0 +1,699 @@
+openapi: 3.1.0
+info:
+  title: API de boletería y control de acceso (módulo Boletería)
+  version: 0.1.0
+  description: |
+    Contrato público e interno del módulo Boletería del FIAVL (spec 002).
+    Importes en centavos enteros de USD (Constitución V). Fechas y horas en ISO 8601 con zona
+    horaria. Errores normalizados según RFC 9457 (`application/problem+json`).
+servers:
+  - url: /api/boleteria
+security:
+  - sesion: []
+tags:
+  - name: disponibilidad
+    description: Consulta de cupo, precio y ocupación en vivo
+  - name: pedidos
+    description: Compras pagadas en línea, reservas gratuitas, "Mis entradas" y cancelaciones
+  - name: pagos
+    description: Webhooks firmados del proveedor externo de pagos
+  - name: taquilla
+    description: Ventas presenciales, devoluciones en efectivo y cierre de caja
+  - name: validador
+    description: Descarga de paquete offline, validación en puerta y sincronización de ingresos
+paths:
+  /funciones/{funcionId}/disponibilidad:
+    get:
+      operationId: consultarDisponibilidadFuncion
+      tags: [disponibilidad]
+      summary: Estado de cupo, precio y reglas de venta de una función
+      description: Permite renderizar la pantalla `/entradas/{funcionId}` con aforo disponible, precio en centavos y límites vigentes.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/FuncionId'
+      responses:
+        '200':
+          description: Disponibilidad actual de la función
+          headers:
+            Cache-Control:
+              schema: { type: string, example: 'no-store' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DisponibilidadFuncion' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+
+  /funciones/{funcionId}/ocupacion:
+    get:
+      operationId: consultarOcupacionEnVivo
+      tags: [disponibilidad]
+      summary: Ocupación en tiempo real para jefe de sala o taquilla (US6, FR-015)
+      parameters:
+        - $ref: '#/components/parameters/FuncionId'
+      responses:
+        '200':
+          description: Contadores de aforo, emisión, retención e ingresos validados
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OcupacionFuncion' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/NoAutorizado' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+
+  /pedidos:
+    post:
+      operationId: crearPedidoPagado
+      tags: [pedidos]
+      summary: Retener lugares por 10 minutos e iniciar pago en línea (US1)
+      description: Idempotente mediante `Idempotency-Key` (FR-005). Requiere cuenta con correo verificado (FR-016).
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SolicitudCompra' }
+      responses:
+        '201':
+          description: Pedido creado (o recuperado por idempotencia) con lugares retenidos y URL de pago
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PedidoCreadoPago' }
+        '400': { $ref: '#/components/responses/Invalido' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/NoAutorizado' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+        '409': { $ref: '#/components/responses/ConflictoCupo' }
+        '503': { $ref: '#/components/responses/ProveedorNoDisponible' }
+
+  /reservas:
+    post:
+      operationId: crearReservaGratuita
+      tags: [pedidos]
+      summary: Emitir reserva sin costo en función gratuita con aforo (US3)
+      description: Idempotente mediante `Idempotency-Key`. Rechaza funciones de entrada libre (US3-AS3).
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SolicitudCompra' }
+      responses:
+        '201':
+          description: Reserva confirmada con entradas emitidas
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PedidoDetalle' }
+        '400': { $ref: '#/components/responses/Invalido' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/NoAutorizado' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+        '409': { $ref: '#/components/responses/ConflictoCupo' }
+        '422': { $ref: '#/components/responses/ReglaNegocio' }
+
+  /mis-entradas:
+    get:
+      operationId: listarMisEntradas
+      tags: [pedidos]
+      summary: Listar pedidos y entradas digitales de la cuenta autenticada (FR-009)
+      responses:
+        '200':
+          description: Lista de pedidos y sus entradas ordenados del más reciente al más antiguo
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/PedidoDetalle' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+
+  /pedidos/{pedidoId}:
+    get:
+      operationId: obtenerPedido
+      tags: [pedidos]
+      summary: Consultar estado y entradas de un pedido del titular autenticado
+      parameters:
+        - $ref: '#/components/parameters/PedidoId'
+      responses:
+        '200':
+          description: Detalle del pedido
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PedidoDetalle' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/NoAutorizado' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+
+  /pedidos/{pedidoId}/reenviar-correo:
+    post:
+      operationId: reenviarEntradasCorreo
+      tags: [pedidos]
+      summary: Reenviar las entradas emitidas al correo del asistente (caso borde correo rebotado)
+      parameters:
+        - $ref: '#/components/parameters/PedidoId'
+      responses:
+        '202':
+          description: Reenvío encolado para Identidad
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [pedidoId, encolado]
+                properties:
+                  pedidoId: { type: string, format: uuid }
+                  encolado: { type: boolean }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/NoAutorizado' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+        '422': { $ref: '#/components/responses/ReglaNegocio' }
+
+  /pedidos/{pedidoId}/cancelar-reserva:
+    post:
+      operationId: cancelarReserva
+      tags: [pedidos]
+      summary: Cancelar reserva gratuita antes del inicio de la función (US3-AS5)
+      parameters:
+        - $ref: '#/components/parameters/PedidoId'
+      responses:
+        '200':
+          description: Reserva cancelada y lugares devueltos al inventario
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PedidoDetalle' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/NoAutorizado' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+        '422': { $ref: '#/components/responses/ReglaNegocio' }
+
+  /pedidos/{pedidoId}/eleccion-cancelacion:
+    post:
+      operationId: elegirResolucionCancelacion
+      tags: [pedidos]
+      summary: Elegir devolución o cambio de función tras cancelación o reprogramación (US5-AS2, US5-AS3)
+      parameters:
+        - $ref: '#/components/parameters/PedidoId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SolicitudEleccionCancelacion' }
+      responses:
+        '200':
+          description: Resolución aplicada (reembolso iniciado o nuevas entradas emitidas)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PedidoDetalle' }
+        '400': { $ref: '#/components/responses/Invalido' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/NoAutorizado' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+        '409': { $ref: '#/components/responses/ConflictoCupo' }
+        '422': { $ref: '#/components/responses/ReglaNegocio' }
+
+  /pagos/webhook:
+    post:
+      operationId: recibirWebhookPago
+      tags: [pagos]
+      summary: Recibir notificación firmada del proveedor de pagos (ADR-0007)
+      description: Procesamiento idempotente por referencia del proveedor. Maneja aprobaciones tardías sobre pedidos expirados (US1-AS6).
+      security: []
+      parameters:
+        - name: X-Firma-Proveedor
+          in: header
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WebhookPago' }
+      responses:
+        '200':
+          description: Webhook procesado o ya aplicado (idempotente)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [procesado, estadoPedido]
+                properties:
+                  procesado: { type: boolean }
+                  estadoPedido: { $ref: '#/components/schemas/EstadoPedido' }
+        '400': { $ref: '#/components/responses/Invalido' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+
+  /taquilla/cajas:
+    post:
+      operationId: abrirCajaTaquilla
+      tags: [taquilla]
+      summary: Abrir turno de caja en la sede asignada al vendedor (US4, FR-011)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SolicitudAbrirCaja' }
+      responses:
+        '201':
+          description: Caja abierta
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CajaDetalle' }
+        '400': { $ref: '#/components/responses/Invalido' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/NoAutorizado' }
+        '409': { $ref: '#/components/responses/ConflictoCupo' }
+
+  /taquilla/cajas/actual:
+    get:
+      operationId: obtenerCajaActual
+      tags: [taquilla]
+      summary: Consultar la caja abierta del vendedor autenticado
+      responses:
+        '200':
+          description: Caja abierta y su resumen de movimientos
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CajaDetalle' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/NoAutorizado' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+
+  /taquilla/cajas/{cajaId}/cerrar:
+    post:
+      operationId: cerrarCajaTaquilla
+      tags: [taquilla]
+      summary: Cerrar turno de caja declarando el efectivo físico (US4-AS3, SC-006)
+      parameters:
+        - $ref: '#/components/parameters/CajaId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SolicitudCerrarCaja' }
+      responses:
+        '200':
+          description: Caja cerrada con arqueo calculado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CajaDetalle' }
+        '400': { $ref: '#/components/responses/Invalido' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/NoAutorizado' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+        '422': { $ref: '#/components/responses/ReglaNegocio' }
+
+  /taquilla/ventas:
+    post:
+      operationId: registrarVentaTaquilla
+      tags: [taquilla]
+      summary: Vender o entregar entradas presenciales en taquilla (US4)
+      description: Comparte el inventario atómico con la web, no exige cuenta al comprador (US4-AS5) y registra movimiento en la caja abierta.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SolicitudVentaTaquilla' }
+      responses:
+        '201':
+          description: Venta registrada y entradas emitidas listas para imprimir
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PedidoDetalle' }
+        '400': { $ref: '#/components/responses/Invalido' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/NoAutorizado' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+        '409': { $ref: '#/components/responses/ConflictoCupo' }
+        '422': { $ref: '#/components/responses/ReglaNegocio' }
+
+  /taquilla/devoluciones:
+    post:
+      operationId: registrarDevolucionTaquilla
+      tags: [taquilla]
+      summary: Registrar devolución en efectivo en taquilla por función cancelada (US5-AS4)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SolicitudDevolucionTaquilla' }
+      responses:
+        '200':
+          description: Devolución registrada como egreso en caja y entrada anulada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PedidoDetalle' }
+        '400': { $ref: '#/components/responses/Invalido' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/NoAutorizado' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+        '422': { $ref: '#/components/responses/ReglaNegocio' }
+
+  /validador/funciones/{funcionId}/paquete:
+    get:
+      operationId: descargarPaqueteValidador
+      tags: [validador]
+      summary: Descargar llave pública Ed25519 y lista de entradas para validación sin conexión (US2-AS5)
+      parameters:
+        - $ref: '#/components/parameters/FuncionId'
+      responses:
+        '200':
+          description: Paquete offline de la función sin datos personales
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaqueteValidador' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/NoAutorizado' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+
+  /validador/validar:
+    post:
+      operationId: validarEntradaEnLinea
+      tags: [validador]
+      summary: Validar entrada en puerta con conexión por QR firmado o código corto (US2)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SolicitudValidacion' }
+      responses:
+        '200':
+          description: Resultado semafórico de validación (`verde`, `ambar` o `rojo`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResultadoValidacion' }
+        '400': { $ref: '#/components/responses/Invalido' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/NoAutorizado' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+
+  /validador/sincronizar:
+    post:
+      operationId: sincronizarIngresosOffline
+      tags: [validador]
+      summary: Sincronizar lote de ingresos validados sin conexión y detectar conflictos (US2-AS5, US2-AS6)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SolicitudSincronizacion' }
+      responses:
+        '200':
+          description: Resumen de ingresos aplicados, repetidos y conflictos detectados
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResultadoSincronizacion' }
+        '400': { $ref: '#/components/responses/Invalido' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/NoAutorizado' }
+
+components:
+  securitySchemes:
+    sesion:
+      type: apiKey
+      in: cookie
+      name: sesion
+      description: Cookie de sesión emitida por Identidad (spec 004)
+  parameters:
+    FuncionId:
+      name: funcionId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    PedidoId:
+      name: pedidoId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    CajaId:
+      name: cajaId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Clave única del cliente para garantizar idempotencia en reintentos (FR-005)
+      schema: { type: string, minLength: 8, maxLength: 128 }
+  responses:
+    Invalido:
+      description: Petición con parámetros o formato inválido
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problema' } } }
+    NoAutenticado:
+      description: Requiere sesión verificada o firma válida
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problema' } } }
+    NoAutorizado:
+      description: Rol o alcance de sede insuficiente, o acceso fuera de titularidad
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problema' } } }
+    NoEncontrado:
+      description: Recurso inexistente
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problema' } } }
+    ConflictoCupo:
+      description: Sin disponibilidad suficiente, parámetro incompatible con clave de idempotencia o caja ya abierta
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problema' } } }
+    ReglaNegocio:
+      description: Operación rechazada por regla de negocio (p. ej. límite por persona, entrada libre, caja cerrada)
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problema' } } }
+    ProveedorNoDisponible:
+      description: El proveedor de pagos externo no responde temporalmente
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problema' } } }
+  schemas:
+    Problema:
+      type: object
+      description: RFC 9457
+      required: [title, status]
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        lugaresDisponibles: { type: integer, minimum: 0 }
+    TipoAcceso:
+      type: string
+      enum: [pagada, gratuita_reserva, gratuita_libre, restringida]
+    EstadoPedido:
+      type: string
+      enum: [pendiente, pagado, fallido, expirado, reembolsado, confirmado, cancelado]
+    EstadoEntrada:
+      type: string
+      enum: [valida, usada, anulada, liberada]
+    MedioPagoTaquilla:
+      type: string
+      enum: [efectivo, tarjeta_datafono]
+    DisponibilidadFuncion:
+      type: object
+      required: [funcionId, obraTitulo, sedeNombre, inicio, fin, tipoAcceso, estadoFuncion, precioCentavos, aforoHabilitado, lugaresDisponibles, maxPorPedido, maxPorPersona, ventaEnLineaAbierta]
+      properties:
+        funcionId: { type: string, format: uuid }
+        obraId: { type: string, format: uuid }
+        obraTitulo: { type: string }
+        sedeId: { type: string, format: uuid }
+        sedeNombre: { type: string }
+        inicio: { type: string, format: date-time }
+        fin: { type: string, format: date-time }
+        tipoAcceso: { $ref: '#/components/schemas/TipoAcceso' }
+        publico: { type: string, enum: [familiar, adultos, estudiantes] }
+        estadoFuncion: { type: string, enum: [borrador, programada, reprogramada, cancelada, finalizada] }
+        precioCentavos: { type: integer, minimum: 0, example: 500 }
+        aforoHabilitado: { type: integer, minimum: 0 }
+        lugaresDisponibles: { type: integer, minimum: 0 }
+        maxPorPedido: { type: integer, minimum: 1 }
+        maxPorPersona: { type: integer, minimum: 1 }
+        ventaEnLineaAbierta: { type: boolean }
+    OcupacionFuncion:
+      type: object
+      required: [funcionId, aforoHabilitado, retenidos, emitidas, ingresos, pendientes, libres]
+      properties:
+        funcionId: { type: string, format: uuid }
+        aforoHabilitado: { type: integer, minimum: 0 }
+        retenidos: { type: integer, minimum: 0 }
+        emitidas: { type: integer, minimum: 0 }
+        ingresos: { type: integer, minimum: 0 }
+        pendientes: { type: integer, minimum: 0 }
+        libres: { type: integer, minimum: 0 }
+    SolicitudCompra:
+      type: object
+      required: [funcionId, cantidad]
+      properties:
+        funcionId: { type: string, format: uuid }
+        cantidad: { type: integer, minimum: 1, maximum: 20 }
+    EntradaDigital:
+      type: object
+      required: [id, funcionId, tokenQr, codigoCorto, estado, emitidaEn]
+      properties:
+        id: { type: string, format: uuid }
+        funcionId: { type: string, format: uuid }
+        tokenQr: { type: string }
+        codigoCorto: { type: string, example: 'A7K9-M2P4' }
+        estado: { $ref: '#/components/schemas/EstadoEntrada' }
+        emitidaEn: { type: string, format: date-time }
+    PedidoDetalle:
+      type: object
+      required: [id, funcionId, obraTitulo, sedeNombre, inicio, canal, tipo, cantidad, importeCentavos, estado, creadoEn, entradas]
+      properties:
+        id: { type: string, format: uuid }
+        funcionId: { type: string, format: uuid }
+        obraTitulo: { type: string }
+        sedeNombre: { type: string }
+        inicio: { type: string, format: date-time }
+        canal: { type: string, enum: [web, taquilla, cambio] }
+        tipo: { type: string, enum: [compra, reserva] }
+        cantidad: { type: integer, minimum: 1 }
+        importeCentavos: { type: integer, minimum: 0 }
+        estado: { $ref: '#/components/schemas/EstadoPedido' }
+        venceEn: { type: ['string', 'null'], format: date-time }
+        resolucionCancelacion: { type: ['string', 'null'], enum: [devolucion, cambiado, pendiente_eleccion, null] }
+        plazoEleccionHasta: { type: ['string', 'null'], format: date-time }
+        creadoEn: { type: string, format: date-time }
+        entradas:
+          type: array
+          items: { $ref: '#/components/schemas/EntradaDigital' }
+    PedidoCreadoPago:
+      type: object
+      required: [pedido, urlPago, referenciaIntencion]
+      properties:
+        pedido: { $ref: '#/components/schemas/PedidoDetalle' }
+        urlPago: { type: string, format: uri }
+        referenciaIntencion: { type: string }
+    SolicitudEleccionCancelacion:
+      type: object
+      required: [eleccion]
+      properties:
+        eleccion: { type: string, enum: [devolucion, cambio] }
+        nuevaFuncionId: { type: string, format: uuid, description: Obligatorio cuando eleccion es cambio }
+    WebhookPago:
+      type: object
+      required: [pedidoId, referenciaProveedor, resultado, importeCentavos]
+      properties:
+        pedidoId: { type: string, format: uuid }
+        referenciaProveedor: { type: string, minLength: 1 }
+        resultado: { type: string, enum: [aprobado, rechazado] }
+        importeCentavos: { type: integer, minimum: 0 }
+    SolicitudAbrirCaja:
+      type: object
+      required: [sedeId, fondoInicialCentavos]
+      properties:
+        sedeId: { type: string, format: uuid }
+        fondoInicialCentavos: { type: integer, minimum: 0 }
+    SolicitudCerrarCaja:
+      type: object
+      required: [efectivoDeclaradoCentavos]
+      properties:
+        efectivoDeclaradoCentavos: { type: integer, minimum: 0 }
+    CajaDetalle:
+      type: object
+      required: [id, vendedorId, sedeId, estado, fondoInicialCentavos, abiertaEn]
+      properties:
+        id: { type: string, format: uuid }
+        vendedorId: { type: string, format: uuid }
+        sedeId: { type: string, format: uuid }
+        estado: { type: string, enum: [abierta, cerrada] }
+        fondoInicialCentavos: { type: integer, minimum: 0 }
+        totalEfectivoVentasCentavos: { type: integer, minimum: 0 }
+        totalTarjetaVentasCentavos: { type: integer, minimum: 0 }
+        totalDevolucionesEfectivoCentavos: { type: integer, minimum: 0 }
+        efectivoEsperadoCentavos: { type: ['integer', 'null'] }
+        efectivoDeclaradoCentavos: { type: ['integer', 'null'] }
+        diferenciaCentavos: { type: ['integer', 'null'] }
+        abiertaEn: { type: string, format: date-time }
+        cerradaEn: { type: ['string', 'null'], format: date-time }
+    SolicitudVentaTaquilla:
+      type: object
+      required: [cajaId, funcionId, cantidad, medioPago]
+      properties:
+        cajaId: { type: string, format: uuid }
+        funcionId: { type: string, format: uuid }
+        cantidad: { type: integer, minimum: 1, maximum: 20 }
+        medioPago: { $ref: '#/components/schemas/MedioPagoTaquilla' }
+        correoComprador: { type: string, format: email }
+    SolicitudDevolucionTaquilla:
+      type: object
+      required: [cajaId, codigoEntrada]
+      properties:
+        cajaId: { type: string, format: uuid }
+        codigoEntrada: { type: string, minLength: 4, description: Código corto o token QR de la entrada presentada }
+    EntradaPaqueteValidador:
+      type: object
+      required: [id, codigoCorto, estado]
+      properties:
+        id: { type: string, format: uuid }
+        codigoCorto: { type: string }
+        estado: { $ref: '#/components/schemas/EstadoEntrada' }
+        usadaEn: { type: ['string', 'null'], format: date-time }
+        puerta: { type: ['string', 'null'] }
+        dispositivoId: { type: ['string', 'null'] }
+    PaqueteValidador:
+      type: object
+      required: [funcionId, obraTitulo, sedeId, sedeNombre, inicio, fin, ventanaInicio, llavePublicaEd25519Spki, horaServidor, entradas]
+      properties:
+        funcionId: { type: string, format: uuid }
+        obraTitulo: { type: string }
+        sedeId: { type: string, format: uuid }
+        sedeNombre: { type: string }
+        inicio: { type: string, format: date-time }
+        fin: { type: string, format: date-time }
+        ventanaInicio: { type: string, format: date-time }
+        llavePublicaEd25519Spki: { type: string }
+        horaServidor: { type: string, format: date-time }
+        entradas:
+          type: array
+          items: { $ref: '#/components/schemas/EntradaPaqueteValidador' }
+    SolicitudValidacion:
+      type: object
+      required: [funcionId, dispositivoId, puerta]
+      properties:
+        funcionId: { type: string, format: uuid }
+        tokenQr: { type: string }
+        codigoCorto: { type: string }
+        dispositivoId: { type: string, minLength: 1 }
+        puerta: { type: string, minLength: 1 }
+    ResultadoValidacion:
+      type: object
+      required: [semaforo, codigo, mensaje]
+      properties:
+        semaforo: { type: string, enum: [verde, ambar, rojo] }
+        codigo: { type: string, enum: [valida, doble_lectura_reciente, ya_usada, otra_funcion, anulada, liberada, firma_invalida, fuera_de_horario, no_encontrada] }
+        mensaje: { type: string }
+        entradaId: { type: ['string', 'null'], format: uuid }
+        usadaEn: { type: ['string', 'null'], format: date-time }
+        puertaAnterior: { type: ['string', 'null'] }
+        funcionCorrecta:
+          type: ['object', 'null']
+          properties:
+            obraTitulo: { type: string }
+            sedeNombre: { type: string }
+            inicio: { type: string, format: date-time }
+    IngresoOfflineItem:
+      type: object
+      required: [entradaId, funcionId, dispositivoId, puerta, escaneadoEn, desfaseMs]
+      properties:
+        entradaId: { type: string, format: uuid }
+        funcionId: { type: string, format: uuid }
+        dispositivoId: { type: string, minLength: 1 }
+        puerta: { type: string, minLength: 1 }
+        escaneadoEn: { type: string, format: date-time }
+        desfaseMs: { type: integer }
+    SolicitudSincronizacion:
+      type: object
+      required: [ingresos]
+      properties:
+        ingresos:
+          type: array
+          maxItems: 500
+          items: { $ref: '#/components/schemas/IngresoOfflineItem' }
+    ResultadoSincronizacion:
+      type: object
+      required: [aplicados, duplicados, conflictos]
+      properties:
+        aplicados: { type: integer, minimum: 0 }
+        duplicados: { type: integer, minimum: 0 }
+        conflictos:
+          type: array
+          items:
+            type: object
+            required: [entradaId, primerIngresoEn, puertaGanadora, mensaje]
+            properties:
+              entradaId: { type: string, format: uuid }
+              primerIngresoEn: { type: string, format: date-time }
+              puertaGanadora: { type: string }
+              mensaje: { type: string }
