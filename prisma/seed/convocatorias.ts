@@ -79,9 +79,10 @@ export async function seedConvocatorias(db: PrismaClient, almacenamiento: Almace
           create: { ...curador, disciplinas: ['teatro'], conflictos: [] },
           update: { disciplinas: ['teatro'], conflictos: [] },
         });
-        const asignacionId = `${curador.id.slice(0, 8)}-cccc-4ccc-8ccc-${postulacionId.slice(-12)}`;
+        // Los ids de curador comparten prefijo: el sufijo evita que dos asignaciones de la misma postulación colisionen.
+        const asignacionId = `${curador.id.slice(0, 8)}-cccc-4ccc-8ccc-${curador.id.slice(-4)}${postulacionId.slice(-8)}`;
         await db.asignacion.upsert({
-          where: { id: asignacionId },
+          where: { postulacionId_curadorId: { postulacionId, curadorId: curador.id } },
           create: { id: asignacionId, postulacionId, curadorId: curador.id, estado: 'asignada' },
           update: { postulacionId, curadorId: curador.id, estado: 'asignada' },
         });
@@ -94,4 +95,87 @@ export async function seedConvocatorias(db: PrismaClient, almacenamiento: Almace
     create: { id: '88888888-8888-4888-8888-888888888888', obraFingerprint: historialFingerprint, edicionAnio: 2025, referenciaFuente: 'historial-curado-fiavl-demo' },
     update: { edicionAnio: 2025 },
   });
+  await seedCuraduria(db, almacenamiento);
+}
+
+/**
+ * Convocatoria cerrada `EV-2026` para curaduría (US3): una postulación en evaluación por escenario de demostración/E2E
+ * (los proyectos móvil y escritorio no comparten datos) y una con conflicto de interés declarado después de asignar.
+ * Es una convocatoria aparte para no alterar la de ejemplo ni aparecer en la lista pública de abiertas.
+ */
+export const SEED_CURADURIA_CONVOCATORIA_ID = '99999999-9999-4999-8999-999999999990';
+export const SEED_CURADOR_CONFLICTO_CUENTA_ID = '77777777-7777-4777-8777-777777777773';
+const escenariosCuraduria = [
+  { clave: 'movil', n: 1, nombre: 'Elenco Curaduría Móvil', titulo: 'Evaluación móvil' },
+  { clave: 'escritorio', n: 2, nombre: 'Elenco Curaduría Escritorio', titulo: 'Evaluación escritorio' },
+  { clave: 'conflicto', n: 3, nombre: 'Colectivo Conflicto', titulo: 'Obra con conflicto' },
+] as const;
+
+async function seedCuraduria(db: PrismaClient, almacenamiento: AlmacenamientoDocumentosPort): Promise<void> {
+  await db.convocatoria.upsert({
+    where: { id: SEED_CURADURIA_CONVOCATORIA_ID },
+    create: {
+      id: SEED_CURADURIA_CONVOCATORIA_ID, edicionId, codigo: 'EV-2026', componente: 'nacional', abreEn: new Date('2026-01-01T05:00:00Z'),
+      cierraEn: new Date('2026-06-01T04:59:59Z'), maxObrasPorElenco: 3, estado: 'cerrada', siguienteNumero: escenariosCuraduria.length + 1,
+    },
+    update: {},
+  });
+  for (const [indice, criterio] of criterios.entries()) {
+    const id = `99999999-9999-4999-8999-99999999991${indice + 1}`;
+    await db.criterio.upsert({
+      where: { id }, create: { ...criterio, id, convocatoriaId: SEED_CURADURIA_CONVOCATORIA_ID }, update: { nombre: criterio.nombre, peso: criterio.peso },
+    });
+  }
+  const curadoresSeed = [
+    ...curadores.map((curador) => ({ ...curador, conflictos: [] as string[] })),
+    { id: '66666666-6666-4666-8666-666666666663', cuentaId: SEED_CURADOR_CONFLICTO_CUENTA_ID, conflictos: ['Colectivo Conflicto'] },
+  ];
+  for (const curador of curadoresSeed) {
+    await db.curador.upsert({
+      where: { id: curador.id },
+      create: { ...curador, disciplinas: ['teatro'] },
+      update: { disciplinas: ['teatro'], ...(curador.conflictos.length ? { conflictos: curador.conflictos } : {}) },
+    });
+  }
+  for (const esc of escenariosCuraduria) {
+    const elencoId = `99999999-9999-4999-8999-99999999992${esc.n}`;
+    const postulacionId = `99999999-9999-4999-8999-99999999993${esc.n}`;
+    await db.elenco.upsert({
+      where: { id: elencoId },
+      create: {
+        id: elencoId, cuentaId: `99999999-9999-4999-8999-99999999994${esc.n}`, nombre: esc.nombre, responsable: `Responsable ${esc.nombre}`,
+        correoContacto: 'demo@fiavl.ec', provinciaPais: 'Loja, Ecuador', integrantes: [], trayectoria: 'Elenco de demostración de curaduría',
+      },
+      update: { nombre: esc.nombre },
+    });
+    const fingerprint = calcularObraFingerprint({ titulo: esc.titulo, disciplina: 'teatro', duracionMin: 60, sinopsis: `Propuesta de ${esc.nombre}` });
+    await db.postulacion.upsert({
+      where: { id: postulacionId },
+      create: {
+        id: postulacionId, convocatoriaId: SEED_CURADURIA_CONVOCATORIA_ID, elencoId, numero: `EV-2026-000${esc.n}`, obraFingerprint: fingerprint,
+        tituloObra: esc.titulo, disciplina: 'teatro', sinopsis: `Propuesta de ${esc.nombre}`, duracionMin: 60, publico: 'todo público',
+        fichaTecnica: {}, estado: 'en_evaluacion', enviadaEn: new Date('2026-05-01T12:00:00Z'), primeraEnviadaEn: new Date('2026-05-01T12:00:00Z'),
+      },
+      update: { tituloObra: esc.titulo },
+    });
+    const objectKey = `seed/${postulacionId}/dossier.pdf`;
+    await almacenamiento.guardar(objectKey, pdf);
+    await db.documento.upsert({
+      where: { id: `99999999-9999-4999-8999-99999999995${esc.n}` },
+      create: {
+        id: `99999999-9999-4999-8999-99999999995${esc.n}`, postulacionId, tipo: 'dossier', nombreOriginal: 'dossier-demo.pdf', objectKey,
+        mimeType: 'application/pdf', bytes: pdf.length, sha256: createHash('sha256').update(pdf).digest('hex'),
+      },
+      update: { objectKey, bytes: pdf.length },
+    });
+    const asignados = esc.clave === 'conflicto' ? [curadoresSeed[2]!] : [curadoresSeed[0]!, curadoresSeed[1]!];
+    for (const curador of asignados) {
+      const id = `${curador.id.slice(0, 8)}-dddd-4ddd-8ddd-${curador.id.slice(-4)}${postulacionId.slice(-8)}`;
+      await db.asignacion.upsert({
+        where: { postulacionId_curadorId: { postulacionId, curadorId: curador.id } },
+        create: { id, postulacionId, curadorId: curador.id, estado: 'asignada' },
+        update: { postulacionId, curadorId: curador.id },
+      });
+    }
+  }
 }
