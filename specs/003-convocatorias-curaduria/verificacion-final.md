@@ -8,11 +8,11 @@ Registro de las tareas T051–T056 sobre la rama `003-convocatorias-curaduria` (
 |---|---|---|
 | T051 (Q1) | `pnpm lint && pnpm typecheck` | Sin errores ni advertencias nuevas. |
 | T052 (Q2) | `pnpm test` | contracts 13, web 22, api 108 pruebas OK. Cobertura del dominio de Convocatorias: 100 % de líneas en `admisibilidad`, `documentos`, `permisos`, `puntaje`, `conflictos` y `estados` (umbral global 80 %). El falso antivirus cubre limpio, infectado y caído (`escaner-antivirus-falso.test.ts`). |
-| T053 | `pnpm --filter @fiavl/api exec vitest run --config vitest.int.config.ts --exclude "**/concurrencia.int.test.ts"` | 25 archivos, 90 pruebas OK con PostgreSQL real y adaptadores memoria/disco, sin ClamAV. `concurrencia.int.test.ts` se excluyó por indicación y no se modificó. No hubo fallos de Boletería en estas corridas. |
+| T053 | `pnpm --filter @fiavl/api exec vitest run --config vitest.int.config.ts --exclude "**/concurrencia.int.test.ts"` | 26 archivos, 91 pruebas OK con PostgreSQL real y adaptadores memoria/disco, sin ClamAV. `concurrencia.int.test.ts` se excluyó por indicación y no se modificó: falla en Windows local pero pasa en CI (job «Integración con PostgreSQL»). No hubo fallos de Boletería en estas corridas. |
 | T054 (Q7) | `pnpm --filter @fiavl/web test:e2e` contra `NODE_ENV=development` y `turbo --env-mode=loose` | 116 pruebas OK (móvil Pixel 7 y escritorio) con axe WCAG 2.1 A/AA en US1–US3, más la prueba de solo teclado de la evaluación. |
 | T055 | quickstart: `pnpm db:up && db:migrate && db:generate && db:seed` (dos veces) y `pnpm dev` | Migraciones al día, cliente generado, semilla idempotente (segunda corrida sin errores ni duplicados), almacenamiento local en disco y las tres historias P1 demostrables. |
 | T055 | `npx @redocly/cli@1.25.0 lint --extends=recommended …openapi.yaml` | Contrato válido (se añadieron `/panel/postulaciones`, `/panel/evaluaciones` y `/panel/postulaciones/{id}/evaluacion` y se corrigió un error preexistente en `NoAutorizado`). |
-| T055 | `python scripts/validar-mermaid.py` | **No ejecutado**: este equipo no tiene Python ni `mmdc`. Pendiente para CI o una máquina con ambos. |
+| T055 | `python scripts/validar-mermaid.py` | No se pudo ejecutar localmente (este equipo no tiene Python ni `mmdc`). Se valida en CI (job «Diagramas Mermaid»), que pasó en verde. |
 
 ## T056 · contratos, permisos y archivos compartidos
 
