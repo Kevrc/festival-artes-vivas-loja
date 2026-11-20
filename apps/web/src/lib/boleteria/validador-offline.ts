@@ -88,6 +88,7 @@ export function crearAlmacenValidador(): AlmacenValidador {
     };
   }
 
+  /* v8 ignore start -- adaptador DOM IndexedDB cubierto por pruebas E2E en navegador real */
   const abrir = (): Promise<IDBDatabase> =>
     new Promise((resolve, reject) => {
       const req = indexedDB.open(DB_NOMBRE, DB_VERSION);
@@ -171,6 +172,7 @@ export function crearAlmacenValidador(): AlmacenValidador {
       db.close();
     },
   };
+  /* v8 ignore stop */
 }
 
 /** Valida localmente en < 2 s contra el paquete descargado y encola el ingreso offline. */
