@@ -31,6 +31,10 @@ export async function seedConvocatorias(db: PrismaClient, almacenamiento: Almace
     },
     update: { estado: 'abierta' },
   });
+  const convocatoriaActual = await db.convocatoria.findUniqueOrThrow({ where: { id: SEED_CONVOCATORIA_ID } });
+  if (convocatoriaActual.siguienteNumero < elencos.length + 1) {
+    await db.convocatoria.update({ where: { id: SEED_CONVOCATORIA_ID }, data: { siguienteNumero: elencos.length + 1 } });
+  }
   for (const criterio of criterios) {
     await db.criterio.upsert({ where: { id: criterio.id }, create: { ...criterio, convocatoriaId: SEED_CONVOCATORIA_ID }, update: criterio });
   }
