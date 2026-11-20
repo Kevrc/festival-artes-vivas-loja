@@ -5,7 +5,8 @@ export function urlDescargaLocal(baseUrl: string, secret: string, objectKey: str
   const ttl = exp - Math.floor(Date.now() / 1000);
   if (ttl <= 0 || ttl > 300) throw new Error('La URL debe vencer dentro de cinco minutos');
   const sig = createHmac('sha256', secret).update(`${objectKey}:${exp}`).digest('hex');
-  const url = new URL(`/api/convocatorias/documentos/${encodeURIComponent(objectKey)}/contenido`, baseUrl);
+  const url = new URL('/api/convocatorias/documentos/contenido', baseUrl);
+  url.searchParams.set('key', objectKey);
   url.searchParams.set('exp', String(exp));
   url.searchParams.set('sig', sig);
   return url.toString();

@@ -9,6 +9,7 @@ export const RolesConvocatorias = (...roles: RolIdentidad[]) => SetMetadata(ROLE
 interface PeticionConvocatorias {
   headers: Record<string, string | string[] | undefined>;
   convocatoriaProvincia?: string;
+  contextoConvocatorias?: import('../application/puertos').ContextoConvocatorias;
 }
 
 @Injectable()
@@ -30,6 +31,7 @@ export class ConvocatoriasGuard implements CanActivate {
     if (provincial && (!req.convocatoriaProvincia || !puedeCoordinarProvincia(sujeto, req.convocatoriaProvincia))) {
       throw new ForbiddenException();
     }
+    req.contextoConvocatorias = sujeto;
     return true;
   }
 }

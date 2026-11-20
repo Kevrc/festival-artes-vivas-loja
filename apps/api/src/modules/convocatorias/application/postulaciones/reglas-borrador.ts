@@ -14,6 +14,8 @@ export function calcularFaltantesPostulacion(data: RequisitosPostulacion): strin
   }
   if (!Number.isInteger(data.obra.duracionMin) || data.obra.duracionMin <= 0) faltantes.push('obra.duracionMin');
   if (!Object.keys(data.obra.fichaTecnica).length) faltantes.push('obra.fichaTecnica');
+  const integrantesEnGira = data.obra.fichaTecnica.integrantesEnGira;
+  if (typeof integrantesEnGira !== 'number' || !Number.isInteger(integrantesEnGira) || integrantesEnGira < 1) faltantes.push('obra.integrantesEnGira');
   if (data.obra.videoUrl && !/^https:\/\//i.test(data.obra.videoUrl)) faltantes.push('obra.videoUrl');
   for (const requerido of ['dossier', 'ficha_tecnica']) {
     if (!data.documentos.includes(requerido)) faltantes.push(`documentos.${requerido}`);

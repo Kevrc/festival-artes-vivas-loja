@@ -107,6 +107,23 @@ paths:
         '403': { $ref: '#/components/responses/NoAutorizado' }
         '409': { $ref: '#/components/responses/ConflictoEstado' }
         '422': { $ref: '#/components/responses/ReglaNegocio' }
+  /postulaciones/{postulacionId}/descarga:
+    get:
+      operationId: descargarCopiaPostulacion
+      tags: [postulaciones]
+      summary: Descargar copia JSON de la postulación propia
+      parameters:
+        - name: postulacionId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Copia legible de la ficha, estado y metadatos de documentos
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Postulacion' }
+        '403': { $ref: '#/components/responses/NoAutorizado' }
   /postulaciones/{postulacionId}/documentos:
     post:
       operationId: cargarDocumentoPostulacion
@@ -159,6 +176,20 @@ paths:
                   expiraEn: { type: string, format: date-time }
         '403': { $ref: '#/components/responses/NoAutorizado' }
         '404': { $ref: '#/components/responses/NoEncontrado' }
+  /documentos/contenido:
+    get:
+      operationId: descargarDocumentoFirmadoLocal
+      tags: [documentos]
+      summary: Descargar objeto privado con firma HMAC del API local
+      description: En memoria/disco valida key, exp y sig; S3 utiliza directamente la URL GetObject prefirmada devuelta por la operación de descarga.
+      security: []
+      parameters:
+        - { name: key, in: query, required: true, schema: { type: string } }
+        - { name: exp, in: query, required: true, schema: { type: integer } }
+        - { name: sig, in: query, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Bytes del archivo; cabecera Content-Disposition attachment }
+        '403': { $ref: '#/components/responses/NoAutorizado' }
   /postulaciones/{postulacionId}/enviar:
     post:
       operationId: enviarPostulacion
