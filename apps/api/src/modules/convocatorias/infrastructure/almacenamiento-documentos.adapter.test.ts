@@ -6,7 +6,7 @@ import { MemoriaAlmacenamientoDocumentos } from './almacenamiento-memoria.adapte
 import { DiscoAlmacenamientoDocumentos } from './almacenamiento-disco.adapter';
 import { S3AlmacenamientoDocumentos } from './almacenamiento-s3.adapter';
 
-const key = 'b1a3ce34-8002-4f04-a934-1d79a33f1374';
+const key = 'documento-de-prueba';
 const contenido = Buffer.from('documento privado');
 const temporal: string[] = [];
 afterEach(async () => { await Promise.all(temporal.splice(0).map((dir) => rm(dir, { recursive: true, force: true }))); });
