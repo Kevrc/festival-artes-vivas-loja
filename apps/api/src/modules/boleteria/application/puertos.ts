@@ -417,3 +417,10 @@ export interface RepositorioBoleteria {
 
   registrarAuditoria(input: AuditoriaInput): Promise<void>;
 }
+
+export const UNIDAD_TRABAJO = Symbol('UnidadDeTrabajo');
+
+/** Ejecuta un cambio y la publicación de sus eventos en una misma transacción (ADR-0003). */
+export interface UnidadDeTrabajo {
+  ejecutar<T>(fn: () => Promise<T>): Promise<T>;
+}

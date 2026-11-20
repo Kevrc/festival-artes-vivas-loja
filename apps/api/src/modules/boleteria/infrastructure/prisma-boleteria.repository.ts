@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
+import { enTransaccion, transaccionActual } from '../../../common/datos/transaccion';
 import type { Prisma, PrismaClient } from '../../../generated/prisma/index.js';
 import type {
   AuditoriaInput,
@@ -44,7 +45,12 @@ const DIEZ_MINUTOS_MS = 10 * 60_000;
 
 @Injectable()
 export class PrismaBoleteriaRepository implements RepositorioBoleteria {
-  constructor(private readonly db: PrismaClient) {}
+  constructor(private readonly base: PrismaClient) {}
+
+  /** Cliente en la transacción ambiente si hay una; así lecturas y escrituras van juntas (auditoría #1). */
+  private get db(): PrismaClient {
+    return (transaccionActual() as PrismaClient | undefined) ?? this.base;
+  }
 
   async obtenerFuncionConEdicion(funcionId: string): Promise<FuncionConEdicion | null> {
     const row = await this.db.inventarioFuncion.findUnique({
@@ -90,7 +96,7 @@ export class PrismaBoleteriaRepository implements RepositorioBoleteria {
     estudianteAcreditado: boolean;
     correlacionId: string;
   }) {
-    return this.db.$transaction(async (tx) => {
+    return enTransaccion(this.base, async (tx) => {
       const existente = await tx.pedidoBoleteria.findUnique({
         where: { claveIdempotencia: p.claveIdempotencia },
         include: { funcion: { include: { edicion: true } }, entradas: true },
@@ -219,7 +225,7 @@ export class PrismaBoleteriaRepository implements RepositorioBoleteria {
   }
 
   async liberarPorFallaInicioPago(p: { pedidoId: string; proveedor: string; detalle: string }): Promise<FuncionConEdicion | null> {
-    return this.db.$transaction(async (tx) => {
+    return enTransaccion(this.base, async (tx) => {
       const pedido = await tx.pedidoBoleteria.findUnique({ where: { id: p.pedidoId } });
       if (!pedido || pedido.estado !== 'pendiente') return null;
 
@@ -259,7 +265,7 @@ export class PrismaBoleteriaRepository implements RepositorioBoleteria {
     llaves: ParLlavesQr;
     correlacionId: string;
   }) {
-    return this.db.$transaction(async (tx) => {
+    return enTransaccion(this.base, async (tx) => {
       // Bloquea el pedido: la expiración (FOR UPDATE SKIP LOCKED) y otro webhook esperan o lo saltan,
       // así los lugares retenidos nunca se descuentan dos veces (Constitución V, revisión PR #6).
       await tx.$queryRaw`SELECT "id" FROM "boleteria"."pedido" WHERE "id" = ${p.pedidoId}::uuid FOR UPDATE`;
@@ -409,7 +415,7 @@ export class PrismaBoleteriaRepository implements RepositorioBoleteria {
     rol?: string | null;
     marcarResolucionDevolucion?: boolean;
   }) {
-    return this.db.$transaction(async (tx) => {
+    return enTransaccion(this.base, async (tx) => {
       const mov = await tx.movimientoPago.findFirst({
         where: { proveedor: p.proveedor, referenciaProveedor: p.referenciaDevolucion, tipo: 'reembolso' },
       });
@@ -479,7 +485,7 @@ export class PrismaBoleteriaRepository implements RepositorioBoleteria {
   }
 
   async expirarRetencionesVencidas(ahora: Date, limite = 100) {
-    return this.db.$transaction(async (tx) => {
+    return enTransaccion(this.base, async (tx) => {
       const vencidos = await tx.$queryRaw<Array<{ id: string; funcion_id: string; cantidad: number }>>`
         SELECT "id", "funcion_id", "cantidad"
         FROM "boleteria"."pedido"
@@ -549,7 +555,7 @@ export class PrismaBoleteriaRepository implements RepositorioBoleteria {
     llaves: ParLlavesQr;
     correlacionId: string;
   }) {
-    return this.db.$transaction(async (tx) => {
+    return enTransaccion(this.base, async (tx) => {
       const existente = await tx.pedidoBoleteria.findUnique({
         where: { claveIdempotencia: p.claveIdempotencia },
         include: { funcion: { include: { edicion: true } }, entradas: { orderBy: { emitidaEn: 'asc' } } },
@@ -665,7 +671,7 @@ export class PrismaBoleteriaRepository implements RepositorioBoleteria {
   }
 
   async cancelarReserva(p: { pedidoId: string; cuentaId: string; ahora: Date; correlacionId: string }) {
-    return this.db.$transaction(async (tx) => {
+    return enTransaccion(this.base, async (tx) => {
       // Auditoría #3: bloquea el pedido y resta solo las entradas que esta operación anula de verdad
       await tx.$queryRaw`SELECT "id" FROM "boleteria"."pedido" WHERE "id" = ${p.pedidoId}::uuid FOR UPDATE`;
       const pedido = await tx.pedidoBoleteria.findUnique({
@@ -714,7 +720,7 @@ export class PrismaBoleteriaRepository implements RepositorioBoleteria {
 
   async liberarReservasNoValidadas(ahora: Date) {
     const limiteInicio = new Date(ahora.getTime() + DIEZ_MINUTOS_MS);
-    return this.db.$transaction(async (tx) => {
+    return enTransaccion(this.base, async (tx) => {
       const funciones = await tx.$queryRaw<Array<{ funcion_id: string }>>`
         SELECT "funcion_id"
         FROM "boleteria"."inventario_funcion"
@@ -748,7 +754,7 @@ export class PrismaBoleteriaRepository implements RepositorioBoleteria {
   }
 
   async abrirCaja(p: { vendedorId: string; sedeId: string; fondoInicialCentavos: number; ahora: Date; correlacionId: string }) {
-    return this.db.$transaction(async (tx) => {
+    return enTransaccion(this.base, async (tx) => {
       const abierta = await tx.cajaBoleteria.findFirst({
         where: { vendedorId: p.vendedorId, sedeId: p.sedeId, estado: 'abierta' },
         include: { movimientos: true },
@@ -803,7 +809,7 @@ export class PrismaBoleteriaRepository implements RepositorioBoleteria {
     ahora: Date;
     correlacionId: string;
   }) {
-    return this.db.$transaction(async (tx) => {
+    return enTransaccion(this.base, async (tx) => {
       const caja = await tx.cajaBoleteria.findUnique({
         where: { id: p.cajaId },
         include: { movimientos: true },
@@ -864,7 +870,7 @@ export class PrismaBoleteriaRepository implements RepositorioBoleteria {
     llaves: ParLlavesQr;
     correlacionId: string;
   }) {
-    return this.db.$transaction(async (tx) => {
+    return enTransaccion(this.base, async (tx) => {
       const existente = await tx.pedidoBoleteria.findUnique({
         where: { claveIdempotencia: p.claveIdempotencia },
         include: { funcion: { include: { edicion: true } }, entradas: { orderBy: { emitidaEn: 'asc' } } },
@@ -1019,7 +1025,7 @@ export class PrismaBoleteriaRepository implements RepositorioBoleteria {
     ahora: Date;
     correlacionId: string;
   }) {
-    return this.db.$transaction(async (tx) => {
+    return enTransaccion(this.base, async (tx) => {
       const caja = await tx.cajaBoleteria.findUnique({ where: { id: p.cajaId } });
       if (!caja || caja.estado !== 'abierta') {
         return { ok: false as const, motivo: 'caja_cerrada' as const, detalle: 'Se requiere una caja abierta para devolver efectivo.' };
@@ -1143,7 +1149,7 @@ export class PrismaBoleteriaRepository implements RepositorioBoleteria {
     puerta: string;
     escaneadoEn: Date;
   }): Promise<{ ingresoId: string; duplicado: boolean }> {
-    return this.db.$transaction(async (tx) => {
+    return enTransaccion(this.base, async (tx) => {
       const marcada = await tx.entradaBoleteria.updateMany({
         where: { id: p.entradaId, estado: 'valida' },
         data: { estado: 'usada' },
@@ -1213,7 +1219,7 @@ export class PrismaBoleteriaRepository implements RepositorioBoleteria {
       mensaje: string;
     }[] = [];
 
-    await this.db.$transaction(async (tx) => {
+    await enTransaccion(this.base, async (tx) => {
       for (const item of ordenados) {
         const yaExisteMismoEscaneo = await tx.ingresoBoleteria.findFirst({
           where: {
@@ -1319,7 +1325,7 @@ export class PrismaBoleteriaRepository implements RepositorioBoleteria {
     llaves: ParLlavesQr;
     correlacionId: string;
   }) {
-    return this.db.$transaction(async (tx) => {
+    return enTransaccion(this.base, async (tx) => {
       const pedido = await tx.pedidoBoleteria.findUnique({
         where: { id: p.pedidoId },
         include: { funcion: { include: { edicion: true } }, entradas: true },
@@ -1452,7 +1458,7 @@ export class PrismaBoleteriaRepository implements RepositorioBoleteria {
     ahora: Date;
     correlacionId: string;
   }) {
-    return this.db.$transaction(async (tx) => {
+    return enTransaccion(this.base, async (tx) => {
       const ya = await tx.eventoProcesadoBoleteria.findUnique({ where: { eventoId: p.eventoId } });
       if (ya) return { aplicado: false };
 

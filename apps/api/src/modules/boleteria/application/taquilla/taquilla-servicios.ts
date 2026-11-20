@@ -21,6 +21,8 @@ import {
   type PublicadorEventosBoleteria,
   RELOJ_BOLETERIA,
   REPOSITORIO_BOLETERIA,
+  UNIDAD_TRABAJO,
+  type UnidadDeTrabajo,
   type RelojBoleteria,
   type RepositorioBoleteria,
 } from '../puertos';
@@ -58,6 +60,7 @@ export class TaquillaServicios {
   constructor(
     @Inject(REPOSITORIO_BOLETERIA) private readonly repo: RepositorioBoleteria,
     @Inject(PUBLICADOR_BOLETERIA) private readonly publicador: PublicadorEventosBoleteria,
+    @Inject(UNIDAD_TRABAJO) private readonly uow: UnidadDeTrabajo,
     @Inject(RELOJ_BOLETERIA) private readonly reloj: RelojBoleteria,
     @Inject(LLAVES_QR) private readonly llaves: ParLlavesQr,
   ) {}
@@ -117,7 +120,8 @@ export class TaquillaServicios {
       : p.usuario.roles.filter((r) => r.rol === 'taquilla' && r.sedeId).map((r) => r.sedeId!);
 
     try {
-      const res = await this.repo.venderEnTaquilla({
+      const res = await this.uow.ejecutar(async () => {
+        const r = await this.repo.venderEnTaquilla({
         cajaId: p.cajaId,
         vendedorId: p.usuario.cuentaId,
         sedesPermitidas,
@@ -129,6 +133,12 @@ export class TaquillaServicios {
         ahora,
         llaves: this.llaves,
         correlacionId,
+        });
+        if (r.ok && !r.idempotente) {
+          await publicarEntradasEmitidas(this.publicador, { pedido: r.pedido, edicionId: r.inventario.edicionId, ahora, correlacionId });
+          await publicarDisponibilidad(this.publicador, r.inventario, ahora, correlacionId);
+        }
+        return r;
       });
 
       if (!res.ok) {
@@ -140,16 +150,6 @@ export class TaquillaServicios {
           throw new ConflictException({ message: res.detalle, lugaresDisponibles: res.disponibles ?? 0 });
         }
         throw new UnprocessableEntityException(res.detalle);
-      }
-
-      if (!res.idempotente) {
-        await publicarEntradasEmitidas(this.publicador, {
-          pedido: res.pedido,
-          edicionId: res.inventario.edicionId,
-          ahora,
-          correlacionId,
-        });
-        await publicarDisponibilidad(this.publicador, res.inventario, ahora, correlacionId);
       }
 
       boleteriaPedidosTotal.inc({ canal: 'taquilla', tipo: res.pedido.tipo, resultado: res.idempotente ? 'idempotente' : 'pagado' });
@@ -176,27 +176,30 @@ export class TaquillaServicios {
       throw new UnprocessableEntityException('Este pedido ya fue reembolsado.');
     }
 
-    const res = await this.repo.ejecutarDevolucionTaquillaEfectivo({
-      cajaId: p.cajaId,
-      vendedorId: p.usuario.cuentaId,
-      pedidoId: info.pedidoId,
-      ahora,
-      correlacionId,
+    const res = await this.uow.ejecutar(async () => {
+      const r = await this.repo.ejecutarDevolucionTaquillaEfectivo({
+        cajaId: p.cajaId,
+        vendedorId: p.usuario.cuentaId,
+        pedidoId: info.pedidoId,
+        ahora,
+        correlacionId,
+      });
+      if (!r.ok) return r;
+      const fn = await this.repo.obtenerFuncionConEdicion(r.pedido.funcionId);
+      if (fn) {
+        await publicarPedidoReembolsado(this.publicador, {
+          pedido: r.pedido,
+          edicionId: fn.edicionId,
+          motivo: info.estadoFuncion === 'cancelada' ? 'funcion_cancelada' : 'funcion_reprogramada',
+          ahora,
+          correlacionId,
+        });
+      }
+      return r;
     });
     if (!res.ok) {
       if (res.motivo === 'no_autorizado') throw new ForbiddenException(res.detalle);
       throw new UnprocessableEntityException(res.detalle);
-    }
-
-    const fn = await this.repo.obtenerFuncionConEdicion(res.pedido.funcionId);
-    if (fn) {
-      await publicarPedidoReembolsado(this.publicador, {
-        pedido: res.pedido,
-        edicionId: fn.edicionId,
-        motivo: info.estadoFuncion === 'cancelada' ? 'funcion_cancelada' : 'funcion_reprogramada',
-        ahora,
-        correlacionId,
-      });
     }
     return res.pedido;
   }

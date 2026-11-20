@@ -18,6 +18,8 @@ import {
   type PublicadorEventosBoleteria,
   RELOJ_BOLETERIA,
   REPOSITORIO_BOLETERIA,
+  UNIDAD_TRABAJO,
+  type UnidadDeTrabajo,
   type RelojBoleteria,
   type RepositorioBoleteria,
 } from '../puertos';
@@ -30,6 +32,7 @@ export class CrearPedidoPagado {
     @Inject(REPOSITORIO_BOLETERIA) private readonly repo: RepositorioBoleteria,
     @Inject(PROVEEDOR_PAGOS) private readonly proveedor: ProveedorPagos,
     @Inject(PUBLICADOR_BOLETERIA) private readonly publicador: PublicadorEventosBoleteria,
+    @Inject(UNIDAD_TRABAJO) private readonly uow: UnidadDeTrabajo,
     @Inject(RELOJ_BOLETERIA) private readonly reloj: RelojBoleteria,
   ) {}
 
@@ -46,7 +49,9 @@ export class CrearPedidoPagado {
     const venceEn = new Date(ahora.getTime() + DIEZ_MINUTOS_MS);
 
     try {
-      const ret = await this.repo.retenerParaPedidoPagado({
+      // Retención y aviso de disponibilidad juntos; el cobro (HTTP) queda fuera de la transacción
+      const ret = await this.uow.ejecutar(async () => {
+        const r = await this.repo.retenerParaPedidoPagado({
         funcionId: p.funcionId,
         cuentaId: p.usuario.cuentaId,
         correoComprador: p.usuario.correo,
@@ -56,6 +61,9 @@ export class CrearPedidoPagado {
         venceEn,
         estudianteAcreditado: p.usuario.estudianteAcreditado,
         correlacionId,
+        });
+        if (r.ok && !r.idempotente) await publicarDisponibilidad(this.publicador, r.inventarioActualizado, ahora, correlacionId);
+        return r;
       });
 
       if (!ret.ok) {
@@ -67,10 +75,6 @@ export class CrearPedidoPagado {
           throw new ConflictException({ message: ret.detalle, lugaresDisponibles: ret.disponibles ?? 0 });
         }
         throw new UnprocessableEntityException(ret.detalle);
-      }
-
-      if (!ret.idempotente) {
-        await publicarDisponibilidad(this.publicador, ret.inventarioActualizado, ahora, correlacionId);
       }
 
       try {
@@ -95,12 +99,14 @@ export class CrearPedidoPagado {
           referenciaIntencion: cobro.referenciaIntencion,
         };
       } catch (err) {
-        const inv = await this.repo.liberarPorFallaInicioPago({
-          pedidoId: ret.pedido.id,
-          proveedor: this.proveedor.nombre,
-          detalle: err instanceof Error ? err.message : 'Falla proveedor de pagos',
+        await this.uow.ejecutar(async () => {
+          const inv = await this.repo.liberarPorFallaInicioPago({
+            pedidoId: ret.pedido.id,
+            proveedor: this.proveedor.nombre,
+            detalle: err instanceof Error ? err.message : 'Falla proveedor de pagos',
+          });
+          if (inv) await publicarDisponibilidad(this.publicador, inv, ahora, correlacionId);
         });
-        if (inv) await publicarDisponibilidad(this.publicador, inv, ahora, correlacionId);
         boleteriaPedidosTotal.inc({ canal: 'web', tipo: 'compra', resultado: 'proveedor_caido' });
         throw new ServiceUnavailableException('Pago en línea temporalmente no disponible; puedes comprar en taquilla en efectivo.');
       }
