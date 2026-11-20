@@ -2,6 +2,9 @@ import { type DynamicModule, Module, type Provider, type Type } from '@nestjs/co
 import { Reflector } from '@nestjs/core';
 import { ALMACENAMIENTO_DOCUMENTOS, AUTORIZACION_CONVOCATORIAS, ESCANER_ANTIVIRUS, PUBLICADOR_CONVOCATORIAS, RELOJ_CONVOCATORIAS, type RelojConvocatorias } from './application/puertos';
 import { AdmisionServicio } from './application/admision/admision.servicio';
+import { EvaluacionesServicio } from './application/evaluaciones/evaluaciones.servicio';
+import { EvaluacionesPrismaRepository } from './infrastructure/evaluaciones-prisma.repository';
+import { CuraduriaController } from './interface/curaduria.controller';
 import { crearAlmacenamientoDocumentos } from './infrastructure/almacenamiento.factory';
 import { AutorizacionConvocatoriasDevAdapter } from './infrastructure/autorizacion-dev.adapter';
 import { ConsumidoresConvocatorias } from './infrastructure/consumidores.pgboss';
@@ -42,6 +45,16 @@ export class ConvocatoriasModule {
         inject: [PostulacionesPrismaRepository, RELOJ_CONVOCATORIAS],
         useFactory: (repo: PostulacionesPrismaRepository, reloj: RelojConvocatorias) => new AdmisionServicio(repo, reloj),
       },
+      {
+        provide: EvaluacionesPrismaRepository,
+        inject: [PrismaService],
+        useFactory: (db: PrismaService) => new EvaluacionesPrismaRepository(db),
+      },
+      {
+        provide: EvaluacionesServicio,
+        inject: [EvaluacionesPrismaRepository, RELOJ_CONVOCATORIAS],
+        useFactory: (repo: EvaluacionesPrismaRepository, reloj: RelojConvocatorias) => new EvaluacionesServicio(repo, reloj),
+      },
       ConvocatoriasGuard,
     ];
     if (opciones.consumidores) providers.push(ConsumidoresConvocatorias);
@@ -49,8 +62,8 @@ export class ConvocatoriasModule {
       module: ConvocatoriasModule,
       imports: [DatosModule],
       providers,
-      controllers: opciones.consumidores ? [] : ([AdmisionController, PostulacionesController] as Type[]),
-      exports: [AUTORIZACION_CONVOCATORIAS, ConvocatoriasGuard, AdmisionServicio],
+      controllers: opciones.consumidores ? [] : ([AdmisionController, CuraduriaController, PostulacionesController] as Type[]),
+      exports: [AUTORIZACION_CONVOCATORIAS, ConvocatoriasGuard, AdmisionServicio, EvaluacionesServicio],
     };
   }
 }
