@@ -83,6 +83,7 @@ paths:
         '403': { $ref: '#/components/responses/NoAutorizado' }
         '404': { $ref: '#/components/responses/NoEncontrado' }
         '409': { $ref: '#/components/responses/ConflictoCupo' }
+        '422': { $ref: '#/components/responses/ReglaNegocio' }
         '503': { $ref: '#/components/responses/ProveedorNoDisponible' }
 
   /reservas:

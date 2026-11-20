@@ -26,7 +26,7 @@ Colas de destino en `pg-boss`: `boleteria.<evento-en-kebab-case>`.
 
 | Evento | Cola | Campos usados en `datos` | Efecto en Boletería |
 |--------|------|--------------------------|---------------------|
-| `ProgramacionPublicada` | `boleteria.programacion-publicada` | `edicion` (`id`, `anio`, `numero`, `precioCentavos?`, `maxPagadasPersona?`, `maxReservasPersona?`), `funcionIds` | Crea o actualiza `edicion_boleteria` en estado `publicada`; habilita funciones asociadas |
+| `ProgramacionPublicada` | `boleteria.programacion-publicada` | `edicion` (`id`, `anio`, `numero`, y opcionalmente `precioCentavos?`, `maxPagadasPersona?`, `maxReservasPersona?`), `funcionIds` | Crea o actualiza `edicion_boleteria` en estado `publicada`; si `edicion` no incluye parámetros opcionales aplica los valores por defecto (`500` centavos, `6` pagadas, `4` reservas) y mantiene compatibilidad con `EdicionDto` de 001 |
 | `FuncionProgramada` | `boleteria.funcion-programada` | `funcion` (`id`, `version`, `inicio`, `fin`, `tipoAcceso`, `publico`, `aforoHabilitado`), `obra` (`id`, `titulo`), `sede` (`id`, `nombre`) | Crea `inventario_funcion` si `aforoHabilitado` no es nulo (si `version > version_origen`) |
 | `FuncionActualizada` | `boleteria.funcion-actualizada` | Igual a `FuncionProgramada` | Actualiza metadatos, `tipoAcceso`, `publico` o `aforoHabilitado` si `version > version_origen` |
 | `FuncionReprogramada` | `boleteria.funcion-reprogramada` | `funcionId`, `version`, `anterior`, `nuevo` (`inicio`, `fin`, `sedeId`), `sede?` | Actualiza horario/sede y `estado_funcion = 'reprogramada'`; mantiene válidas las entradas (RN-005) y habilita devolución opcional (RN-006) |
