@@ -9,7 +9,8 @@ let contenedor: StartedPostgreSqlContainer;
 export async function setup(project: TestProject) {
   contenedor = await new PostgreSqlContainer('postgres:16-alpine').start();
   const url = contenedor.getConnectionUri();
-  execSync('pnpm exec prisma migrate deploy', {
+  // Usa la versión `packageManager` del repositorio también en el proceso hijo.
+  execSync('corepack pnpm exec prisma migrate deploy', {
     cwd: resolve(import.meta.dirname, '../../..'),
     env: { ...process.env, DATABASE_URL: url },
     stdio: 'ignore',
