@@ -7,7 +7,7 @@ export type EstadoEvaluacion = 'borrador' | 'enviada' | 'reabierta';
 
 export function transicionarPostulacion(
   estado: EstadoPostulacion,
-  evento: 'enviar' | 'retirar' | 'pedir_subsanacion' | 'subsanar' | 'vencer_subsanacion' | 'admitir' | 'no_admitir' | 'iniciar_evaluacion' | 'evaluar' | 'deliberar' | 'desistir',
+  evento: 'enviar' | 'retirar' | 'pedir_subsanacion' | 'subsanar' | 'vencer_subsanacion' | 'admitir' | 'no_admitir' | 'iniciar_evaluacion' | 'evaluar' | 'deliberar' | 'reabrir_evaluacion' | 'desistir',
   contexto?: { ahora: Date; cierraEn?: Date; venceEn?: Date },
 ): EstadoPostulacion {
   const tabla: Partial<Record<EstadoPostulacion, Partial<Record<typeof evento, EstadoPostulacion>>>> = {
@@ -16,8 +16,8 @@ export function transicionarPostulacion(
     requiere_subsanacion: { subsanar: 'enviada', vencer_subsanacion: 'no_admitida' },
     admitida: { iniciar_evaluacion: 'en_evaluacion' },
     en_evaluacion: { evaluar: 'evaluada' },
-    evaluada: { deliberar: 'requiere_deliberacion' },
-    requiere_deliberacion: { deliberar: 'evaluada' },
+    evaluada: { deliberar: 'requiere_deliberacion', reabrir_evaluacion: 'en_evaluacion' },
+    requiere_deliberacion: { deliberar: 'evaluada', reabrir_evaluacion: 'en_evaluacion' },
   };
   const siguiente = tabla[estado]?.[evento];
   if (!siguiente) throw new Error(`Transición no permitida: ${estado}/${evento}`);
@@ -33,11 +33,11 @@ export function transicionarPostulacion(
   return siguiente;
 }
 
-export function transicionarAsignacion(estado: EstadoAsignacion, evento: 'iniciar' | 'completar' | 'reasignar'): EstadoAsignacion {
+export function transicionarAsignacion(estado: EstadoAsignacion, evento: 'iniciar' | 'completar' | 'reasignar' | 'reabrir'): EstadoAsignacion {
   const tabla: Record<EstadoAsignacion, Partial<Record<typeof evento, EstadoAsignacion>>> = {
     asignada: { iniciar: 'en_evaluacion', reasignar: 'reasignada' },
     en_evaluacion: { completar: 'completada', reasignar: 'reasignada' },
-    completada: {}, reasignada: {},
+    completada: { reabrir: 'en_evaluacion' }, reasignada: {},
   };
   const siguiente = tabla[estado][evento];
   if (!siguiente) throw new Error(`Transición de asignación no permitida: ${estado}/${evento}`);
