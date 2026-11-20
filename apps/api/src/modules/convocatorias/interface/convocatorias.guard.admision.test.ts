@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { ForbiddenException, UnauthorizedException, type ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { AutorizacionConvocatoriasDevAdapter } from '../infrastructure/autorizacion-dev.adapter';
-import { ConvocatoriasGuard, ROLES_CONVOCATORIAS } from './convocatorias.guard';
+import { ALCANCE_EN_CONTROLADOR, ConvocatoriasGuard, ROLES_CONVOCATORIAS } from './convocatorias.guard';
 import type { ContextoConvocatorias } from '../application/puertos';
 
 const roles = ['coordinación de convocatorias', 'coordinación provincial'] as const;
@@ -67,5 +67,15 @@ describe('US2 · autorización de admisibilidad (T034)', () => {
   it('rechaza peticiones sin sesión válida', async () => {
     const { ctx } = peticion({}, 'Loja');
     await expect(guard.canActivate(ctx)).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
+  it('con alcance delegado al controlador, coordinación provincial pasa el guard sin provincia de recurso', async () => {
+    const handler = () => undefined;
+    Reflect.defineMetadata(ROLES_CONVOCATORIAS, roles, handler);
+    Reflect.defineMetadata(ALCANCE_EN_CONTROLADOR, true, handler);
+    const req: PeticionPrueba = { headers: { 'x-cuenta-dev': randomUUID(), 'x-rol-dev': 'coordinación provincial', 'x-provincia-dev': 'Loja' } };
+    const ctx = { getHandler: () => handler, getClass: () => class {}, switchToHttp: () => ({ getRequest: () => req }) } as unknown as ExecutionContext;
+    await expect(guard.canActivate(ctx)).resolves.toBe(true);
+    expect(req.contextoConvocatorias?.roles[0]?.alcance?.provincia).toBe('Loja');
   });
 });

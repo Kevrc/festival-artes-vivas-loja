@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { LoggerModule } from 'nestjs-pino';
 import { DatosModule } from './common/datos/datos.module';
 import { BoleteriaModule } from './modules/boleteria/boleteria.module';
+import { ConvocatoriasModule } from './modules/convocatorias/convocatorias.module';
 import { ProgramacionModule } from './modules/programacion/programacion.module';
 
 /** Proceso worker (ADR-0008): consumidores de colas y trabajos, sin HTTP. */
@@ -11,6 +12,7 @@ import { ProgramacionModule } from './modules/programacion/programacion.module';
     DatosModule,
     ProgramacionModule.registrar({ consumidores: true }),
     BoleteriaModule.registrar({ consumidores: true }),
+    ConvocatoriasModule.registrar({ consumidores: true }),
   ],
 })
 export class WorkerModule {}

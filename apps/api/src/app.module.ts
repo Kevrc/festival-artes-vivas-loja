@@ -11,7 +11,7 @@ import { ConvocatoriasModule } from './modules/convocatorias/convocatorias.modul
     ObservabilidadModule,
     ProgramacionModule.registrar({ consumidores: false }),
     BoleteriaModule.registrar({ consumidores: false }),
-    ConvocatoriasModule,
+    ConvocatoriasModule.registrar({ consumidores: false }),
   ],
 })
 export class AppModule {}

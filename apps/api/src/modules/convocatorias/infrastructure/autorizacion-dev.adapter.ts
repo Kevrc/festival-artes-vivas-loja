@@ -13,6 +13,19 @@ function cookieSesion(value: string | undefined): Record<string, unknown> {
   }
 }
 
+/** Acepta el valor tal cual, con encodeURIComponent o con UTF-8 leído como latin1 (clientes HTTP con cuerpo). */
+function valorCabecera(valor: string | undefined): string | undefined {
+  if (valor === undefined) return undefined;
+  if (/%[0-9a-f]{2}/i.test(valor)) {
+    try { return decodeURIComponent(valor); } catch { /* se usa el valor original */ }
+  }
+  if (/[ÂÃ]/.test(valor) && [...valor].every((c) => c.charCodeAt(0) <= 0xff)) {
+    const reparado = Buffer.from(valor, 'latin1').toString('utf8');
+    if (!reparado.includes('�')) return reparado;
+  }
+  return valor;
+}
+
 export class AutorizacionConvocatoriasDevAdapter {
   constructor(private readonly entorno = process.env.NODE_ENV) {}
 
@@ -20,7 +33,7 @@ export class AutorizacionConvocatoriasDevAdapter {
     if (this.entorno === 'production') return null;
     const h = req.headers;
     const cookie = cookieSesion(Array.isArray(h.cookie) ? h.cookie[0] : h.cookie);
-    const header = (key: string) => Array.isArray(h[key]) ? h[key]?.[0] : h[key];
+    const header = (key: string) => valorCabecera(Array.isArray(h[key]) ? h[key]?.[0] : h[key]);
     const cuentaId = z.string().uuid().safeParse(header('x-cuenta-dev') ?? cookie.cuentaId);
     const rol = z.enum(ROLES_IDENTIDAD).safeParse(header('x-rol-dev') ?? cookie.rol);
     if (!cuentaId.success || !rol.success) return null;
