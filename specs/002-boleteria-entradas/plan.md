@@ -158,7 +158,7 @@ apps/web/src/app/
 └── validador/
     ├── page.tsx                            # selector de función y descarga offline
     ├── [funcionId]/page.tsx                # escáner QR + código corto + semáforo
-    └── sw.js/route.ts (o public/validador-sw.js) # Service Worker offline
+    └── sw.js/route.ts                        # Service Worker offline (/validador/sw.js)
 
 apps/web/src/lib/boleteria/
 ├── validador-offline.ts (+ .test)          # IndexedDB + Web Crypto Ed25519 + cola offline

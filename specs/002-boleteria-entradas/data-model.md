@@ -221,8 +221,9 @@ Fuente de verdad única del cupo de cada función con aforo ([ADR-0004](../../do
 | `es_conflicto` | `true` cuando un segundo dispositivo sincroniza una entrada ya validada en otro dispositivo; dispara `ConflictoDeIngreso` (US2-AS6) |
 
 ### `movimiento_pago` (inmutable — Constitución V, RNF-004)
-Bitácora *append-only* de todas las interacciones monetarias con el proveedor externo. **Nunca se
-actualiza ni elimina**; una reversión se registra como un nuevo registro `reembolso`.
+Materializa la entidad clave **Pago** de la [spec](spec.md#key-entities) como una bitácora
+*append-only* de todas las interacciones monetarias con el proveedor externo. **Nunca se actualiza
+ni elimina**; una reversión se registra como un nuevo registro `reembolso`.
 
 | Campo | Valores / Regla |
 |-------|-----------------|
