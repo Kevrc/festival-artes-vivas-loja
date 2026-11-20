@@ -7,6 +7,7 @@ import {
   IngresoRegistrado,
   PedidoReembolsado,
 } from './boleteria';
+import { PostulacionEnviada, SubsanacionSolicitada } from './convocatorias';
 import {
   AforoCambiado,
   FuncionActualizada,
@@ -17,6 +18,7 @@ import {
 } from './operacion';
 
 export * from './boleteria';
+export * from './convocatorias';
 export * from './operacion';
 export * from './ejemplos';
 
@@ -54,6 +56,10 @@ export const EventoPublicadoBoleteria = z.discriminatedUnion('tipo', [
   AforoExcedido,
 ]);
 export type EventoPublicadoBoleteria = z.infer<typeof EventoPublicadoBoleteria>;
+
+/** Eventos publicados por Convocatorias para el servicio de Identidad. */
+export const EventoPublicadoConvocatorias = z.discriminatedUnion('tipo', [PostulacionEnviada, SubsanacionSolicitada]);
+export type EventoPublicadoConvocatorias = z.infer<typeof EventoPublicadoConvocatorias>;
 
 /** Nombre de cola pg-boss de un evento para un módulo: programacion.funcion-cancelada (ADR-0003). */
 export const colaDe = (modulo: string, tipo: string) =>
