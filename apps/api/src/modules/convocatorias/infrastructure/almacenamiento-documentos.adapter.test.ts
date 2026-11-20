@@ -17,7 +17,8 @@ describe('adaptadores de almacenamiento', () => {
     await adapter.guardar(key, contenido);
     await expect(adapter.leer(key)).resolves.toEqual(contenido);
     const url = new URL(await adapter.crearUrlDescarga(key, new Date(Date.now() + 300_000)));
-    expect(url.pathname).toContain(key);
+    expect(url.pathname).toBe('/api/convocatorias/documentos/contenido');
+    expect(url.searchParams.get('key')).toBe(key);
     expect(url.searchParams.get('sig')).toMatch(/^[a-f0-9]{64}$/);
     await adapter.eliminar(key);
     await expect(adapter.leer(key)).rejects.toThrow();
