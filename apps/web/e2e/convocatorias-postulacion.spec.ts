@@ -9,6 +9,7 @@ test.describe('US1 · postular una propuesta', () => {
     const titulo = `Propuesta ${randomUUID().slice(0, 8)}`;
     await page.goto('/convocatorias');
     await expect(page.getByRole('heading', { name: 'Convocatorias abiertas' })).toBeVisible();
+    await expect(page).toHaveTitle(/FIAVL/);
     await sinViolacionesAxe(page);
     await page.getByRole('link', { name: 'Ver bases y postular' }).first().click();
     await expect(page.getByRole('heading', { name: 'PN-2026' })).toBeVisible();
@@ -37,6 +38,7 @@ test.describe('US1 · postular una propuesta', () => {
     const folio = (await acuse.textContent())?.replace('Postulación ', '');
     await expect(page.getByText('Estado: enviada')).toBeVisible();
     await expect(page.getByRole('heading', { name: titulo })).toBeVisible();
+    await expect(page).toHaveTitle(/FIAVL/);
     await sinViolacionesAxe(page);
 
     const copia = page.waitForEvent('download');
