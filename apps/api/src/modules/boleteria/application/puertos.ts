@@ -262,7 +262,7 @@ export interface RepositorioBoleteria {
     llaves: ParLlavesQr;
     correlacionId: string;
   }): Promise<{
-    accion: 'ya_procesado' | 'pagado' | 'rechazado' | 'tardio_pagado' | 'tardio_requiere_reembolso' | 'no_encontrado';
+    accion: 'ya_procesado' | 'pagado' | 'rechazado' | 'tardio_pagado' | 'tardio_requiere_reembolso' | 'importe_distinto' | 'no_encontrado';
     pedido: PedidoRegistro | null;
     inventario?: FuncionConEdicion | null;
   }>;
@@ -272,7 +272,7 @@ export interface RepositorioBoleteria {
     proveedor: string;
     referenciaDevolucion: string;
     importeCentavos: number;
-    motivo: 'funcion_cancelada' | 'funcion_reprogramada' | 'pago_tardio_sin_cupo' | 'plazo_7_dias_vencido';
+    motivo: 'funcion_cancelada' | 'funcion_reprogramada' | 'pago_tardio_sin_cupo' | 'plazo_7_dias_vencido' | 'importe_distinto';
     correlacionId: string;
     actorId?: string | null;
     rol?: string | null;

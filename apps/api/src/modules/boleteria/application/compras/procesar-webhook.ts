@@ -80,7 +80,7 @@ export class ProcesarWebhookPago {
         await publicarEntradasEmitidas(this.publicador, { pedido: r.pedido, edicionId: r.inventario!.edicionId, ahora, correlacionId });
         await publicarDisponibilidad(this.publicador, r.inventario!, ahora, correlacionId);
       }
-      if (r.pedido && r.accion === 'rechazado' && r.inventario) {
+      if (r.pedido && (r.accion === 'rechazado' || r.accion === 'importe_distinto') && r.inventario) {
         await publicarDisponibilidad(this.publicador, r.inventario, ahora, correlacionId);
       }
       return r;
@@ -95,10 +95,10 @@ export class ProcesarWebhookPago {
       return { procesado: true, estadoPedido: res.pedido.estado };
     }
 
-    // Pago tardío sin cupo: se devuelve lo cobrado
-    if (res.accion === 'tardio_requiere_reembolso') {
-      const motivo = 'pago_tardio_sin_cupo' as const;
-      const importe = res.pedido.importeCentavos;
+    // Pago tardío sin cupo, o importe distinto al del pedido (auditoría #4): se devuelve lo cobrado
+    if (res.accion === 'tardio_requiere_reembolso' || res.accion === 'importe_distinto') {
+      const motivo = res.accion === 'importe_distinto' ? ('importe_distinto' as const) : ('pago_tardio_sin_cupo' as const);
+      const importe = res.accion === 'importe_distinto' ? p.importeCentavos : res.pedido.importeCentavos;
       boleteriaPedidosTotal.inc({ canal: res.pedido.canal, tipo: res.pedido.tipo, resultado: res.accion });
       if (importe <= 0) return { procesado: true, estadoPedido: res.pedido.estado };
       const dev = await this.proveedor.devolverPago({ pedidoId: res.pedido.id, referenciaCobro: p.referenciaProveedor, importeCentavos: importe });
@@ -161,12 +161,14 @@ export class ConciliarPagosPendientes {
     let conciliados = 0;
     for (const ped of pendientes) {
       const consulta = await this.proveedor.consultarPago(ped.id, ped.referenciaIntencion ?? undefined);
+      // Sin importe no se puede comprobar el cobro (auditoría #4): se deja para la próxima vuelta o el webhook
+      if (consulta.estado === 'aprobado' && consulta.importeCentavos === undefined) continue;
       if (consulta.estado === 'aprobado' || consulta.estado === 'rechazado') {
         await this.procesador.aplicarResultado({
           pedidoId: ped.id,
           referenciaProveedor: consulta.referenciaProveedor ?? `conc-${ped.id}`,
           resultado: consulta.estado,
-          importeCentavos: consulta.importeCentavos ?? 0,
+          importeCentavos: consulta.importeCentavos ?? 0, // solo llega 0 en rechazos
           correlacionId,
         });
         conciliados++;
