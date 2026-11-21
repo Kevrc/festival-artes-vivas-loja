@@ -39,4 +39,9 @@ Dos capas:
   [ADR-0004](0004-control-de-aforo.md); la prueba de concurrencia es directa.
 - **Negativas**: las actividades continuas generan un bloque por día; las cancelaciones deben
   desactivar sus bloques en la misma transacción.
+- **Interbloqueos (hallado al implementar)**: dos inserciones simultáneas que chocan en una
+  restricción `EXCLUDE` pueden interbloquearse (PostgreSQL aborta una con `40P01`). Por eso el
+  guardado toma antes, en la misma transacción, un bloqueo consultivo por sede y por elenco
+  (`pg_advisory_xact_lock`, en orden fijo): solo se ordenan los guardados que compiten por lo mismo,
+  no toda la grilla, y la restricción sigue siendo la garantía final.
 - **Vistas 4+1**: lógica (entidad `bloque_ocupacion`) y procesos (concurrencia en la grilla).

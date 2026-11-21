@@ -4,8 +4,10 @@ import { enTransaccion, transaccionActual } from '../../../common/datos/transacc
 import type { PrismaService } from '../../../common/prisma/prisma.service';
 import {
   CruceEnBaseDeDatos,
+  InterbloqueoEnBaseDeDatos,
   type DatosFuncion,
   type DatosObra,
+  type EdicionDetalle,
   type EdicionVista,
   type ElencoVista,
   type FiltroObras,
@@ -26,6 +28,15 @@ type FuncionFila = Prisma.FuncionOperacionGetPayload<{ include: typeof incluirFu
 
 /** Postgres 23P01 = exclusion_violation (restricciones `bloque_sin_cruce_*`, ADR-0010). */
 const esCruce = (e: unknown) => e instanceof Error && /23P01|bloque_sin_cruce|exclusion constraint/i.test(e.message);
+/** 40P01 = deadlock_detected; Prisma lo informa también como P2034 (conflicto de escritura o interbloqueo). */
+const esInterbloqueo = (e: unknown) => e instanceof Error && /40P01|deadlock|P2034/i.test(`${(e as { code?: string }).code ?? ''} ${e.message}`);
+
+/** Traduce los rechazos de la base por concurrencia a errores del puerto. */
+function traducir(e: unknown): never {
+  if (esInterbloqueo(e)) throw new InterbloqueoEnBaseDeDatos();
+  if (esCruce(e)) throw new CruceEnBaseDeDatos();
+  throw e;
+}
 
 const aSede = (s: Prisma.SedeOperacionGetPayload<object>): SedeVista => ({
   id: s.id,
@@ -85,12 +96,42 @@ export class PrismaOperacionRepository implements RepositorioOperacion {
     return transaccionActual() ?? this.db;
   }
 
-  enTransaccion<T>(fn: () => Promise<T>): Promise<T> {
-    return enTransaccion(this.db, () => fn());
+  async enTransaccion<T>(fn: () => Promise<T>): Promise<T> {
+    try {
+      return await enTransaccion(this.db, () => fn());
+    } catch (e) {
+      // Si el interbloqueo aborta la transacción al confirmar, también llega aquí.
+      if (esInterbloqueo(e)) throw new InterbloqueoEnBaseDeDatos();
+      throw e;
+    }
+  }
+
+  async bloquearAgenda(claves: string[]): Promise<void> {
+    if (!transaccionActual()) throw new Error('bloquearAgenda requiere una transacción');
+    for (const clave of [...new Set(claves)].sort()) {
+      await this.tx.$executeRawUnsafe('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', `operacion:${clave}`);
+    }
   }
 
   async edicion(id: string): Promise<EdicionVista | null> {
     return this.tx.edicionOperacion.findUnique({ where: { id }, select: { id: true, anio: true, estado: true } });
+  }
+
+  async ediciones(): Promise<EdicionDetalle[]> {
+    const filas = await this.tx.edicionOperacion.findMany({ orderBy: { anio: 'desc' } });
+    return filas.map((e) => ({
+      id: e.id,
+      anio: e.anio,
+      estado: e.estado,
+      numero: e.numero,
+      fechaInicio: e.fechaInicio.toISOString().slice(0, 10),
+      fechaFin: e.fechaFin.toISOString().slice(0, 10),
+      paisInvitado: e.paisInvitado,
+      precioCentavos: e.precioCentavos,
+      maxPagadasPersona: e.maxPagadasPersona,
+      maxReservasPersona: e.maxReservasPersona,
+      version: e.version,
+    }));
   }
 
   async sede(id: string): Promise<SedeVista | null> {
@@ -208,8 +249,7 @@ export class PrismaOperacionRepository implements RepositorioOperacion {
       await this.escribirBloques(id, d, bloques);
       return (await this.conEntradas([f]))[0]!;
     } catch (e) {
-      if (esCruce(e)) throw new CruceEnBaseDeDatos();
-      throw e;
+      traducir(e);
     }
   }
 
@@ -224,8 +264,7 @@ export class PrismaOperacionRepository implements RepositorioOperacion {
       await this.escribirBloques(id, d, bloques);
       return this.funcion(id);
     } catch (e) {
-      if (esCruce(e)) throw new CruceEnBaseDeDatos();
-      throw e;
+      traducir(e);
     }
   }
 

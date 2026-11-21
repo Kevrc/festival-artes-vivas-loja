@@ -128,6 +128,16 @@ describe('US1 — programar funciones en la grilla', () => {
   });
 });
 
+describe('selector de edición', () => {
+  it('lista las ediciones de la más reciente a la más antigua', async () => {
+    const r = await ctx.http().get('/api/operacion/ediciones').set(conRol('jefe_sala@sede:x'));
+    expect(r.status).toBe(200);
+    const anios = r.body.map((e: { anio: number }) => e.anio);
+    expect(anios).toEqual([...anios].sort((a: number, b: number) => b - a));
+    expect(r.body.find((e: { id: string }) => e.id === ids.edicion)).toMatchObject({ fechaInicio: '2026-11-12', fechaFin: '2026-11-22', estado: 'planificacion' });
+  });
+});
+
 describe('caso borde: cambiar la duración de una obra', () => {
   it('no mueve las funciones y devuelve los cruces recalculados', async () => {
     await crear(funcion(ids.cura, ids.bolivar, '2026-11-13T19:00:00-05:00'));

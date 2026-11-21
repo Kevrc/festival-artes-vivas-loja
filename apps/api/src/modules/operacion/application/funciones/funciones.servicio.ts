@@ -16,6 +16,7 @@ import {
 import {
   type AuditoriaOperacion,
   CruceEnBaseDeDatos,
+  InterbloqueoEnBaseDeDatos,
   type DatosFuncion,
   type FuncionVista,
   type ObraVista,
@@ -51,6 +52,8 @@ interface Peticion {
 }
 
 const DIA = 24 * 60 * 60_000;
+/** Reintentos ante un interbloqueo de la base; cada uno vuelve a comprobar los cruces. */
+const REINTENTOS_INTERBLOQUEO = 3;
 const VENTANA = DIA; // montaje < 24 h: basta mirar un día alrededor
 
 /**
@@ -135,16 +138,31 @@ export class FuncionesServicio {
     });
   }
 
-  /** Comprueba cruces con el dominio y, si una carrera los esquiva, con la base (mismo 409). */
+  /**
+   * Guarda sin cruces (ADR-0010). En una transacción: bloqueo consultivo de la sede y del elenco
+   * (ordena a los programadores que guardan a la vez), comprobación del dominio y escritura. La
+   * restricción EXCLUDE sigue siendo la garantía final; si aun así la base rechaza o se interbloquea,
+   * se reintenta con una espera breve y el reintento responde 409 con la función que ganó.
+   */
   private async guardarSinCruces<T>(id: string, d: DatosFuncion, sede: SedeVista, obra: ObraVista, guardar: () => Promise<T>): Promise<T> {
     const candidata: FuncionAgenda = { id, ...d, sedeNombre: sede.nombre, montajeMin: sede.montajeMin, obraTitulo: obra.titulo, activa: true };
-    const conflictos = await this.conflictos(candidata);
-    if (conflictos.length > 0) throw conflictoAgenda(conflictos);
-    try {
-      return await guardar();
-    } catch (e) {
-      if (!(e instanceof CruceEnBaseDeDatos)) throw e;
-      throw conflictoAgenda(await this.conflictos(candidata));
+    for (let intento = 1; ; intento++) {
+      try {
+        return await this.repo.enTransaccion(async () => {
+          await this.repo.bloquearAgenda([`sede:${d.sedeId}`, `elenco:${d.elencoId}`]);
+          const conflictos = await this.conflictos(candidata);
+          if (conflictos.length > 0) throw conflictoAgenda(conflictos);
+          return guardar();
+        });
+      } catch (e) {
+        const reintentable = e instanceof InterbloqueoEnBaseDeDatos || e instanceof CruceEnBaseDeDatos;
+        if (!reintentable) throw e;
+        if (intento < REINTENTOS_INTERBLOQUEO) {
+          await esperar(20 + Math.random() * 80 * intento);
+          continue;
+        }
+        throw conflictoAgenda(await this.conflictos(candidata));
+      }
     }
   }
 
@@ -202,6 +220,8 @@ export class FuncionesServicio {
     });
   }
 }
+
+const esperar = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 function validarFin(calculado: Date, pedido: Date | undefined): Date {
   const r = validarFinPedido(calculado, pedido);

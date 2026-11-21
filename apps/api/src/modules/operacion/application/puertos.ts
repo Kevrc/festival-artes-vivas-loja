@@ -56,6 +56,17 @@ export interface EdicionVista {
   estado: EstadoEdicion;
 }
 
+export interface EdicionDetalle extends EdicionVista {
+  numero: string;
+  fechaInicio: string;
+  fechaFin: string;
+  paisInvitado: string | null;
+  precioCentavos: number;
+  maxPagadasPersona: number;
+  maxReservasPersona: number;
+  version: number;
+}
+
 export interface SedeVista {
   id: string;
   edicionId: string;
@@ -155,10 +166,27 @@ export class CruceEnBaseDeDatos extends Error {
   }
 }
 
+/**
+ * PostgreSQL abortó la transacción por un interbloqueo (40P01): dos inserciones simultáneas que
+ * chocan en una restricción EXCLUDE pueden esperarse mutuamente. Se reintenta el guardado completo.
+ */
+export class InterbloqueoEnBaseDeDatos extends Error {
+  constructor() {
+    super('Interbloqueo al guardar: se reintenta');
+  }
+}
+
 export interface RepositorioOperacion {
   /** Transacción ambiente: repositorio, auditoría y publicador escriben juntos (ADR-0003). */
   enTransaccion<T>(fn: () => Promise<T>): Promise<T>;
+  /**
+   * Bloqueo consultivo de transacción sobre cada clave (p. ej. `sede:<id>`), tomado en orden fijo:
+   * ordena los guardados que compiten por la misma sede o elenco y evita interbloqueos (ADR-0010).
+   */
+  bloquearAgenda(claves: string[]): Promise<void>;
   edicion(id: string): Promise<EdicionVista | null>;
+  /** De la más reciente a la más antigua. */
+  ediciones(): Promise<EdicionDetalle[]>;
   sede(id: string): Promise<SedeVista | null>;
   sedesDeEdicion(edicionId: string, soloActivas: boolean): Promise<SedeVista[]>;
   obra(id: string): Promise<ObraVista | null>;

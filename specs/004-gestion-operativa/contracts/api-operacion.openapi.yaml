@@ -28,7 +28,7 @@ paths:
       operationId: listarEdiciones
       summary: Listar ediciones
       tags: [ediciones]
-      x-roles: [programador, direccion, administrador]
+      x-roles: [programador, jefe_sala, direccion, administrador]
       responses:
         '200':
           description: Ediciones, de la más reciente a la más antigua

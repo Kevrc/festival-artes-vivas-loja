@@ -26,6 +26,9 @@ const aJson = (c: Conflicto) => ({
 
 /** 409 ConflictoAgenda con la lista de funciones que chocan (US1-AS2). */
 export function conflictoAgenda(conflictos: Conflicto[]): ErrorConCodigo {
+  if (conflictos.length === 0) {
+    return new ErrorConCodigo(409, 'cruce_sede', 'La agenda cambió mientras se guardaba. Recarga la grilla y vuelve a intentarlo.', { conflictos: [] });
+  }
   const deSede = conflictos.some((c) => c.tipo === 'sede');
   const primera = conflictos[0];
   const detalle = deSede

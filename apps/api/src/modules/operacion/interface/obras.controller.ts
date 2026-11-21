@@ -60,6 +60,13 @@ export class ObrasController {
     };
   }
 
+  /** Lectura de ediciones para el selector del panel; crear y editar ediciones es US6. */
+  @Get('ediciones')
+  @Requiere('programador', 'jefe_sala', 'direccion', 'administrador')
+  ediciones() {
+    return this.repo.ediciones();
+  }
+
   @Get('ediciones/:edicionId/sedes')
   @Requiere('programador', 'jefe_sala', 'direccion', 'administrador')
   async sedes(@Param('edicionId') edicionId: string) {
