@@ -120,7 +120,8 @@ contenedores ([ADR-0008](../../docs/adr/0008-despliegue-contenedores.md)).
 - El modelo de datos no cruza esquemas.
 - Los contratos existentes no cambian.
 - Los eventos nuevos (`CuentaVerificada`, `RolAsignado`, `CuentaEliminada`) son aditivos.
-- Los de Convocatorias se proponen como contrato provisional del dueño (003).
+- De Convocatorias, `PostulacionEnviada` y `SubsanacionSolicitada` se consumen tal como los define
+  la rama 003; los tres de su US4 se proponen como contrato provisional del dueño.
 - No aparecen componentes con estado nuevos en producción.
 
 **Sin violaciones.**
@@ -220,7 +221,7 @@ apps/web/e2e/{operacion,identidad}-*.spec.ts
 
 packages/contracts/src/
 ├── eventos/identidad.ts                      # CuentaVerificada, RolAsignado, CuentaEliminada
-├── eventos/convocatorias.ts                  # provisional, dueño 003
+├── eventos/convocatorias.ts                  # de 003 (rama sin fusionar); US4 provisional, PR del dueño
 ├── eventos/index.ts                          # uniones EventoOperacion*, EventoIdentidad*
 ├── identidad/publica.ts                      # IDENTIDAD_PUBLICA, ContextoIdentidad
 └── api/{operacion,identidad}.ts              # tipos generados desde OpenAPI
@@ -246,7 +247,7 @@ y el patrón hexagonal de 001 y 002 (`domain → application → infrastructure 
 | 1. Base | Esquemas, migraciones (`EXCLUDE`, auditoría), contratos de eventos nuevos, registro de módulos, Mailpit | Lo bloquea todo |
 | 2. Operación P1 | US1 → US2 → US3 | Es el escenario +1 del video; reemplaza la semilla simulada |
 | 3. Identidad P1 | US7 → US8 → US9 | Los demás módulos ya funcionan con el adaptador dev; se integra después |
-| 4. Integración | `IdentidadPublica` en 002 y 001; E2E con login real | PR propio con aprobación de los dueños |
+| 4. Integración | `IdentidadPublica` en 002 y 001 (y en 003 cuando esté en `main`); E2E con login real | PR propio con aprobación de los dueños |
 | 5. P2 | US10 → US4 → US5 → US11 | Avisos primero: dependen de eventos ya disponibles |
 | 6. P3 | US6, US12 | Mientras tanto, datos maestros por semilla |
 | 7. Cierre | Vistas 4+1, ADR aceptadas, carga k6, revisión de seguridad | Puertas Q6–Q8 |
@@ -258,7 +259,9 @@ PRs pequeños (< 400 líneas sin contar pruebas ni documentos) en subramas
 
 | Necesita | De | Mientras no exista |
 |----------|----|--------------------|
-| `PostulacionSeleccionada`, `SeleccionDesistida`, `PostulacionEnviada`, `SubsanacionSolicitada`, `ResultadoPublicado` | 003 Convocatorias | Contrato provisional en `@fiavl/contracts` acordado con @Carlos2190; `pnpm events:emit` los simula |
+| `PostulacionEnviada`, `SubsanacionSolicitada` | 003 Convocatorias | Ya implementados en la rama `003-convocatorias-curaduria` (sin fusionar); se consumen tal cual cuando 003 llegue a `main` |
+| `PostulacionSeleccionada`, `SeleccionDesistida`, `ResultadoPublicado` | 003 Convocatorias (US4, P2) | Forma propuesta en [eventos](contracts/eventos-operacion-identidad.md#52-pendientes-de-003-us4-propuesta-provisional), a añadir por @Carlos2190; `pnpm events:emit` los simula |
+| Sustituir `AutorizacionConvocatoriasDevAdapter` por `IdentidadPublica` | 003 Convocatorias | Su adaptador dev sigue; el cambio va en el PR de integración con aprobación de @Carlos2190 |
 | `EntradasEmitidas`, `PedidoReembolsado`, `IngresoRegistrado`, `AforoExcedido`, `ConflictoDeIngreso` | 002 Boletería | Ya publicados hacia `operacion.*` e `identidad.*`; sin cambios |
 | Consumo de los eventos de Operación | 001 y 002 | Ya implementado contra los contratos existentes |
 | Aprobación del PR de integración | Responsables de 001 y 002 | El adaptador dev sigue funcionando hasta fusionar |
@@ -268,7 +271,8 @@ PRs pequeños (< 400 líneas sin contar pruebas ni documentos) en subramas
 | Riesgo | Mitigación |
 |--------|------------|
 | Alcance grande (12 historias, dos módulos) para una persona | Orden por prioridad; P3 (US6, US12) recortable; semilla cubre datos maestros |
-| El contrato de 003 cambia cuando su responsable planifique | Contract-first ahora; versión del evento en el sobre; acuerdo explícito antes de fusionar |
+| El contrato de 003 cambia o su rama se fusiona tarde | Los dos eventos ya existentes se usan sin cambios; los de US4 se acuerdan antes de fusionar; versión en el sobre |
+| Conflictos al fusionar 003 y 004 (mismos archivos compartidos: `schema.prisma`, `docker-compose.yml`, semilla, módulos raíz, `eventos/index.ts`) | Cambios solo aditivos; quien fusione segundo rebasa y resuelve; la semilla de 003 pasa a usar el `edicionId` de `prisma/seed/ids.ts` |
 | El PR de integración rompe pruebas de 001/002 | Adaptador dev conservado para sus pruebas; E2E migrados en el mismo PR; revisión de los dueños |
 | La proyección de métricas va por detrás de Boletería al reprogramar | Es advertencia, no control; Boletería resuelve excedentes con `AforoExcedido` |
 | Usuarios con avisos de una reserva ya anulada (Boletería no publica esa anulación) | Aceptado en la spec (caso borde); mensaje del aviso neutro |

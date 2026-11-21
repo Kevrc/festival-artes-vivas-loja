@@ -340,6 +340,11 @@ Boletería ya publica hacia las colas `operacion.*` e `identidad.*`
      `AutorizacionBoleteriaPort` traduciendo `ContextoIdentidad` (roles y alcance de sede). El
      adaptador dev sigue disponible para sus pruebas. **No cambia la spec 002 ni su puerto**.
   4. **Cartelera**: `SesionGuard` pasa a usar `IDENTIDAD_PUBLICA`.
+  4b. **Convocatorias** (rama 003, aún sin fusionar): ya define `AutorizacionConvocatoriasPort`
+     con un contexto propio (roles con el texto literal de FR-019, p. ej.
+     `'coordinación de convocatorias'`, y alcance `{ sedeId?, provincia?, disciplina? }`). Cuando
+     esté en `main`, un adaptador suyo traduce `ContextoIdentidad` con una tabla fija de códigos;
+     su contrato `autorizacion-identidad.md` ya lo prevé. Aprobación de @Carlos2190.
   5. Estos cambios tocan código de @By-Alvarez06 y @Kevrc: van en **un PR propio** con su
      aprobación (Constitución §6) y `/security-review` (Q8).
   6. Web: `panel-sesion-dev.tsx` y la cookie `sesion_dev` se sustituyen por el inicio de sesión
@@ -351,6 +356,8 @@ Boletería ya publica hacia las colas `operacion.*` e `identidad.*`
   publicar sus eventos por el mismo camino que la aplicación (sin cola, como hoy), conservando los
   ids de `prisma/seed/ids.ts`. Siembra también cuentas de prueba con roles (sustituyen a las
   cabeceras dev en E2E). `scripts/emitir-evento.ts` se mantiene para simular eventos de 003.
+  La semilla de 003 usa hoy otro `edicionId` (`22222222-…`); al integrarse debe tomar el de
+  `prisma/seed/ids.ts` para que sus convocatorias cuelguen de la edición que crea Operación.
 
 ### R23. Pruebas y dependencias nuevas
 

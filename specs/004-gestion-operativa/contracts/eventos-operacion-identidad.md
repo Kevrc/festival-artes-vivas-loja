@@ -91,11 +91,49 @@ Las colas `operacion.*` de Boletería ya existen en su publicador; no requiere c
 
 Clave de deduplicación de cada notificación: `tipoEvento:eventoId:destinatario` (RN-011).
 
-## 5. Contratos provisionales con Convocatorias (003)
+## 5. Contratos con Convocatorias (003)
 
-Convocatorias es la **dueña** de estos eventos. Como su plan aún no existe, 004 los propone según
-el contenido fijado en la spec 003 (§Eventos de dominio publicados) y los acuerda con su
-responsable antes de fusionar. Viven en `packages/contracts/src/eventos/convocatorias.ts`.
+Convocatorias es la **dueña** de estos eventos y del archivo
+`packages/contracts/src/eventos/convocatorias.ts`. Su rama `003-convocatorias-curaduria` (aún sin
+fusionar en `main`, revisada el 2026-11-21) ya implementa dos de ellos; los otros tres quedan fuera
+de su entrega P1 porque pertenecen a su US4 (P2).
+
+### 5.1 Ya definidos por 003: 004 los consume tal cual
+
+Publicados con destino `identidad` (colas `identidad.postulacion-enviada` e
+`identidad.subsanacion-solicitada`):
+
+```ts
+// Copia de referencia; la fuente es convocatorias.ts de la rama 003.
+const identificadores = {
+  postulacionId: z.string().uuid(),
+  convocatoriaId: z.string().uuid(),
+  cuentaPostulanteId: z.string().uuid(),
+  numero: z.string().min(1),                          // p. ej. FIAVL-2026-0001
+};
+PostulacionEnviada = sobre('PostulacionEnviada', z.object({ ...identificadores, enviadaEn: instante }));
+SubsanacionSolicitada = sobre('SubsanacionSolicitada', z.object({
+  ...identificadores,
+  detalle: z.string().trim().min(1),
+  venceEn: instante,
+}));
+```
+
+Consecuencias para Identidad:
+
+- Los avisos citan el **número** de postulación (el evento no trae el título de la obra).
+- `PostulacionEnviada` se repite al reenviar tras subsanar: la notificación se deduplica por
+  `eventoId` (son dos avisos distintos, ambos correctos) y `postulacion_en_curso` se actualiza
+  con *upsert* por `postulacionId`.
+- El destinatario se resuelve con `cuentaPostulanteId` → `identidad.cuenta.correo`.
+
+### 5.2 Pendientes de 003 (US4): propuesta provisional
+
+Los consumen Operación (`PostulacionSeleccionada`, `SeleccionDesistida`) e Identidad
+(`ResultadoPublicado`). 004 propone esta forma, siguiendo el estilo de 5.1 (`cuentaPostulanteId`,
+`numero`), para que @Carlos2190 la añada a `convocatorias.ts` en un PR propio de contratos
+(Constitución §6). Hasta entonces viven en `eventos/convocatorias-pendientes.ts`, marcados
+como provisionales, para no editar el archivo de 003, y `pnpm events:emit` los simula.
 
 ```ts
 PostulacionSeleccionada = sobre('PostulacionSeleccionada', z.object({
@@ -118,29 +156,28 @@ SeleccionDesistida = sobre('SeleccionDesistida', z.object({
   motivo: z.string().optional(),
 }));
 
-PostulacionEnviada = sobre('PostulacionEnviada', z.object({
-  postulacionId: z.string().uuid(),
-  convocatoriaId: z.string().uuid(),
-  cuentaId: z.string().uuid(),
-  tituloObra: z.string(),
-}));
-
-SubsanacionSolicitada = sobre('SubsanacionSolicitada', z.object({
-  postulacionId: z.string().uuid(),
-  cuentaId: z.string().uuid(),
-  requisitos: z.array(z.string()).min(1),
-  plazoHasta: instante,
-}));
-
 ResultadoPublicado = sobre('ResultadoPublicado', z.object({
   postulacionId: z.string().uuid(),
-  cuentaId: z.string().uuid(),
+  convocatoriaId: z.string().uuid(),
+  cuentaPostulanteId: z.string().uuid(),
+  numero: z.string().min(1),
   resultado: z.enum(['seleccionada', 'lista_espera', 'no_seleccionada', 'no_admitida']),
 }));
 ```
 
-Mientras 003 no los publique, `pnpm events:emit` se amplía con `postulacion-seleccionada` y
-`seleccion-desistida` para desarrollo y demostración.
+Destinos propuestos: `PostulacionSeleccionada` y `SeleccionDesistida` → `operacion`;
+`ResultadoPublicado` → `identidad`. Mientras 003 no los publique, `pnpm events:emit` se amplía con
+`postulacion-seleccionada`, `seleccion-desistida` y `resultado-publicado`.
+
+### 5.3 Otros puntos de encaje con la rama 003
+
+| Tema | Rama 003 | 004 | Acuerdo |
+|------|----------|-----|---------|
+| Nombres de rol | `'coordinación de convocatorias'`, `'jefe de sala'`… (texto literal de FR-019) | Códigos `coordinacion_convocatorias`, `jefe_sala`… | `IdentidadPublica` mantiene los códigos; el adaptador de Convocatorias los traduce con una tabla fija, como ya prevé su `autorizacion-identidad.md` |
+| Alcance | `{ sedeId?, provincia?, disciplina? }` | `{ tipo, valor } \| null` | El adaptador lo traduce; misma semántica |
+| `edicionId` | Su semilla usa `22222222-2222-4222-8222-222222222222` | Operación siembra la edición con `idDe('edicion-2026')` | Que la semilla de 003 lea el id de `prisma/seed/ids.ts` al integrarse |
+| Archivos compartidos | Edita `schema.prisma` (`schemas`), `docker/docker-compose.yml` (ClamAV), `prisma/seed/index.ts`, `app.module.ts`, `worker.module.ts`, `eventos/index.ts` | Edita los mismos | Cambios solo aditivos; quien fusione segundo resuelve el conflicto |
+| Rutas web | Grupo `(coordinacion)` | Grupo `(panel)` | Sin choque de URLs |
 
 ## 6. Pruebas de contrato
 
