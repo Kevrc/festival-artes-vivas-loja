@@ -6,6 +6,8 @@ import { PrismaCarteleraRepository } from '../../apps/api/src/modules/programaci
 import { RevalidadorNext } from '../../apps/api/src/modules/programacion/infrastructure/revalidador-next';
 import { eventosEdicion2026 } from './edicion-2026';
 import { seedOperacion } from './operacion';
+import { seedConvocatorias } from './convocatorias';
+import { crearAlmacenamientoDocumentos } from '../../apps/api/src/modules/convocatorias/infrastructure/almacenamiento.factory.js';
 
 // Siembra las proyecciones de Cartelera y Boletería por el mismo camino que los eventos reales, sin la cola.
 const db = new PrismaClient();
@@ -25,6 +27,9 @@ for (const evento of eventosEdicion2026()) {
     if ((await aplicarBoleteria.ejecutar(evento)).aplicado) aplicadosBoleteria++;
   }
 }
+
+await seedConvocatorias(db, crearAlmacenamientoDocumentos());
+console.log('Semilla: Convocatorias 2026, asignaciones y documentos de demostración cargados');
 
 console.log(`Semilla: ${aplicadosCartelera} eventos aplicados a cartelera y ${aplicadosBoleteria} a boletería 2026`);
 // Spec 004: esquema `operacion` con la misma edición y los mismos ids (aditivo).

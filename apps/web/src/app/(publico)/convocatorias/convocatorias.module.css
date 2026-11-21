@@ -1,0 +1,13 @@
+.lista { display: grid; gap: 12px; padding: 0; list-style: none; }
+.tarjeta { background: var(--superficie); border: 1px solid var(--borde); border-radius: var(--radio); padding: 16px; }
+.tarjeta h2 { margin: 0 0 8px; }
+.acciones { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.formulario { display: grid; gap: 14px; max-width: 720px; }
+.grupo { display: grid; gap: 6px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); }
+.campo { display: grid; gap: 4px; min-width: 0; }
+.campo label { font-weight: 700; }
+.campo input, .campo textarea { width: 100%; min-width: 0; font: inherit; color: var(--texto); background: var(--superficie); border: 1px solid var(--borde); border-radius: 8px; padding: 9px; }
+.campo textarea { min-height: 100px; resize: vertical; }
+.aviso { padding: 12px; border-left: 4px solid var(--aviso); background: var(--superficie); }
+.errores { border: 2px solid var(--peligro); padding: 12px; border-radius: var(--radio); }
+.estado { display: inline-block; font-weight: 700; padding: 3px 9px; border: 1px solid var(--borde); border-radius: 999px; }

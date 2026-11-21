@@ -5,6 +5,7 @@ import { BoleteriaModule } from './modules/boleteria/boleteria.module';
 import { IdentidadModule } from './modules/identidad/identidad.module';
 import { OperacionModule } from './modules/operacion/operacion.module';
 import { ProgramacionModule } from './modules/programacion/programacion.module';
+import { ConvocatoriasModule } from './modules/convocatorias/convocatorias.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { ProgramacionModule } from './modules/programacion/programacion.module';
     BoleteriaModule.registrar({ consumidores: false }),
     IdentidadModule.registrar({ consumidores: false }),
     OperacionModule.registrar({ consumidores: false }),
+    ConvocatoriasModule.registrar({ consumidores: false }),
   ],
 })
 export class AppModule {}

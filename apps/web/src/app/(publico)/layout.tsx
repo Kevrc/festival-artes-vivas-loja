@@ -19,6 +19,7 @@ export default function LayoutPublico({ children }: { children: React.ReactNode 
             <li><Link href="/mapa">Mapa</Link></li>
             <li><Link href="/mi-agenda">Mi agenda</Link></li>
             <li><Link href="/mis-entradas">Mis entradas</Link></li>
+            <li><Link href="/convocatorias">Convocatorias</Link></li>
           </ul>
         </nav>
         <Buscador />
