@@ -59,7 +59,8 @@ Centralizarlo evita que cada módulo resuelva seguridad y correo por su cuenta (
 El programador ve una grilla por día con una columna por sede y crea funciones eligiendo obra,
 sede, fecha, hora de inicio (la de fin se calcula con la duración de la obra), tipo de acceso,
 público y aforo habilitado. El sistema impide cruces en la misma sede, respetando el tiempo de
-montaje y desmontaje.
+montaje de la sede (el intervalo mínimo entre funciones, que incluye desmontar la anterior y montar
+la siguiente).
 
 **Why this priority**: Sin funciones programadas no hay cartelera ni boletería.
 
@@ -460,6 +461,7 @@ una función "solo estudiantes".
 | Pendiente de verificación | Abre enlace | Verificada |
 | Verificada | 5 intentos fallidos | Bloqueada temporalmente → Verificada (a los 15 min) |
 | Verificada | Administrador desactiva | Desactivada |
+| Desactivada | Administrador reactiva | Verificada |
 | Verificada | Titular elimina | Eliminada (anonimizada) |
 
 ### Eventos de dominio
@@ -506,7 +508,7 @@ una función "solo estudiantes".
 - **Destinatario de función**: función, cuenta o correo, pedido de origen; se da de alta con
   `EntradasEmitidas` y de baja con `PedidoReembolsado`. Solo sirve para enviar avisos.
 - **Notificación**: destinatario, plantilla, evento de origen, clave de deduplicación, estado
-  (pendiente, enviada, fallida), intentos.
+  (pendiente, enviada, fallida, omitida si es opcional y está desactivada), intentos.
 - **Acreditación**: cuenta, tipo (estudiante), evidencia, vigencia.
 
 ## Success Criteria *(mandatory)*

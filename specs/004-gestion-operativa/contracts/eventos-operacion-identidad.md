@@ -141,7 +141,7 @@ PostulacionSeleccionada = sobre('PostulacionSeleccionada', z.object({
   componente: Componente,
   obra: ObraDto.omit({ componente: true }).extend({
     fichaTecnica: z.object({
-      montajeMin: z.number().int().min(0).optional(),
+      montajeMin: z.number().int().min(0).optional(),   // informativos: el cruce usa sede.montaje_min
       desmontajeMin: z.number().int().min(0).optional(),
       requerimientos: z.array(z.string()),
     }),

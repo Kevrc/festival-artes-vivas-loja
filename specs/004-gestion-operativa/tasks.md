@@ -31,6 +31,9 @@ tiene una prueba nombrada; en dominio se escribe **primero** la prueba y se comp
   `004-gestion-operativa-<tema>`, PR < 400 líneas sin contar pruebas ni documentos.
 - Los campos y restricciones de cada tabla están en [data-model.md](data-model.md); las tareas
   citan `entidad.campo`.
+- Hasta la fase 9, los E2E de Operación se autentican con las cabeceras de desarrollo de
+  `IdentidadPublicaDevProvider` (como los de 001 y 002). T091 los migra al inicio de sesión real
+  con las cuentas de T086.
 
 ---
 
@@ -96,8 +99,8 @@ tiene una prueba nombrada; en dominio se escribe **primero** la prueba y se comp
 
 ### Tests (escribir primero, deben fallar)
 
-- [ ] T029 [P] [US1] Prueba de dominio `op/domain/agenda.test.ts`: `US1-AS1` (fin 21:30), `US1-AS2` (21:15 choca con montaje 30, 21:30 no), `US1-AS4` (elenco en dos sedes), actividad continua = un bloque por día, día del festival en `America/Guayaquil` (RN-001, RN-002)
-- [ ] T030 [P] [US1] Prueba de integración `apps/api/test/operacion/grilla.int.test.ts`: `US1-AS1`–`US1-AS4` por HTTP, 409 `cruce_sede` / `cruce_elenco` con la función en conflicto, 409 `aforo_supera_sede`, 412 por `If-Match` desactualizado (FR-013)
+- [ ] T029 [P] [US1] Prueba de dominio `op/domain/agenda.test.ts`: `US1-AS1` (fin 21:30), `US1-AS2` (21:15 choca con montaje 30, 21:30 no), `US1-AS4` (elenco en dos sedes), actividad continua = un bloque por día, día del festival en `America/Guayaquil`, función que cruza medianoche cuenta para su día de inicio, feriado del 20/11 informativo sin bloquear (RN-001, RN-002)
+- [ ] T030 [P] [US1] Prueba de integración `apps/api/test/operacion/grilla.int.test.ts`: `US1-AS1`–`US1-AS4` por HTTP, 409 `cruce_sede` / `cruce_elenco` con la función en conflicto, 409 `aforo_supera_sede`, 412 por `If-Match` desactualizado (FR-013); comprueba que se generó el registro de `auditoria` con su `correlacion_id` (Constitución IX)
 - [ ] T031 [P] [US1] Prueba de concurrencia `apps/api/test/operacion/cruces-concurrentes.int.test.ts`: dos programadores crean a la vez funciones que chocan ⇒ exactamente una (SC-001, ADR-0010)
 - [ ] T032 [P] [US1] Prueba de integración `apps/api/test/operacion/obras-convocatoria.int.test.ts`: `US1-AS5`, `PostulacionSeleccionada` crea `elenco` y `obra` con `obra.ficha_tecnica` una sola vez aunque llegue dos veces
 
@@ -106,10 +109,11 @@ tiene una prueba nombrada; en dominio se escribe **primero** la prueba y se comp
 - [ ] T033 [US1] Implementar `op/domain/agenda.ts`: `calcularFin` (RN-002, `funcion.fin` solo se alarga), `bloquesDe(funcion, sede)` con `bloque_ocupacion.rango_sede` = `[inicio, fin + sede.montaje_min)` y `bloque_ocupacion.rango_elenco` = `[inicio, fin)`, y `detectarConflictos`; hace pasar T029
 - [ ] T034 [P] [US1] Tipos de dominio en `op/domain/tipos.ts` (Funcion, Sede, Obra, Conflicto) reutilizando los enums de `@fiavl/contracts`
 - [ ] T035 [US1] `op/infrastructure/prisma-operacion.repository.ts`: guardar función y reescribir sus `bloque_ocupacion` en la misma transacción; traducir el error `23P01` a `ConflictoAgenda` y la versión desactualizada a 412 (`funcion.version`, R2)
-- [ ] T036 [US1] Casos de uso en `op/application/funciones/`: `crear-funcion.ts`, `editar-funcion.ts`, `eliminar-borrador.ts`, `grilla-del-dia.ts`; validan `funcion.aforo_habilitado ≤ sede.aforo` (FR-004) y `obra.estado = disponible`
+- [ ] T036 [US1] Casos de uso en `op/application/funciones/`: `crear-funcion.ts`, `editar-funcion.ts`, `eliminar-borrador.ts`, `grilla-del-dia.ts`; validan `funcion.aforo_habilitado ≤ sede.aforo` (FR-004) y `obra.estado = disponible`; cada acción escribe `auditoria` (`auditoria.actor_id`, `auditoria.accion`, `auditoria.anterior`, `auditoria.nuevo`, `auditoria.correlacion_id`) en la misma transacción (FR-012)
 - [ ] T037 [US1] Controlador `op/interface/funciones.controller.ts` con `GET /grilla?fecha`, `POST/PATCH/DELETE /funciones` (`If-Match`), esquemas zod y `@Requiere('programador')` según [api-operacion](contracts/api-operacion.openapi.yaml); hace pasar T030 y T031
-- [ ] T038 [US1] Consumidor `op/application/eventos/postulacion-seleccionada.ts` que crea `elenco` (`elenco.origen = convocatoria`, `elenco.postulacion_id`) y `obra` con su ficha técnica (R6); hace pasar T032
+- [ ] T038 [US1] Consumidor `op/application/eventos/postulacion-seleccionada.ts` que crea `elenco` (`elenco.origen = convocatoria`, `elenco.postulacion_id`) y `obra` con su ficha técnica (R6), validando `obra.duracion_min` > 0 y `obra.edad_minima` ≥ 0; `montajeMin`/`desmontajeMin` se guardan en `obra.ficha_tecnica` solo como información; hace pasar T032
 - [ ] T039 [P] [US1] `GET /obras` y `GET /sedes` de solo lectura en `op/interface/obras.controller.ts` y `op/interface/sedes.controller.ts` (búsqueda por título, disciplina y componente)
+- [ ] T039a [US1] Alta y edición de obras y elencos invitados en `op/application/obras/` y `POST/PATCH /obras` (`@Requiere('programador')`), validando `obra.duracion_min`, `obra.edad_minima` y `obra.estado`; al cambiar `obra.duracion_min` no mueve funciones existentes, recalcula sus conflictos y devuelve la lista de funciones afectadas (caso borde de la spec); cada acción escribe `auditoria` (`auditoria.actor_id`, `auditoria.accion`, `auditoria.anterior`, `auditoria.nuevo`, `auditoria.correlacion_id`) en la misma transacción (FR-012)
 - [ ] T040 [P] [US1] Cliente HTTP tipado `apps/web/src/lib/operacion/api.ts`
 - [ ] T041 [US1] Página `apps/web/src/app/(panel)/programacion/page.tsx` con la grilla accesible de `apps/web/src/components/operacion/grilla.tsx` (tabla con encabezados de sede y hora, navegable con teclado, conflicto anunciado por texto y no solo por color, [rutas-web](contracts/rutas-web.md)) y el formulario `formulario-funcion.tsx`
 - [ ] T042 [P] [US1] Página `apps/web/src/app/(panel)/programacion/obras/page.tsx` con buscador de obras y ficha técnica
@@ -128,12 +132,12 @@ tiene una prueba nombrada; en dominio se escribe **primero** la prueba y se comp
 ### Tests
 
 - [ ] T044 [P] [US2] Prueba de dominio `op/domain/publicacion.test.ts`: `US2-AS2`, errores por función sin sede, sin `funcion.tipo_acceso`, obra sin `obra.imagenes` o con cruces (R4)
-- [ ] T045 [P] [US2] Prueba de integración `apps/api/test/operacion/publicacion.int.test.ts`: `US2-AS1` (estado `programada`, `ProgramacionPublicada` y un `FuncionProgramada` por función, que pasan `EventoCartelera` y `EventoOperacionBoleteria`), `US2-AS3` (publicar una función sola sin republicar la edición)
+- [ ] T045 [P] [US2] Prueba de integración `apps/api/test/operacion/publicacion.int.test.ts`: `US2-AS1` (estado `programada`, `ProgramacionPublicada` y un `FuncionProgramada` por función, que pasan `EventoCartelera` y `EventoOperacionBoleteria`), `US2-AS3` (publicar una función sola sin republicar la edición); comprueba que se generó el registro de `auditoria` con su `correlacion_id` (Constitución IX)
 
 ### Implementation
 
-- [ ] T046 [US2] Implementar `op/domain/publicacion.ts` (`validarPublicacion`) y `op/domain/ciclo-funcion.ts` (transición `borrador → programada`, `funcion.version` +1, `funcion.publicada_en`); hace pasar T044
-- [ ] T047 [US2] Casos de uso `op/application/publicacion/{validar,publicar-edicion,publicar-funcion}.ts` que cambian estado y publican eventos en la misma transacción; `edicion.estado = publicada`
+- [ ] T046 [US2] Implementar `op/domain/publicacion.ts` (`validarPublicacion`) (valida `funcion.tipo_acceso`, `obra.imagenes` ≥ 1 y sede asignada) y `op/domain/ciclo-funcion.ts` (transición `borrador → programada`, `funcion.version` +1, `funcion.publicada_en`); hace pasar T044
+- [ ] T047 [US2] Casos de uso `op/application/publicacion/{validar,publicar-edicion,publicar-funcion}.ts` que cambian estado y publican eventos en la misma transacción; `edicion.estado = publicada`; cada acción escribe `auditoria` (`auditoria.actor_id`, `auditoria.accion`, `auditoria.anterior`, `auditoria.nuevo`, `auditoria.correlacion_id`) en la misma transacción (FR-012)
 - [ ] T048 [US2] Controlador `op/interface/publicacion.controller.ts`: `GET /ediciones/{id}/publicacion/validacion`, `POST /ediciones/{id}/publicacion`, `POST /funciones/{id}/publicacion`; hace pasar T045
 - [ ] T049 [US2] Página `apps/web/src/app/(panel)/programacion/publicar/page.tsx`: lista de errores enlazada a cada función (resumen enfocable) y botón "Publicar" bloqueado mientras haya errores
 - [ ] T050 [US2] E2E `apps/web/e2e/operacion-publicacion.spec.ts`: corregir errores, publicar y ver la función en `/cartelera` en < 1 min (SC-003), con axe
@@ -151,14 +155,14 @@ tiene una prueba nombrada; en dominio se escribe **primero** la prueba y se comp
 ### Tests
 
 - [ ] T051 [P] [US3] Prueba de dominio `op/domain/ciclo-funcion.test.ts`: `US3-AS4` (sin motivo ⇒ rechazo), `US3-AS5` (finalizada derivada: `fin < ahora`), RN-005, RN-007 (edición `cerrada` ⇒ sin transiciones)
-- [ ] T052 [P] [US3] Prueba de integración `apps/api/test/operacion/cambios.int.test.ts`: `US3-AS1` (estado `reprogramada`, `cambio_funcion.anterior` con el horario previo, `FuncionReprogramada`), `US3-AS3` (`FuncionCancelada`, bloques desactivados), `US3-AS2` (409 con `exceso` y luego `confirmarExceso` guarda `cambio_funcion.exceso_confirmado`)
+- [ ] T052 [P] [US3] Prueba de integración `apps/api/test/operacion/cambios.int.test.ts`: `US3-AS1` (estado `reprogramada`, `cambio_funcion.anterior` con el horario previo, `FuncionReprogramada`), `US3-AS3` (`FuncionCancelada`, bloques desactivados), `US3-AS2` (409 con `exceso` y luego `confirmarExceso` guarda `cambio_funcion.exceso_confirmado`); comprueba que se generó el registro de `auditoria` con su `correlacion_id` (Constitución IX)
 - [ ] T053 [P] [US3] Prueba de integración `apps/api/test/operacion/proyeccion-boleteria.int.test.ts`: `EntradasEmitidas` y `PedidoReembolsado` mantienen `pedido_registrado` y `metrica_funcion.entradas_emitidas` / `metrica_funcion.entradas_reembolsadas` de forma idempotente (R5, R7)
 
 ### Implementation
 
 - [ ] T054 [US3] Ampliar `op/domain/ciclo-funcion.ts` con `reprogramar` y `cancelar`; `cambio_funcion.motivo` obligatorio; hace pasar T051
 - [ ] T055 [US3] Consumidores `op/application/eventos/{entradas-emitidas,pedido-reembolsado,ingreso-registrado}.ts` para `pedido_registrado`, `metrica_funcion` e `ingreso_registrado` (sin contar dos veces `ingreso_registrado.ingreso_id`); hace pasar T053
-- [ ] T056 [US3] Casos de uso `op/application/cambios/{reprogramar,cancelar}.ts`: reescriben o desactivan `bloque_ocupacion.activo`, insertan `cambio_funcion` y publican `FuncionReprogramada` / `FuncionCancelada` / `AforoCambiado` en la misma transacción; exceso = entradas activas − aforo nuevo
+- [ ] T056 [US3] Casos de uso `op/application/cambios/{reprogramar,cancelar}.ts`: reescriben o desactivan `bloque_ocupacion.activo`, insertan `cambio_funcion` y publican `FuncionReprogramada` / `FuncionCancelada` / `AforoCambiado` en la misma transacción; exceso = entradas activas − aforo nuevo; cada acción escribe `auditoria` (`auditoria.actor_id`, `auditoria.accion`, `auditoria.anterior`, `auditoria.nuevo`, `auditoria.correlacion_id`) en la misma transacción (FR-012)
 - [ ] T057 [US3] Controlador `op/interface/cambios.controller.ts`: `POST /funciones/{id}/reprogramacion`, `POST /funciones/{id}/cancelacion`, `GET /funciones/{id}/cambios`; hace pasar T052
 - [ ] T058 [US3] Página `apps/web/src/app/(panel)/programacion/funciones/[id]/page.tsx` con historial, formularios de reprogramar y cancelar (motivo obligatorio) y diálogo accesible de confirmación de exceso
 - [ ] T059 [US3] E2E `apps/web/e2e/operacion-cambios.spec.ts`: reprogramar por lluvia, cancelar y ver el cambio en la cartelera, con axe
@@ -181,13 +185,14 @@ tiene una prueba nombrada; en dominio se escribe **primero** la prueba y se comp
 
 ### Implementation
 
-- [ ] T063 [P] [US7] Implementar `id/domain/contrasenas.ts` con la lista cargada una vez en memoria desde `contrasenas-filtradas.txt`; hace pasar T060
-- [ ] T064 [P] [US7] Implementar `id/domain/tokens.ts`; hace pasar T061
+- [ ] T063 [P] [US7] Implementar `id/domain/contrasenas.ts` con la lista cargada una vez en memoria desde `contrasenas-filtradas.txt`; escribe `credencial.hash_contrasena` con el formato `scrypt$N$r$p$sal$hash`; hace pasar T060
+- [ ] T064 [P] [US7] Implementar `id/domain/tokens.ts`: fija `token_cuenta.expira_en` (24 h verificación, 1 h recuperación) y marca `token_cuenta.usado_en`; hace pasar T061
 - [ ] T065 [P] [US7] Adaptadores de correo `id/infrastructure/correo-smtp.adapter.ts` (nodemailer con `SMTP_URL`) e `id/infrastructure/correo-memoria.adapter.ts` (pruebas), elegidos por entorno
 - [ ] T066 [P] [US7] Plantillas `id/domain/plantillas/{verificacion,cuenta-existente}.ts` en texto y HTML accesible, con prueba de que no incluyen tokens en logs
 - [ ] T067 [US7] `id/infrastructure/prisma-identidad.repository.ts` (cuentas, credenciales, tokens, consentimientos) y casos de uso `id/application/registro/{registrar,verificar,reenviar}.ts`; el aceptar la política crea `consentimiento` con `documento_legal.version` vigente
 - [ ] T068 [US7] Controlador `id/interface/registro.controller.ts`: `POST /registro`, `POST /verificacion`, `POST /verificacion/reenvio` según [api-identidad](contracts/api-identidad.openapi.yaml); hace pasar T062
 - [ ] T069 [US7] Páginas `apps/web/src/app/(publico)/cuenta/registro/page.tsx` y `cuenta/verificar/page.tsx` con requisitos de contraseña visibles, casilla de política enlazada y errores anunciados; cliente `apps/web/src/lib/identidad/api.ts`
+- [ ] T069a [US7] E2E `apps/web/e2e/identidad-registro.spec.ts`: `US7-AS1`, `US7-AS2` (enlace leído desde la API de Mailpit), `US7-AS4` y `US7-AS5`; registro y verificación en < 2 min (SC-006), con axe sin violaciones A/AA
 
 **Checkpoint**: registro y verificación (escenarios 20–22).
 
@@ -203,11 +208,11 @@ tiene una prueba nombrada; en dominio se escribe **primero** la prueba y se comp
 
 - [ ] T070 [P] [US8] Prueba de dominio `id/domain/sesiones.test.ts`: expiración deslizante 30 d / 8 h según `cuenta.es_personal` (`US8-AS1`), `sesion.ultima_actividad_en` escrito como máximo una vez por minuto
 - [ ] T071 [P] [US8] Prueba de dominio `id/domain/bloqueo.test.ts`: `US8-AS2`, 5 fallos en 15 min ⇒ `cuenta.bloqueada_hasta` = +15 min
-- [ ] T072 [P] [US8] Prueba de integración `apps/api/test/identidad/sesion.int.test.ts`: `US8-AS1`–`US8-AS4`, cookie `fiavl_sesion` `HttpOnly` y `SameSite=Lax`, rechazo de `Origin` ajeno en métodos que escriben (CSRF), enlace de recuperación usado dos veces, cambio de contraseña revoca las demás sesiones (`sesion.revocada_en`)
+- [ ] T072 [P] [US8] Prueba de integración `apps/api/test/identidad/sesion.int.test.ts`: `US8-AS1`–`US8-AS4`, cookie `fiavl_sesion` `HttpOnly` y `SameSite=Lax`, rechazo de `Origin` ajeno en métodos que escriben (CSRF), enlace de recuperación usado dos veces, cambio de contraseña revoca las demás sesiones (`sesion.revocada_en`), FR-016: correo inexistente y contraseña errónea dan la misma respuesta
 
 ### Implementation
 
-- [ ] T073 [P] [US8] Implementar `id/domain/sesiones.ts` y `id/domain/bloqueo.ts`; hacen pasar T070 y T071
+- [ ] T073 [P] [US8] Implementar `id/domain/sesiones.ts` (calcula `sesion.expira_en`) y `id/domain/bloqueo.ts` (calcula `cuenta.bloqueada_hasta`); hacen pasar T070 y T071
 - [ ] T074 [US8] Casos de uso `id/application/sesion/{iniciar,cerrar,recuperar,confirmar-recuperacion,cambiar-contrasena,listar-sesiones,revocar-sesion}.ts`; `intento_acceso` registra cada intento; aviso de bloqueo al titular
 - [ ] T075 [US8] Implementar `id/infrastructure/identidad-publica.provider.ts` (`resolverSesion`: busca `sesion.hash_token`, lee en ese momento `cuenta.estado` y `rol_asignado` vigentes, falla cerrado) y registrarlo como proveedor global con `IDENTIDAD_PUBLICA`, reemplazando a `IdentidadPublicaDevProvider` fuera de pruebas (ADR-0009)
 - [ ] T076 [US8] Controladores `id/interface/sesion.controller.ts` (`POST/DELETE /sesion`, `POST /recuperacion`, `POST /recuperacion/confirmacion`) y `id/interface/mi-cuenta.controller.ts` (`GET/PATCH /yo`, `POST /yo/contrasena`, `GET /yo/sesiones`, `DELETE /yo/sesiones/{id}`), con el middleware `id/interface/origen.guard.ts`; hace pasar T072
@@ -227,7 +232,7 @@ tiene una prueba nombrada; en dominio se escribe **primero** la prueba y se comp
 ### Tests
 
 - [ ] T079 [P] [US9] Prueba de dominio `id/domain/totp.test.ts` con los vectores oficiales de RFC 6238 (SHA-1, 30 s, 6 dígitos), ventana ±1 y rechazo del mismo paso dos veces (`credencial.totp_ultimo_paso`)
-- [ ] T080 [P] [US9] Prueba de integración `apps/api/test/identidad/personal.int.test.ts`: `US9-AS3` (sesión con `sesion.segundo_factor_ok = false` solo puede dar de alta o verificar TOTP), `US9-AS4` (cambio de rol auditado, `RolAsignado` publicado y aplicado en la siguiente petición), `US9-AS5` (desactivar revoca sesiones y conserva historial), alcance obligatorio por rol
+- [ ] T080 [P] [US9] Prueba de integración `apps/api/test/identidad/personal.int.test.ts`: `US9-AS3` (sesión con `sesion.segundo_factor_ok = false` solo puede dar de alta o verificar TOTP), `US9-AS4` (cambio de rol auditado, `RolAsignado` publicado y aplicado en la siguiente petición), `US9-AS5` (desactivar revoca sesiones y conserva historial), alcance obligatorio por rol; auditoría de inicios de sesión del personal, cambios de rol, restablecimientos de segundo factor y desactivaciones (FR-024)
 - [ ] T081 [P] [US9] Matriz de autorización parametrizada `apps/api/test/operacion/autorizacion.int.test.ts` (rol × operación de Operación e Identidad ⇒ 200/403, incluidos `US9-AS1` y `US9-AS2` del lado de Operación) (SC-007)
 
 ### Implementation
@@ -245,7 +250,7 @@ tiene una prueba nombrada; en dominio se escribe **primero** la prueba y se comp
 
 ## Phase 9: Integración con 001, 002 y 003 (PR propio)
 
-**Purpose**: los módulos existentes usan `IdentidadPublica` en vez de sus adaptadores de desarrollo. Necesita aprobación de @By-Alvarez06 y @Kevrc (y de @Carlos2190 para 003) y `/security-review` (Q8).
+**Purpose**: los módulos existentes usan `IdentidadPublica` en vez de sus adaptadores de desarrollo. CI en verde; revisión pedida a @By-Alvarez06, @Kevrc y @Carlos2190 (Q4) y `/security-review` (Q8).
 
 - [ ] T088 Adaptador `apps/api/src/modules/boleteria/infrastructure/autorizacion-identidad.adapter.ts` que implementa `AutorizacionBoleteriaPort` desde `ContextoIdentidad` (roles, sede, `correoVerificado`, `estudianteAcreditado`); elegido fuera de development/test sin cambiar el puerto ni la spec 002
 - [ ] T089 `apps/api/src/modules/programacion/interface/sesion.guard.ts` pasa a usar `IDENTIDAD_PUBLICA` (Mi agenda)
@@ -276,7 +281,7 @@ tiene una prueba nombrada; en dominio se escribe **primero** la prueba y se comp
 - [ ] T098 [US10] Consumidores `id/application/eventos/` de `EntradasEmitidas` y `PedidoReembolsado` (`destinatario_funcion.activo`), `FuncionProgramada`/`FuncionActualizada`/`FuncionReprogramada`/`FuncionCancelada` (`funcion_aviso`, avisos a destinatarios activos) y `ProgramacionPublicada` (`edicion_vigente.fecha_fin`); hacen pasar T094
 - [ ] T099 [US10] Consumidores `id/application/eventos/{postulacion-enviada,subsanacion-solicitada,resultado-publicado}.ts` que leen el contrato de `@fiavl/contracts` (el de 003 cuando esté en `main`; hasta entonces el esquema de prueba con su misma forma) y mantienen `postulacion_en_curso.estado`; hacen pasar T095
 - [ ] T100 [US10] `GET /yo/notificaciones` y `GET /notificaciones/fallidas` (administrador) en `id/interface/notificaciones.controller.ts`; páginas `apps/web/src/app/(publico)/mi-cuenta/notificaciones/page.tsx` y `(panel)/admin/notificaciones/page.tsx` (`US10-AS5`)
-- [ ] T101 [US10] Métricas de notificaciones enviadas/fallidas con `correlacionId` en logs (Constitución IX)
+- [ ] T101 [US10] Métricas en ambos módulos: notificaciones enviadas/fallidas, inicios de sesión fallidos y bloqueos (Identidad); funciones publicadas, reprogramadas y canceladas (Operación); logs con `correlacionId` propagado desde el evento (Constitución IX); prueba en `apps/api/test/identidad/observabilidad.int.test.ts`
 
 **Checkpoint**: escenarios 10, 29 y 30.
 
@@ -290,11 +295,11 @@ tiene una prueba nombrada; en dominio se escribe **primero** la prueba y se comp
 
 ### Tests
 
-- [ ] T102 [P] [US4] Prueba de integración `apps/api/test/operacion/incidencias.int.test.ts`: `US4-AS1` (`conteo_estimado.cantidad`, vigente el último), `US4-AS2` (`incidencia.afecta_publico` ofrece reprogramar), `US4-AS3` (`AforoExcedido` y `ConflictoDeIngreso` ⇒ `incidencia.origen = automatica` una sola vez por `incidencia.evento_origen_id`), `SeleccionDesistida` ⇒ `obra.estado = desistida` + incidencia `desistimiento` con funciones intactas (FR-007), 403 fuera de su sede (RN-009)
+- [ ] T102 [P] [US4] Prueba de integración `apps/api/test/operacion/incidencias.int.test.ts`: `US4-AS1` (`conteo_estimado.cantidad`, vigente el último), `US4-AS2` (`incidencia.afecta_publico` ofrece reprogramar), `US4-AS3` (`AforoExcedido` y `ConflictoDeIngreso` ⇒ `incidencia.origen = automatica` una sola vez por `incidencia.evento_origen_id`), `SeleccionDesistida` ⇒ `obra.estado = desistida` + incidencia `desistimiento` con funciones intactas (FR-007), 403 fuera de su sede (RN-009); comprueba que se generó el registro de `auditoria` con su `correlacion_id` (Constitución IX)
 
 ### Implementation
 
-- [ ] T103 [US4] Casos de uso `op/application/incidencias/{registrar-incidencia,registrar-conteo,atender}.ts`; conteo solo en funciones de acceso libre o espacio público
+- [ ] T103 [US4] Casos de uso `op/application/incidencias/{registrar-incidencia,registrar-conteo,atender}.ts`; conteo solo en funciones de acceso libre o espacio público; cada acción escribe `auditoria` (`auditoria.actor_id`, `auditoria.accion`, `auditoria.anterior`, `auditoria.nuevo`, `auditoria.correlacion_id`) en la misma transacción (FR-012)
 - [ ] T104 [US4] Consumidores `op/application/eventos/{aforo-excedido,conflicto-de-ingreso,seleccion-desistida}.ts`
 - [ ] T105 [US4] Controlador `op/interface/incidencias.controller.ts` (`/incidencias`, `/funciones/{id}/conteos`) con `@Requiere('jefe_sala', { alcance: 'sede' })`; hace pasar T102
 - [ ] T106 [US4] Página `apps/web/src/app/(panel)/sala/incidencias/page.tsx` (formulario móvil primero, conteo con teclado numérico)
@@ -360,7 +365,7 @@ tiene una prueba nombrada; en dominio se escribe **primero** la prueba y se comp
 ### Implementation
 
 - [ ] T120 [US6] Implementar `op/domain/edicion.ts`; hace pasar T118
-- [ ] T121 [US6] Casos de uso `op/application/ediciones/*` y `op/application/sedes/*`; controladores `op/interface/ediciones.controller.ts` y ampliación de `sedes.controller.ts` (escritura con `@Requiere('administrador')`); hace pasar T119
+- [ ] T121 [US6] Casos de uso `op/application/ediciones/*` y `op/application/sedes/*` que validan `edicion.max_pagadas_persona`, `edicion.max_reservas_persona`, `edicion.precio_centavos`, `sede.accesibilidad`, `sede.aforo`, `sede.recorrido` y `sede.montaje_min` según [data-model.md](data-model.md); cada acción escribe `auditoria` (`auditoria.actor_id`, `auditoria.accion`, `auditoria.anterior`, `auditoria.nuevo`, `auditoria.correlacion_id`) en la misma transacción (FR-012); controladores `op/interface/ediciones.controller.ts` y ampliación de `sedes.controller.ts` (escritura con `@Requiere('administrador')`); hace pasar T119
 - [ ] T122 [US6] Páginas `apps/web/src/app/(panel)/admin/ediciones/page.tsx` y `admin/sedes/page.tsx`
 
 **Checkpoint**: escenario 19.
@@ -396,6 +401,7 @@ tiene una prueba nombrada; en dominio se escribe **primero** la prueba y se comp
 - [ ] T131 Cobertura de dominio ≥ 80 % en `op/domain` e `id/domain` (Q2)
 - [ ] T132 `/security-review` de Identidad y de la integración (Q8) y corrección de hallazgos
 - [ ] T133 Recorrer los 33 escenarios de [quickstart.md](quickstart.md) y registrar el resultado en `specs/004-gestion-operativa/verificacion-final.md`
+- [ ] T133a Revisión manual con lector de pantalla (NVDA + Firefox) y solo teclado de las páginas P1: grilla, publicación, cambio de función, registro, ingreso, segundo factor y personal (Constitución VII); hallazgos y correcciones en `specs/004-gestion-operativa/verificacion-final.md`
 
 ---
 
@@ -419,8 +425,8 @@ tiene una prueba nombrada; en dominio se escribe **primero** la prueba y se comp
 |-------|----------|----------------|
 | T016, T038, T099, T104 | Eventos de US4 de 003 (`PostulacionSeleccionada`, `SeleccionDesistida`, `ResultadoPublicado`) | Esquema provisional y `pnpm events:emit` |
 | T095, T099 | `PostulacionEnviada` y `SubsanacionSolicitada` de la rama 003 en `main` | Esquema de prueba con su misma forma |
-| T088, T089, T091 | Aprobación de @By-Alvarez06 y @Kevrc | Los adaptadores dev siguen activos |
-| T090 | 003 fusionada en `main` y aprobación de @Carlos2190 | Su `AutorizacionConvocatoriasDevAdapter` |
+| T088, T089, T091 | Revisión de @By-Alvarez06 y @Kevrc (Q4) | Los adaptadores dev siguen activos |
+| T090 | 003 fusionada en `main` y revisión de @Carlos2190 | Su `AutorizacionConvocatoriasDevAdapter` |
 
 ### Dentro de cada historia
 
@@ -467,7 +473,7 @@ Línea B: T060 → T069 (US7) → T070 → T078 (US8) → T079 → T087 (US9)
 
 ## Notes
 
-- 133 tareas. Las de `[P]` tocan archivos distintos y no dependen de tareas abiertas.
+- 136 tareas (133 numeradas más T039a, T069a y T133a, añadidas tras `/speckit-analyze`). Las de `[P]` tocan archivos distintos y no dependen de tareas abiertas.
 - Archivos compartidos con 003 (`schema.prisma`, `docker-compose.yml`, `prisma/seed/index.ts`,
   `app.module.ts`, `worker.module.ts`, `eventos/index.ts`): cambios solo aditivos; quien fusione
   segundo resuelve el conflicto.

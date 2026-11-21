@@ -111,8 +111,10 @@ contenedores ([ADR-0008](../../docs/adr/0008-despliegue-contenedores.md)).
 | X. Simplicidad | Reutiliza PostgreSQL, pg-boss y el monorepo. Una sola dependencia nueva (`nodemailer`), una extensión incluida en PostgreSQL (`btree_gist`) y Mailpit solo en desarrollo. Scrypt, TOTP y CSV con `node:crypto` y código propio. Sin Redis ni JWT. Finalización de funciones derivada en lugar de un trabajo programado | ✅ |
 
 **Puertas de calidad aplicables**: Q1–Q8.
-- **Q4**: revisión del suplente (@Carlos2190) en todo PR de Identidad. Además, aprobación de
-  @By-Alvarez06 y @Kevrc en el PR que integra `IdentidadPublica` en 002 y 001.
+- **Q4**: CI en verde obligatoria. La revisión del suplente (@Carlos2190) se pide siempre en los PR
+  de Identidad y en los que tocan Boletería; la de @By-Alvarez06 y @Kevrc, en el PR de integración.
+- **§6**: los PR de contratos compartidos (T013–T017) y de `docs/arquitectura/` (T127) **requieren
+  aprobación** del responsable de cada contexto afectado.
 - **Q6**: ADR 0009–0011 y las vistas afectadas.
 - **Q8**: `/security-review` en Identidad y en la integración.
 
@@ -208,6 +210,7 @@ apps/api/src/modules/identidad/
 apps/api/src/modules/boleteria/infrastructure/autorizacion-identidad.adapter.ts   # PR de integración
 apps/api/src/modules/programacion/interface/sesion.guard.ts                        # PR de integración
 apps/api/src/app.module.ts · worker.module.ts                                      # registrar módulos
+apps/api/src/common/identidad/identidad-publica.dev.ts                             # solo development/test: cabeceras x-*-dev, falla cerrado
 
 apps/api/test/operacion/  ·  apps/api/test/identidad/                              # integración
 
@@ -221,7 +224,7 @@ apps/web/e2e/{operacion,identidad}-*.spec.ts
 
 packages/contracts/src/
 ├── eventos/identidad.ts                      # CuentaVerificada, RolAsignado, CuentaEliminada
-├── eventos/convocatorias.ts                  # de 003 (rama sin fusionar); US4 provisional, PR del dueño
+├── eventos/convocatorias-pendientes.ts       # US4 de 003, provisional; pasa a convocatorias.ts cuando su dueño lo acepte
 ├── eventos/index.ts                          # uniones EventoOperacion*, EventoIdentidad*
 ├── identidad/publica.ts                      # IDENTIDAD_PUBLICA, ContextoIdentidad
 └── api/{operacion,identidad}.ts              # tipos generados desde OpenAPI
