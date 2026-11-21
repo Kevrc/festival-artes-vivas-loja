@@ -189,7 +189,7 @@ importe reembolsado`.
 | Tabla | Campos |
 |-------|--------|
 | `informe_cierre` | edicion_id PK, generado_en, datos jsonb (cifras congeladas) |
-| `cifras_historicas` | anio PK, actividades, elencos, obras, paises, asistencia_validada, asistencia_estimada, ocupacion_media, recaudacion_centavos (semilla 2025) |
+| `cifras_historicas` | anio PK, actividades, elencos, obras, paises, asistencia_total, asistencia_validada?, asistencia_estimada?, ocupacion_media?, recaudacion_centavos? (semilla 2025: el desglose no se publicó) |
 
 ### Soporte
 

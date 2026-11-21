@@ -120,7 +120,7 @@ Boletería ya publica hacia las colas `operacion.*` e `identidad.*`
   3. `SeleccionDesistida` (clarificación 2026-11-20): la obra pasa a `desistida` (no programable)
      y, por cada función no cancelada de esa obra, se crea una **incidencia** tipo
      `desistimiento` visible al programador. Las funciones no se modifican.
-  4. Mientras 003 no publique eventos, `pnpm events:emit postulacion-seleccionada` (extensión del
+  4. Mientras 003 no publique eventos, `pnpm events:emit:004 postulacion-seleccionada` (extensión del
      script existente) los simula en desarrollo.
 
 ### R7. Estadísticas: proyección y consultas (FR-009, RN-003, RN-004, RNF-003, SC-005)

@@ -68,11 +68,11 @@ pnpm dev
 | 9 | Reprogramar a una sede con menos aforo que entradas vendidas | 409 con la cifra en exceso; confirmar ⇒ reprogramada | US3-AS2 |
 | 10 | Comprar 3 entradas (como asistente) y cancelar la función | Boletería anula/devuelve; Mailpit muestra los avisos de cancelación | US3-AS3, US10 |
 | 11 | Reprogramar o cancelar sin motivo, o una función ya finalizada (`FIAVL_AHORA` posterior) | 400 `motivo_requerido` / 409 `funcion_finalizada` | US3-AS4, US3-AS5 |
-| 12 | `pnpm events:emit postulacion-seleccionada` y buscar la obra en `/programacion/obras` | Aparece con ficha técnica | US1-AS5 |
-| 13 | `pnpm events:emit seleccion-desistida` sobre una obra con funciones | Obra desistida, incidencia "desistimiento", funciones intactas | FR-007 |
+| 12 | `pnpm events:emit:004 postulacion-seleccionada` y buscar la obra en `/programacion/obras` | Aparece con ficha técnica | US1-AS5 |
+| 13 | `pnpm events:emit:004 seleccion-desistida` sobre una obra con funciones | Obra desistida, incidencia "desistimiento", funciones intactas | FR-007 |
 | 14 | Como jefe de sala del Teatro Bolívar, registrar 1 200 personas en Chacovachi (plaza) | Suma a la asistencia estimada del día | US4-AS1 |
 | 15 | El mismo jefe de sala intenta registrar en otra sede | 403 `fuera_de_alcance` | RN-009 |
-| 16 | `pnpm events:emit aforo-excedido` | Incidencia automática en la sede | US4-AS3 |
+| 16 | `pnpm events:emit:004 aforo-excedido` | Incidencia automática en la sede | US4-AS3 |
 | 17 | `/estadisticas` por función con aforo 200 y 150 ingresos | Ocupación 75 %; total = validada + estimada con desglose; CSV con los filtros | US5-AS1–AS3 |
 | 18 | Cerrar la edición (`FIAVL_AHORA` posterior + trabajo de cierre) y abrir `/estadisticas/informe` | Informe con variación frente a 2025; edición en solo lectura | US5-AS4, RN-007, SC-004 |
 | 19 | Crear la edición 2027 a partir de 2026 | Copia sedes y parámetros, ninguna función; advertencia si fechas fuera de noviembre | US6-AS1, AS2 |
