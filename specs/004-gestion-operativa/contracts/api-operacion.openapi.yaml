@@ -26,6 +26,7 @@ paths:
   /ediciones:
     get:
       operationId: listarEdiciones
+      summary: Listar ediciones
       tags: [ediciones]
       x-roles: [programador, direccion, administrador]
       responses:
@@ -56,6 +57,7 @@ paths:
     parameters: [{ $ref: '#/components/parameters/EdicionId' }]
     get:
       operationId: obtenerEdicion
+      summary: Ver una edición
       tags: [ediciones]
       x-roles: [programador, direccion, administrador]
       responses:
@@ -89,6 +91,7 @@ paths:
     parameters: [{ $ref: '#/components/parameters/EdicionId' }]
     get:
       operationId: listarSedes
+      summary: Listar sedes de una edición
       tags: [sedes]
       x-roles: [programador, jefe_sala, direccion, administrador]
       responses:
@@ -99,6 +102,7 @@ paths:
               schema: { type: array, items: { $ref: '#/components/schemas/Sede' } }
     post:
       operationId: crearSede
+      summary: Crear una sede
       tags: [sedes]
       x-roles: [administrador]
       requestBody:
@@ -242,6 +246,7 @@ paths:
     parameters: [{ $ref: '#/components/parameters/FuncionId' }]
     get:
       operationId: obtenerFuncion
+      summary: Ver una función
       tags: [funciones]
       x-roles: [programador, jefe_sala, direccion, administrador]
       responses:
@@ -393,6 +398,7 @@ paths:
     parameters: [{ $ref: '#/components/parameters/FuncionId' }]
     get:
       operationId: historialFuncion
+      summary: Historial de cambios de una función
       tags: [cambios]
       x-roles: [programador, direccion, administrador]
       responses:
@@ -431,6 +437,7 @@ paths:
     parameters: [{ $ref: '#/components/parameters/EdicionId' }]
     get:
       operationId: listarIncidencias
+      summary: Listar incidencias de una edición
       tags: [incidencias]
       x-roles: [programador, jefe_sala, direccion, administrador]
       parameters:
@@ -466,6 +473,7 @@ paths:
       - { name: incidenciaId, in: path, required: true, schema: { type: string, format: uuid } }
     patch:
       operationId: atenderIncidencia
+      summary: Marcar una incidencia como atendida
       tags: [incidencias]
       x-roles: [jefe_sala, programador]
       requestBody:
@@ -851,7 +859,7 @@ components:
         ingresosValidados: { type: integer }
         asistenciaEstimada: { type: integer }
         asistenciaTotal: { type: integer, description: validada + estimada (RN-004) }
-        ocupacion: { type: [number, 'null'], description: ingresos ÷ aforo habilitado, 0–1 (RN-003) }
+        ocupacion: { type: [number, 'null'], description: 'ingresos ÷ aforo habilitado, de 0 a 1 (RN-003)' }
         recaudacionCentavos: { type: integer }
     Indicadores:
       type: object

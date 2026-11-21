@@ -39,7 +39,7 @@ paths:
                 versionPolitica: { type: string }
                 aceptaNovedades: { type: boolean, default: false }
       responses:
-        '202': { description: Si el correo es válido, llegará un enlace }
+        '202': { description: 'Si el correo es válido, llegará un enlace' }
         '400':
           description: Datos inválidos, contraseña corta o filtrada (`codigo` = contrasena_corta | contrasena_filtrada | politica_no_aceptada)
           content:
@@ -74,7 +74,7 @@ paths:
               required: [correo]
               properties: { correo: { type: string, format: email } }
       responses:
-        '202': { description: Si corresponde, se envió un nuevo enlace }
+        '202': { description: 'Si corresponde, se envió un nuevo enlace' }
         '429': { $ref: '#/components/responses/Problema' }
   /sesion:
     post:
@@ -109,6 +109,7 @@ paths:
               schema: { $ref: '#/components/schemas/Problema' }
     delete:
       operationId: cerrarSesion
+      summary: Cerrar la sesión actual
       tags: [sesion]
       security: [{ sesion: [] }]
       responses:
@@ -128,7 +129,7 @@ paths:
               required: [correo]
               properties: { correo: { type: string, format: email } }
       responses:
-        '202': { description: Si existe la cuenta, llegará un enlace }
+        '202': { description: 'Si existe la cuenta, llegará un enlace' }
   /recuperacion/confirmacion:
     post:
       operationId: cambiarContrasenaConEnlace
@@ -191,6 +192,7 @@ paths:
   /yo:
     get:
       operationId: obtenerYo
+      summary: Ver mi cuenta
       tags: [mi-cuenta]
       security: [{ sesion: [] }]
       responses:
@@ -223,6 +225,7 @@ paths:
   /yo/contrasena:
     put:
       operationId: cambiarContrasena
+      summary: Cambiar mi contraseña
       tags: [mi-cuenta]
       security: [{ sesion: [] }]
       requestBody:
@@ -257,6 +260,7 @@ paths:
   /yo/sesiones:
     get:
       operationId: listarMisSesiones
+      summary: Listar mis sesiones abiertas
       tags: [mi-cuenta]
       security: [{ sesion: [] }]
       responses:
@@ -268,6 +272,7 @@ paths:
   /yo/sesiones/{sesionId}:
     delete:
       operationId: cerrarOtraSesion
+      summary: Cerrar una de mis sesiones
       tags: [mi-cuenta]
       security: [{ sesion: [] }]
       parameters:
@@ -384,6 +389,7 @@ paths:
   /personal:
     get:
       operationId: listarPersonal
+      summary: Listar cuentas del personal
       tags: [personal]
       x-roles: [administrador]
       security: [{ sesion: [] }]
@@ -487,6 +493,7 @@ paths:
   /dominios-institucionales:
     get:
       operationId: listarDominios
+      summary: Listar dominios institucionales
       tags: [estudiantes]
       x-roles: [administrador]
       security: [{ sesion: [] }]
@@ -500,6 +507,7 @@ paths:
                 items: { $ref: '#/components/schemas/DominioInstitucional' }
     post:
       operationId: agregarDominio
+      summary: Registrar un dominio institucional
       tags: [estudiantes]
       x-roles: [administrador]
       security: [{ sesion: [] }]
@@ -555,7 +563,7 @@ components:
       type: object
       required: [token]
       properties:
-        token: { type: string, minLength: 43, maxLength: 64, description: Valor del enlace (base64url, 256 bits) }
+        token: { type: string, minLength: 43, maxLength: 64, description: 'Valor del enlace (base64url, 256 bits)' }
     AlcanceRol:
       type: object
       required: [tipo, valor]

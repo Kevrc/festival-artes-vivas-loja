@@ -17,6 +17,8 @@ import {
 } from './operacion';
 
 export * from './boleteria';
+export * from './convocatorias-pendientes';
+export * from './identidad';
 export * from './operacion';
 export * from './ejemplos';
 
@@ -54,6 +56,27 @@ export const EventoPublicadoBoleteria = z.discriminatedUnion('tipo', [
   AforoExcedido,
 ]);
 export type EventoPublicadoBoleteria = z.infer<typeof EventoPublicadoBoleteria>;
+
+/** Todos los eventos que publica Operación (spec 004): destinos en su publicador. */
+export const EventoPublicadoOperacion = z.discriminatedUnion('tipo', [
+  ProgramacionPublicada,
+  FuncionProgramada,
+  FuncionActualizada,
+  FuncionReprogramada,
+  FuncionCancelada,
+  AforoCambiado,
+]);
+export type EventoPublicadoOperacion = z.infer<typeof EventoPublicadoOperacion>;
+
+/** Eventos de Operación que consume Identidad para redactar avisos (spec 004, US10). */
+export const EventoOperacionIdentidad = z.discriminatedUnion('tipo', [
+  ProgramacionPublicada,
+  FuncionProgramada,
+  FuncionActualizada,
+  FuncionReprogramada,
+  FuncionCancelada,
+]);
+export type EventoOperacionIdentidad = z.infer<typeof EventoOperacionIdentidad>;
 
 /** Nombre de cola pg-boss de un evento para un módulo: programacion.funcion-cancelada (ADR-0003). */
 export const colaDe = (modulo: string, tipo: string) =>
