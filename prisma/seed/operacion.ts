@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { EventoCartelera } from '@fiavl/contracts';
 import type { PrismaClient } from '../../apps/api/src/generated/prisma/index.js';
+import { bloquesDe } from '../../apps/api/src/modules/operacion/domain/agenda';
 import { EDICION_2026, eventosEdicion2026 } from './edicion-2026';
 
 /**
@@ -17,26 +18,11 @@ const CIFRAS_2025 = { anio: 2025, actividades: 313, elencos: 116, obras: 125, pa
 
 type Programada = Extract<EventoCartelera, { tipo: 'FuncionProgramada' }>;
 
-const dia = 24 * 60 * 60 * 1000;
-const rango = (desde: Date, hasta: Date) => `[${desde.toISOString()},${hasta.toISOString()})`;
+const rango = (i: { desde: Date; hasta: Date }) => `[${i.desde.toISOString()},${i.hasta.toISOString()})`;
 
-/**
- * Bloques de ocupación: `[inicio, fin + montaje)` de sede y `[inicio, fin)` de elenco; una
- * actividad continua ocupa su horario cada día (research R1).
- * shortcut: cálculo local hasta que exista `op/domain/agenda.ts` (T033), que lo sustituye.
- */
-function bloques(inicio: Date, fin: Date, continua: boolean, montajeMin: number) {
-  const tramos: { desde: Date; hasta: Date }[] = [];
-  if (!continua) tramos.push({ desde: inicio, hasta: fin });
-  else {
-    const horas = (fin.getTime() - inicio.getTime()) % dia;
-    for (let d = inicio.getTime(); d < fin.getTime(); d += dia) tramos.push({ desde: new Date(d), hasta: new Date(d + horas) });
-  }
-  return tramos.map((t) => ({
-    rangoSede: rango(t.desde, new Date(t.hasta.getTime() + montajeMin * 60_000)),
-    rangoElenco: rango(t.desde, t.hasta),
-  }));
-}
+/** Bloques de ocupación con la misma regla que la aplicación (op/domain/agenda.ts, research R1). */
+const bloques = (inicio: Date, fin: Date, continua: boolean, montajeMin: number) =>
+  bloquesDe({ inicio, fin, continua, montajeMin }).map((b) => ({ rangoSede: rango(b.sede), rangoElenco: rango(b.elenco) }));
 
 export async function seedOperacion(db: PrismaClient): Promise<{ funciones: number }> {
   const eventos = eventosEdicion2026();

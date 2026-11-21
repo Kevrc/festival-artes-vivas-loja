@@ -223,6 +223,7 @@ model ObraOperacion {
   estado         EstadoObra          @default(disponible)
   origen         OrigenObra
   postulacionId  String?             @unique @map("postulacion_id") @db.Uuid
+  version        Int                 @default(1)
   edicion        EdicionOperacion    @relation(fields: [edicionId], references: [id])
   elenco         ElencoOperacion     @relation(fields: [elencoId], references: [id])
   funciones      FuncionOperacion[]

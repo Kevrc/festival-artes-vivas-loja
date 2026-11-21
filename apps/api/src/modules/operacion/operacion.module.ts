@@ -1,14 +1,22 @@
 import { type DynamicModule, Module, type Provider, type Type } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { relojDelEntorno } from '../../common/reloj';
+import { AlRecibirPostulacionSeleccionada } from './application/eventos/postulacion-seleccionada';
+import { FuncionesServicio } from './application/funciones/funciones.servicio';
+import { GrillaDelDia } from './application/funciones/grilla-del-dia';
+import { ObrasServicio } from './application/obras/obras.servicio';
 import {
   AUDITORIA_OPERACION,
+  type AuditoriaOperacion,
   MANEJADORES_OPERACION,
   PUBLICADOR_OPERACION,
   RELOJ_OPERACION,
+  REPOSITORIO_OPERACION,
+  type RepositorioOperacion,
 } from './application/puertos';
 import { ConsumidoresOperacion } from './infrastructure/consumidores.pgboss';
-import { AuditoriaPrismaOperacion } from './infrastructure/persistencia.prisma';
+import { AuditoriaPrismaOperacion, procesarUnaVezOperacion } from './infrastructure/persistencia.prisma';
+import { PrismaOperacionRepository } from './infrastructure/prisma-operacion.repository';
 import { PublicadorPgBossOperacion } from './infrastructure/publicador.pgboss';
 import { CONTROLADORES_OPERACION } from './interface';
 
@@ -25,14 +33,34 @@ export class OperacionModule {
       PublicadorPgBossOperacion,
       { provide: PUBLICADOR_OPERACION, useExisting: PublicadorPgBossOperacion },
       { provide: AUDITORIA_OPERACION, inject: [PrismaService], useFactory: (db: PrismaService) => new AuditoriaPrismaOperacion(db) },
-      // Cada historia añade aquí sus consumidores de eventos (fases 3 a 12 de tasks.md).
-      { provide: MANEJADORES_OPERACION, useValue: [] },
+      { provide: REPOSITORIO_OPERACION, inject: [PrismaService], useFactory: (db: PrismaService) => new PrismaOperacionRepository(db) },
+      {
+        provide: FuncionesServicio,
+        inject: [REPOSITORIO_OPERACION, AUDITORIA_OPERACION],
+        useFactory: (r: RepositorioOperacion, a: AuditoriaOperacion) => new FuncionesServicio(r, a),
+      },
+      { provide: GrillaDelDia, inject: [REPOSITORIO_OPERACION], useFactory: (r: RepositorioOperacion) => new GrillaDelDia(r) },
+      {
+        provide: ObrasServicio,
+        inject: [REPOSITORIO_OPERACION, AUDITORIA_OPERACION],
+        useFactory: (r: RepositorioOperacion, a: AuditoriaOperacion) => new ObrasServicio(r, a),
+      },
+      // Consumidores de eventos de otros módulos; cada historia añade los suyos.
+      {
+        provide: MANEJADORES_OPERACION,
+        inject: [PrismaService, REPOSITORIO_OPERACION, AUDITORIA_OPERACION],
+        useFactory: (db: PrismaService, r: RepositorioOperacion, a: AuditoriaOperacion) => {
+          const unaVez = (e: { id: string; tipo: string }, fn: () => Promise<void>) => procesarUnaVezOperacion(db, e, fn);
+          return [new AlRecibirPostulacionSeleccionada(r, a, unaVez)];
+        },
+      },
     ];
     if (opciones.consumidores) providers.push(ConsumidoresOperacion);
     return {
       module: OperacionModule,
       providers,
       controllers: opciones.consumidores ? [] : (CONTROLADORES_OPERACION as Type[]),
+      exports: [MANEJADORES_OPERACION, REPOSITORIO_OPERACION],
     };
   }
 }

@@ -428,7 +428,7 @@ export interface components {
             status: number;
             detail?: string;
             /** @enum {string} */
-            codigo?: "cruce_sede" | "cruce_elenco" | "aforo_supera_sede" | "exceso_aforo" | "motivo_requerido" | "funcion_finalizada" | "edicion_cerrada" | "obra_desistida" | "version_obsoleta" | "sede_con_funciones" | "fuera_de_alcance" | "fin_menor";
+            codigo?: "cruce_sede" | "cruce_elenco" | "aforo_supera_sede" | "exceso_aforo" | "motivo_requerido" | "funcion_finalizada" | "edicion_cerrada" | "obra_desistida" | "version_obsoleta" | "sede_con_funciones" | "fuera_de_alcance" | "fin_menor" | "funcion_publicada" | "version_requerida" | "fuera_de_edicion" | "no_encontrado" | "segundo_factor_requerido";
         };
         Edicion: {
             /** Format: uuid */

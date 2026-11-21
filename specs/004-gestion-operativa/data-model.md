@@ -93,6 +93,7 @@ erDiagram
 | estado | enum `disponible` · `desistida` | `desistida` ⇒ no programable (FR-007) |
 | origen | enum `invitado` · `convocatoria` | |
 | postulacion_id | uuid? único | |
+| version | int | control optimista al editarla (R2) |
 
 ### `funcion`
 

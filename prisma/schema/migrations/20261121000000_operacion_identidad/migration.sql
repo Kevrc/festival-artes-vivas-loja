@@ -356,6 +356,7 @@ CREATE TABLE "operacion"."obra" (
     "estado" "operacion"."estado_obra" NOT NULL DEFAULT 'disponible',
     "origen" "operacion"."origen_obra" NOT NULL,
     "postulacion_id" UUID,
+    "version" INTEGER NOT NULL DEFAULT 1,
 
     CONSTRAINT "obra_pkey" PRIMARY KEY ("id")
 );
