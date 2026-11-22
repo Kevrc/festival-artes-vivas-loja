@@ -30,19 +30,20 @@ export class IdentidadModule {
     const providers: Provider[] = [
       { provide: RELOJ_IDENTIDAD, useValue: relojDelEntorno() },
       { provide: IDENTIDAD_PUBLICA, useFactory: () => new IdentidadPublicaDevProvider() },
-      RequiereGuard,
       PublicadorPgBossIdentidad,
       { provide: PUBLICADOR_IDENTIDAD, useExisting: PublicadorPgBossIdentidad },
       { provide: AUDITORIA_IDENTIDAD, inject: [PrismaService], useFactory: (db: PrismaService) => new AuditoriaPrismaIdentidad(db) },
       { provide: MANEJADORES_IDENTIDAD, useValue: [] },
     ];
+    // El guard es de HTTP: el worker (sin controladores) no lo necesita ni tiene Reflector propio.
     if (opciones.consumidores) providers.push(ConsumidoresIdentidad);
+    else providers.push(RequiereGuard);
     return {
       module: IdentidadModule,
       global: true,
       providers,
       controllers: opciones.consumidores ? [] : (CONTROLADORES_IDENTIDAD as Type[]),
-      exports: [IDENTIDAD_PUBLICA, RequiereGuard],
+      exports: opciones.consumidores ? [IDENTIDAD_PUBLICA] : [IDENTIDAD_PUBLICA, RequiereGuard],
     };
   }
 }
