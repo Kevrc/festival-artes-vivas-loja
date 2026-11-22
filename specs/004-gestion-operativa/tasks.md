@@ -295,14 +295,14 @@ tiene una prueba nombrada; en dominio se escribe **primero** la prueba y se comp
 
 ### Tests
 
-- [ ] T102 [P] [US4] Prueba de integración `apps/api/test/operacion/incidencias.int.test.ts`: `US4-AS1` (`conteo_estimado.cantidad`, vigente el último), `US4-AS2` (`incidencia.afecta_publico` ofrece reprogramar), `US4-AS3` (`AforoExcedido` y `ConflictoDeIngreso` ⇒ `incidencia.origen = automatica` una sola vez por `incidencia.evento_origen_id`), `SeleccionDesistida` ⇒ `obra.estado = desistida` + incidencia `desistimiento` con funciones intactas (FR-007), 403 fuera de su sede (RN-009); comprueba que se generó el registro de `auditoria` con su `correlacion_id` (Constitución IX)
+- [X] T102 [P] [US4] Prueba de integración `apps/api/test/operacion/incidencias.int.test.ts`: `US4-AS1` (`conteo_estimado.cantidad`, vigente el último), `US4-AS2` (`incidencia.afecta_publico` ofrece reprogramar), `US4-AS3` (`AforoExcedido` y `ConflictoDeIngreso` ⇒ `incidencia.origen = automatica` una sola vez por `incidencia.evento_origen_id`), `SeleccionDesistida` ⇒ `obra.estado = desistida` + incidencia `desistimiento` con funciones intactas (FR-007), 403 fuera de su sede (RN-009); comprueba que se generó el registro de `auditoria` con su `correlacion_id` (Constitución IX)
 
 ### Implementation
 
-- [ ] T103 [US4] Casos de uso `op/application/incidencias/{registrar-incidencia,registrar-conteo,atender}.ts`; conteo solo en funciones de acceso libre o espacio público; cada acción escribe `auditoria` (`auditoria.actor_id`, `auditoria.accion`, `auditoria.anterior`, `auditoria.nuevo`, `auditoria.correlacion_id`) en la misma transacción (FR-012)
-- [ ] T104 [US4] Consumidores `op/application/eventos/{aforo-excedido,conflicto-de-ingreso,seleccion-desistida}.ts`
-- [ ] T105 [US4] Controlador `op/interface/incidencias.controller.ts` (`/incidencias`, `/funciones/{id}/conteos`) con `@Requiere('jefe_sala', { alcance: 'sede' })`; hace pasar T102
-- [ ] T106 [US4] Página `apps/web/src/app/(panel)/sala/incidencias/page.tsx` (formulario móvil primero, conteo con teclado numérico)
+- [X] T103 [US4] Casos de uso `op/application/incidencias/{registrar-incidencia,registrar-conteo,atender}.ts`; conteo solo en funciones de acceso libre o espacio público; cada acción escribe `auditoria` (`auditoria.actor_id`, `auditoria.accion`, `auditoria.anterior`, `auditoria.nuevo`, `auditoria.correlacion_id`) en la misma transacción (FR-012) — hecho como `incidencias/incidencias.servicio.ts`. `Idempotency-Key` da un id estable (autor + clave): repetir la petición no duplica. El conteo exige una función publicada
+- [X] T104 [US4] Consumidores `op/application/eventos/{aforo-excedido,conflicto-de-ingreso,seleccion-desistida}.ts` — en `eventos/alertas.ts`. La desistida abre una incidencia por cada función no cancelada (la obra sin funciones solo queda desistida y auditada)
+- [X] T105 [US4] Controlador `op/interface/incidencias.controller.ts` (`/incidencias`, `/funciones/{id}/conteos`) con `@Requiere('jefe_sala', { alcance: 'sede' })`; hace pasar T102 — `@Requiere('jefe_sala', 'programador')` y el alcance de sede con `exigirAlcance` en el servicio; el jefe de sala solo lista las de sus sedes. Rutas añadidas a la matriz T081
+- [X] T106 [US4] Página `apps/web/src/app/(panel)/sala/incidencias/page.tsx` (formulario móvil primero, conteo con teclado numérico)
 
 **Checkpoint**: escenarios 13–16.
 

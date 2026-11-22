@@ -16,9 +16,14 @@ import {
   type PublicadorOperacion,
   RELOJ_OPERACION,
   type RelojOperacion,
+  REPOSITORIO_INCIDENCIAS,
   REPOSITORIO_OPERACION,
+  type RepositorioIncidencias,
   type RepositorioOperacion,
 } from './application/puertos';
+import { AlRecibirAforoExcedido, AlRecibirConflictoDeIngreso, AlRecibirSeleccionDesistida } from './application/eventos/alertas';
+import { IncidenciasServicio } from './application/incidencias/incidencias.servicio';
+import { PrismaIncidenciasRepository } from './infrastructure/prisma-incidencias.repository';
 import { ConsumidoresOperacion } from './infrastructure/consumidores.pgboss';
 import { AuditoriaPrismaOperacion, procesarUnaVezOperacion } from './infrastructure/persistencia.prisma';
 import { PrismaOperacionRepository } from './infrastructure/prisma-operacion.repository';
@@ -64,16 +69,25 @@ export class OperacionModule {
           new PublicacionServicio(r, pub, a, reloj),
       },
       // Consumidores de eventos de otros módulos; cada historia añade los suyos.
+      { provide: REPOSITORIO_INCIDENCIAS, inject: [PrismaService], useFactory: (db: PrismaService) => new PrismaIncidenciasRepository(db) },
+      {
+        provide: IncidenciasServicio,
+        inject: [REPOSITORIO_OPERACION, REPOSITORIO_INCIDENCIAS, AUDITORIA_OPERACION, RELOJ_OPERACION],
+        useFactory: (r: RepositorioOperacion, i: RepositorioIncidencias, a: AuditoriaOperacion, reloj: RelojOperacion) => new IncidenciasServicio(r, i, a, reloj),
+      },
       {
         provide: MANEJADORES_OPERACION,
-        inject: [PrismaService, REPOSITORIO_OPERACION, AUDITORIA_OPERACION],
-        useFactory: (db: PrismaService, r: RepositorioOperacion, a: AuditoriaOperacion) => {
+        inject: [PrismaService, REPOSITORIO_OPERACION, AUDITORIA_OPERACION, REPOSITORIO_INCIDENCIAS],
+        useFactory: (db: PrismaService, r: RepositorioOperacion, a: AuditoriaOperacion, inc: RepositorioIncidencias) => {
           const unaVez = (e: { id: string; tipo: string }, fn: () => Promise<void>) => procesarUnaVezOperacion(db, e, fn);
           return [
             new AlRecibirPostulacionSeleccionada(r, a, unaVez),
             new AlRecibirEntradasEmitidas(r, unaVez),
             new AlRecibirPedidoReembolsado(r, unaVez),
             new AlRecibirIngresoRegistrado(r, unaVez),
+            new AlRecibirAforoExcedido({ repo: r, incidencias: inc, auditoria: a, unaVez }),
+            new AlRecibirConflictoDeIngreso({ repo: r, incidencias: inc, auditoria: a, unaVez }),
+            new AlRecibirSeleccionDesistida({ repo: r, incidencias: inc, auditoria: a, unaVez }),
           ];
         },
       },

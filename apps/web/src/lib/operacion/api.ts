@@ -96,6 +96,35 @@ async function pedir<T>(ruta: string, init: RequestInit & { version?: number } =
 
 const json = (cuerpo: unknown) => JSON.stringify(cuerpo);
 
+export interface Incidencia {
+  id: string;
+  sedeId: string;
+  funcionId?: string;
+  tipo: 'retraso' | 'falla_tecnica' | 'clima' | 'emergencia_medica' | 'aforo_superado' | 'conflicto_ingreso' | 'desistimiento' | 'otra';
+  descripcion: string;
+  afectaPublico: boolean;
+  origen: 'manual' | 'automatica';
+  estado: 'abierta' | 'atendida';
+  ofrecerReprogramar?: boolean;
+  ocurridaEn: string;
+}
+
+export interface IncidenciaEntrada {
+  sedeId: string;
+  funcionId?: string;
+  tipo: 'retraso' | 'falla_tecnica' | 'clima' | 'emergencia_medica' | 'aforo_superado' | 'otra';
+  descripcion: string;
+  afectaPublico: boolean;
+}
+
+export interface Conteo {
+  id: string;
+  funcionId: string;
+  cantidad: number;
+  metodo: string;
+  registradoEn: string;
+}
+
 export const apiOperacion = {
   ediciones: async () => (await pedir<Edicion[]>('/ediciones')).datos,
   grilla: async (edicionId: string, fecha: string) => (await pedir<Grilla>(`/ediciones/${edicionId}/grilla?fecha=${fecha}`)).datos,
@@ -115,6 +144,15 @@ export const apiOperacion = {
     (await pedir<{ funcionesPublicadas: number }>(`/ediciones/${edicionId}/publicacion`, { method: 'POST', headers: { 'Idempotency-Key': claveIdempotencia } })).datos,
   publicarFuncion: async (id: string, version: number) => (await pedir<Funcion>(`/funciones/${id}/publicacion`, { method: 'POST', version })).datos,
   sedes: async (edicionId: string) => (await pedir<Sede[]>(`/ediciones/${edicionId}/sedes`)).datos,
+  incidencias: async (edicionId: string, filtro: { sedeId?: string; fecha?: string } = {}) => {
+    const qs = new URLSearchParams(Object.entries(filtro).filter(([, v]) => v) as [string, string][]);
+    return (await pedir<Incidencia[]>(`/ediciones/${edicionId}/incidencias${qs.size ? `?${qs}` : ''}`)).datos;
+  },
+  registrarIncidencia: async (edicionId: string, i: IncidenciaEntrada, claveIdempotencia: string) =>
+    (await pedir<Incidencia>(`/ediciones/${edicionId}/incidencias`, { method: 'POST', body: json(i), headers: { 'Idempotency-Key': claveIdempotencia } })).datos,
+  atenderIncidencia: async (id: string) => (await pedir<Incidencia>(`/incidencias/${id}`, { method: 'PATCH', body: json({ estado: 'atendida' }) })).datos,
+  registrarConteo: async (funcionId: string, cantidad: number, metodo: string, claveIdempotencia: string) =>
+    (await pedir<Conteo>(`/funciones/${funcionId}/conteos`, { method: 'POST', body: json({ cantidad, metodo }), headers: { 'Idempotency-Key': claveIdempotencia } })).datos,
   historial: async (id: string) => (await pedir<CambioFuncion[]>(`/funciones/${id}/cambios`)).datos,
   reprogramar: async (id: string, version: number, r: Reprogramacion) =>
     (await pedir<Funcion>(`/funciones/${id}/reprogramacion`, { method: 'POST', body: json(r), version })).datos,

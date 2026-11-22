@@ -275,3 +275,41 @@ export interface ManejadorEvento<E extends { id: string; tipo: string } = { id: 
   readonly esquema: z.ZodType<E>;
   manejar(evento: E): Promise<void>;
 }
+
+// Incidencias y conteos (US4, FR-011, FR-012) ------------------------------------------------
+export const REPOSITORIO_INCIDENCIAS = Symbol('REPOSITORIO_INCIDENCIAS');
+
+export type TipoIncidencia = 'retraso' | 'falla_tecnica' | 'clima' | 'emergencia_medica' | 'aforo_superado' | 'conflicto_ingreso' | 'desistimiento' | 'otra';
+
+export interface IncidenciaVista {
+  id: string;
+  edicionId: string;
+  sedeId: string;
+  funcionId: string | null;
+  tipo: TipoIncidencia;
+  descripcion: string;
+  afectaPublico: boolean;
+  origen: 'manual' | 'automatica';
+  estado: 'abierta' | 'atendida';
+  autorId: string | null;
+  ocurridaEn: Date;
+}
+
+export interface ConteoVista {
+  id: string;
+  funcionId: string;
+  cantidad: number;
+  metodo: string;
+  autorId: string;
+  registradoEn: Date;
+}
+
+export interface RepositorioIncidencias {
+  /** Inserta si el id es nuevo (o el evento de origen no se usó); devuelve la fila guardada. */
+  crearIncidencia(i: Omit<IncidenciaVista, 'estado'> & { eventoOrigenId?: string | null }): Promise<{ incidencia: IncidenciaVista; nueva: boolean }>;
+  incidencia(id: string): Promise<IncidenciaVista | null>;
+  atender(id: string): Promise<IncidenciaVista | null>;
+  incidencias(edicionId: string, filtro: { sedeIds?: string[]; desde?: Date; hasta?: Date; estado?: 'abierta' | 'atendida' }): Promise<IncidenciaVista[]>;
+  crearConteo(c: ConteoVista): Promise<{ conteo: ConteoVista; nuevo: boolean }>;
+  marcarObraDesistida(obraId: string): Promise<boolean>;
+}
