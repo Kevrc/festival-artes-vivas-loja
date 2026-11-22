@@ -14,44 +14,52 @@ Mailpit en `localhost:8025`, API, worker y web en marcha, y la semilla cargada.
 
 | # | Escenario | Prueba automática | Corrida final |
 |---|-----------|-------------------|---------------|
-| 1 | Crear función con fin calculado | `operacion/grilla.int.test.ts`, `e2e/operacion-grilla.spec.ts` | |
-| 2 | Cruce de sede con montaje | `operacion/grilla.int.test.ts`, `operacion/cruces-concurrentes.int.test.ts` | |
-| 3 | Aforo mayor que la sede | `operacion/grilla.int.test.ts` | |
-| 4 | Cruce de elenco | `operacion/grilla.int.test.ts` | |
-| 5 | Dos pestañas, 412 | `operacion/grilla.int.test.ts` | |
-| 6 | Publicación con errores | `operacion/publicacion.int.test.ts`, `e2e/operacion-publicacion.spec.ts` | |
-| 7 | Publicar y verla en la cartelera | `e2e/operacion-publicacion.spec.ts` (con worker) | |
-| 8 | Reprogramar con motivo | `operacion/cambios.int.test.ts`, `e2e/operacion-cambios.spec.ts` | |
-| 9 | Reprogramar con exceso de aforo | `operacion/cambios.int.test.ts` | |
-| 10 | Cancelar con entradas ⇒ avisos | `operacion/cambios.int.test.ts`, `identidad/notificaciones.int.test.ts` (independent test de US10) | |
-| 11 | Sin motivo o función finalizada | `operacion/cambios.int.test.ts` | |
-| 12 | Obra seleccionada en convocatoria | `operacion/obras-convocatoria.int.test.ts` (y `pnpm events:emit:004 postulacion-seleccionada`) | |
-| 13 | Selección desistida | `operacion/incidencias.int.test.ts` (FR-007) | |
-| 14 | Conteo en la plaza | `operacion/incidencias.int.test.ts` (US4-AS1), `e2e/operacion-incidencias.spec.ts` | |
-| 15 | Jefe de sala fuera de su sede | `operacion/incidencias.int.test.ts` (RN-009), `e2e/operacion-incidencias.spec.ts` | |
-| 16 | Aforo excedido ⇒ incidencia | `operacion/incidencias.int.test.ts` (US4-AS3) | |
-| 17 | Ocupación 75 %, total con desglose, CSV | `operacion/domain/indicadores.test.ts`, `operacion/estadisticas.int.test.ts`, `e2e/operacion-estadisticas.spec.ts` | |
-| 18 | Cierre e informe con variación | `operacion/estadisticas.int.test.ts` (US5-AS4) | |
-| 19 | Edición 2027 a partir de 2026 | `operacion/domain/edicion.test.ts`, `operacion/ediciones-sedes.int.test.ts` | |
+| 1 | Crear función con fin calculado | `operacion/grilla.int.test.ts`, `e2e/operacion-grilla.spec.ts` | ✓ 2026-11-22 |
+| 2 | Cruce de sede con montaje | `operacion/grilla.int.test.ts`, `operacion/cruces-concurrentes.int.test.ts` | ✓ 2026-11-22 |
+| 3 | Aforo mayor que la sede | `operacion/grilla.int.test.ts` | ✓ 2026-11-22 |
+| 4 | Cruce de elenco | `operacion/grilla.int.test.ts` | ✓ 2026-11-22 |
+| 5 | Dos pestañas, 412 | `operacion/grilla.int.test.ts` | ✓ 2026-11-22 |
+| 6 | Publicación con errores | `operacion/publicacion.int.test.ts`, `e2e/operacion-publicacion.spec.ts` | ✓ 2026-11-22 |
+| 7 | Publicar y verla en la cartelera | `e2e/operacion-publicacion.spec.ts` (con worker) | ✓ 2026-11-22 |
+| 8 | Reprogramar con motivo | `operacion/cambios.int.test.ts`, `e2e/operacion-cambios.spec.ts` | ✓ 2026-11-22 |
+| 9 | Reprogramar con exceso de aforo | `operacion/cambios.int.test.ts` | ✓ 2026-11-22 |
+| 10 | Cancelar con entradas ⇒ avisos | `operacion/cambios.int.test.ts`, `identidad/notificaciones.int.test.ts` (independent test de US10) | ✓ 2026-11-22 |
+| 11 | Sin motivo o función finalizada | `operacion/cambios.int.test.ts` | ✓ 2026-11-22 |
+| 12 | Obra seleccionada en convocatoria | `operacion/obras-convocatoria.int.test.ts` (y `pnpm events:emit:004 postulacion-seleccionada`) | ✓ 2026-11-22 |
+| 13 | Selección desistida | `operacion/incidencias.int.test.ts` (FR-007) | ✓ 2026-11-22 |
+| 14 | Conteo en la plaza | `operacion/incidencias.int.test.ts` (US4-AS1), `e2e/operacion-incidencias.spec.ts` | ✓ 2026-11-22 |
+| 15 | Jefe de sala fuera de su sede | `operacion/incidencias.int.test.ts` (RN-009), `e2e/operacion-incidencias.spec.ts` | ✓ 2026-11-22 |
+| 16 | Aforo excedido ⇒ incidencia | `operacion/incidencias.int.test.ts` (US4-AS3) | ✓ 2026-11-22 |
+| 17 | Ocupación 75 %, total con desglose, CSV | `operacion/domain/indicadores.test.ts`, `operacion/estadisticas.int.test.ts`, `e2e/operacion-estadisticas.spec.ts` | ✓ 2026-11-22 |
+| 18 | Cierre e informe con variación | `operacion/estadisticas.int.test.ts` (US5-AS4) | ✓ 2026-11-22 |
+| 19 | Edición 2027 a partir de 2026 | `operacion/domain/edicion.test.ts`, `operacion/ediciones-sedes.int.test.ts` | ✓ 2026-11-22 |
 
 ## Identidad
 
 | # | Escenario | Prueba automática | Corrida final |
 |---|-----------|-------------------|---------------|
-| 20 | Registro y verificación por enlace | `identidad/registro.int.test.ts`, `e2e/identidad-registro.spec.ts` | |
-| 21 | Correo ya registrado | `identidad/registro.int.test.ts` | |
-| 22 | Contraseña corta o filtrada | `identidad/domain/contrasenas.test.ts`, `identidad/registro.int.test.ts` | |
-| 23 | 5 fallos ⇒ bloqueo y aviso | `identidad/sesion.int.test.ts` | |
-| 24 | Recuperación de un solo uso | `identidad/sesion.int.test.ts`, `e2e/identidad-sesion.spec.ts` | |
-| 25 | Cerrar la sesión de otro dispositivo | `identidad/sesion.int.test.ts`, `e2e/identidad-sesion.spec.ts` | |
-| 26 | Validador nuevo: TOTP antes de continuar | `identidad/personal.int.test.ts`, `e2e/identidad-personal.spec.ts` | |
-| 27 | Validador fuera de sede o de rol ⇒ 403 | `integracion-identidad.int.test.ts`, `operacion/autorizacion.int.test.ts` (matriz SC-007) | |
-| 28 | Cambio de rol con la sesión abierta | `identidad/personal.int.test.ts` (US9-AS4) | |
-| 29 | Correo con los QR | `identidad/notificaciones.int.test.ts` (US10-AS1); comprobado a mano en Mailpit el 2026-11-22 | |
-| 30 | SMTP caído y reintento | `identidad/notificaciones.int.test.ts` (US10-AS2) | |
-| 31 | Descargar mis datos y eliminar la cuenta | `identidad/mis-datos.int.test.ts`, `e2e/identidad-mis-datos.spec.ts` | |
-| 32 | Eliminar con entradas futuras | `identidad/mis-datos.int.test.ts` (US11-AS3) | |
-| 33 | Estudiante por dominio institucional | `identidad/estudiantes.int.test.ts`, `e2e/identidad-estudiante.spec.ts` (reserva el taller) | |
+| 20 | Registro y verificación por enlace | `identidad/registro.int.test.ts`, `e2e/identidad-registro.spec.ts` | ✓ 2026-11-22 |
+| 21 | Correo ya registrado | `identidad/registro.int.test.ts` | ✓ 2026-11-22 |
+| 22 | Contraseña corta o filtrada | `identidad/domain/contrasenas.test.ts`, `identidad/registro.int.test.ts` | ✓ 2026-11-22 |
+| 23 | 5 fallos ⇒ bloqueo y aviso | `identidad/sesion.int.test.ts` | ✓ 2026-11-22 |
+| 24 | Recuperación de un solo uso | `identidad/sesion.int.test.ts`, `e2e/identidad-sesion.spec.ts` | ✓ 2026-11-22 |
+| 25 | Cerrar la sesión de otro dispositivo | `identidad/sesion.int.test.ts`, `e2e/identidad-sesion.spec.ts` | ✓ 2026-11-22 |
+| 26 | Validador nuevo: TOTP antes de continuar | `identidad/personal.int.test.ts`, `e2e/identidad-personal.spec.ts` | ✓ 2026-11-22 |
+| 27 | Validador fuera de sede o de rol ⇒ 403 | `integracion-identidad.int.test.ts`, `operacion/autorizacion.int.test.ts` (matriz SC-007) | ✓ 2026-11-22 |
+| 28 | Cambio de rol con la sesión abierta | `identidad/personal.int.test.ts` (US9-AS4) | ✓ 2026-11-22 |
+| 29 | Correo con los QR | `identidad/notificaciones.int.test.ts` (US10-AS1); comprobado a mano en Mailpit el 2026-11-22 | ✓ 2026-11-22 |
+| 30 | SMTP caído y reintento | `identidad/notificaciones.int.test.ts` (US10-AS2) | ✓ 2026-11-22 |
+| 31 | Descargar mis datos y eliminar la cuenta | `identidad/mis-datos.int.test.ts`, `e2e/identidad-mis-datos.spec.ts` | ✓ 2026-11-22 |
+| 32 | Eliminar con entradas futuras | `identidad/mis-datos.int.test.ts` (US11-AS3) | ✓ 2026-11-22 |
+| 33 | Estudiante por dominio institucional | `identidad/estudiantes.int.test.ts`, `e2e/identidad-estudiante.spec.ts` (reserva el taller) | ✓ 2026-11-22 |
+
+## Corrida final (2026-11-22)
+
+| Suite | Resultado | Duración |
+|-------|-----------|----------|
+| Integración completa (`apps/api`, Testcontainers) | 617 de 618. Falla `boleteria/concurrencia.int.test.ts` (500 compras simultáneas, `ECONNREFUSED`): falla igual en el commit base, porque Windows rechaza 500 conexiones a la vez. No es de la spec 004 | 5 min 41 s |
+| E2E completas (Playwright, móvil y escritorio, 2 workers) | 135 de 144 a la primera. Las 9 fallas fueron por carga (la suite de integración corría a la vez): al volver a correr esas 5 specs con 1 worker pasaron las 28 | 8 min 6 s + 1 min 48 s |
+| Unitarias (`apps/api`, `apps/web`) | Todas pasan; cobertura de dominio sobre el 80 % | < 1 min |
 
 ## Revisión transversal
 
