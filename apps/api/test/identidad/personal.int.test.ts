@@ -59,6 +59,9 @@ async function primerIngreso(correo: string) {
   avanzar();
   const v = await ctx.http().post('/api/identidad/segundo-factor/verificacion').set('Cookie', cookie).send({ codigo: codigoAhora(secreto) });
   expect(v.status).toBe(200);
+  // Una cuenta creada por el administrador nunca aceptó la política: la acepta al primer ingreso (US11-AS4).
+  expect(v.body.politicaPendiente).toBe('1');
+  expect((await ctx.http().post('/api/identidad/yo/politica').set('Cookie', cookie).send({ version: '1' })).status).toBe(204);
   return { cookie, secreto };
 }
 
@@ -103,7 +106,10 @@ describe('US9 — cuentas del personal, roles y segundo factor', () => {
     const codigo = codigoAhora(secreto);
     const ok = await ctx.http().post('/api/identidad/segundo-factor/verificacion').set('Cookie', cookie).send({ codigo });
     expect(ok.status).toBe(200);
-    expect(ok.body).toMatchObject({ segundoFactorOk: true, segundoFactorActivo: true });
+    expect(ok.body).toMatchObject({ segundoFactorOk: true, segundoFactorActivo: true, politicaPendiente: '1' });
+    // Falta aceptar la política: hasta entonces solo puede aceptarla (US11-AS4).
+    expect((await ctx.http().get('/api/identidad/yo/sesiones').set('Cookie', cookie)).body.codigo).toBe('requiere_politica');
+    expect((await ctx.http().post('/api/identidad/yo/politica').set('Cookie', cookie).send({ version: '1' })).status).toBe(204);
     expect((await ctx.http().get('/api/identidad/yo/sesiones').set('Cookie', cookie)).status).toBe(200);
     expect(await ctx.db.auditoriaIdentidad.count({ where: { accion: 'segundo_factor.activado', actorId: cuentaId } })).toBe(1);
 

@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { ProblemaCodigoFilter } from '../../../common/http/problema-codigo.filter';
 import { validar } from '../../../common/http/validar';
 import { OrigenGuard } from '../../../common/identidad/origen.guard';
-import { Identidad, PermiteSinSegundoFactor, Requiere, RequiereGuard } from '../../../common/identidad/requiere.guard';
+import { Identidad, PermiteSinPolitica, PermiteSinSegundoFactor, Requiere, RequiereGuard } from '../../../common/identidad/requiere.guard';
 import { MiCuentaServicio } from '../application/mi-cuenta/mi-cuenta.servicio';
 import { SegundoFactorServicio } from '../application/segundo-factor/segundo-factor.servicio';
 import { correlacionDe } from './esquemas';
@@ -18,6 +18,7 @@ const CodigoSchema = z.object({ codigo: z.string().trim().regex(/^\d{6}$/, 'El c
 @UseFilters(ProblemaCodigoFilter)
 @Requiere()
 @PermiteSinSegundoFactor()
+@PermiteSinPolitica()
 export class SegundoFactorController {
   constructor(
     @Inject(SegundoFactorServicio) private readonly segundoFactor: SegundoFactorServicio,

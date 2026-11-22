@@ -76,8 +76,8 @@ export class IdentidadModule {
       },
       {
         provide: MiCuentaServicio,
-        inject: [REPOSITORIO_IDENTIDAD, SesionServicio, AUDITORIA_IDENTIDAD, RELOJ_IDENTIDAD],
-        useFactory: (r: RepositorioIdentidad, s: SesionServicio, a: AuditoriaIdentidad, reloj: RelojIdentidad) => new MiCuentaServicio(r, s, a, reloj),
+        inject: [REPOSITORIO_IDENTIDAD, SesionServicio, AUDITORIA_IDENTIDAD, RELOJ_IDENTIDAD, PUBLICADOR_IDENTIDAD],
+        useFactory: (r: RepositorioIdentidad, s: SesionServicio, a: AuditoriaIdentidad, reloj: RelojIdentidad, p: PublicadorIdentidad) => new MiCuentaServicio(r, s, a, reloj, p),
       },
       { provide: CIFRADOR, useFactory: () => cifradorDelEntorno() },
       { provide: RELOJ_TOTP, useValue: () => new Date() },

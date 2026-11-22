@@ -16,7 +16,7 @@ const tieneCookieDeSesion = (req: PeticionConCabeceras) => {
  * su sede (`alcance.tipo === 'sede'`). Una sesión del personal sin segundo factor no autoriza nada.
  */
 export function aContextoBoleteria(ctx: ContextoIdentidad): ContextoUsuario | null {
-  if (!ctx.segundoFactorOk) return null;
+  if (!ctx.segundoFactorOk || ctx.politicaPendiente) return null;
   const roles: ContextoUsuario['roles'] = [{ rol: 'asistente' }];
   for (const r of ctx.roles) {
     if (!ROLES_BOLETERIA.has(r.rol)) continue;

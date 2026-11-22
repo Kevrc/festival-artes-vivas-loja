@@ -54,6 +54,10 @@ export interface IdentidadPublica {
 | Cartelera (001) | `SesionGuard` lee `x-cuenta-dev` | `SesionGuard` usa `IDENTIDAD_PUBLICA` y deja `req.cuentaId` |
 | Convocatorias (003) | `AutorizacionConvocatoriasDevAdapter` | `AutorizacionConvocatoriasIdentidadAdapter` traduce códigos a los nombres de FR-019 y el alcance a `{ sedeId \| provincia \| disciplina }`; toda cuenta es además `asistente` y `postulante` |
 
+**Política pendiente** (US11-AS4): `ContextoIdentidad.politicaPendiente` (opcional) es `true` si hay
+una versión vigente de la política de privacidad que la cuenta no aceptó. Los consumidores la tratan
+como una sesión restringida: no autorizan nada hasta que se acepte.
+
 **Prioridad de la cookie** (implementación, T088–T091): si la petición trae `fiavl_sesion`, manda
 Identidad aunque no sea válida (vencida, revocada o inventada ⇒ 401); solo sin cookie, y en
 development/test, se usan los puentes de desarrollo de cada módulo. Una sesión del personal sin

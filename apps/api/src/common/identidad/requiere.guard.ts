@@ -27,6 +27,7 @@ import { ErrorConCodigo } from '../http/problema-codigo.filter';
 export const META_REQUIERE = 'fiavl:requiere';
 export const META_PUBLICO = 'fiavl:publico';
 export const META_SIN_SEGUNDO_FACTOR = 'fiavl:sin-segundo-factor';
+export const META_SIN_POLITICA = 'fiavl:sin-politica';
 
 /** Exige sesión y, si se indican, alguno de los roles (sin mirar el alcance: ver `exigirAlcance`). */
 export const Requiere = (...roles: RolPersonal[]) => SetMetadata(META_REQUIERE, roles);
@@ -34,6 +35,8 @@ export const Requiere = (...roles: RolPersonal[]) => SetMetadata(META_REQUIERE, 
 export const Publico = () => SetMetadata(META_PUBLICO, true);
 /** Ruta que una sesión del personal sin segundo factor sí puede usar (alta y verificación de TOTP). */
 export const PermiteSinSegundoFactor = () => SetMetadata(META_SIN_SEGUNDO_FACTOR, true);
+/** Ruta que una sesión con la política de privacidad pendiente sí puede usar (US11-AS4). */
+export const PermiteSinPolitica = () => SetMetadata(META_SIN_POLITICA, true);
 
 export interface PeticionConIdentidad extends PeticionConCabeceras {
   identidad?: ContextoIdentidad;
@@ -64,6 +67,10 @@ export class RequiereGuard implements CanActivate {
     const sinSegundoFactor = this.reflector.getAllAndOverride<boolean>(META_SIN_SEGUNDO_FACTOR, objetivos);
     if (!contexto.segundoFactorOk && !sinSegundoFactor) {
       throw new ErrorConCodigo(403, 'segundo_factor_requerido', 'Configura o verifica el segundo factor para continuar.');
+    }
+
+    if (contexto.politicaPendiente && !this.reflector.getAllAndOverride<boolean>(META_SIN_POLITICA, objetivos)) {
+      throw new ErrorConCodigo(403, 'requiere_politica', 'Hay una versión nueva de la política de privacidad: revísala y acéptala para continuar.');
     }
 
     const roles = this.reflector.getAllAndOverride<RolPersonal[] | undefined>(META_REQUIERE, objetivos);

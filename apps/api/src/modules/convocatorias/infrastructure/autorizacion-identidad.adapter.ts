@@ -31,7 +31,7 @@ const tieneCookieDeSesion = (req: PeticionConCabeceras) =>
  * sesión del personal sin segundo factor no autoriza nada.
  */
 export function aContextoConvocatorias(ctx: ContextoIdentidad): ContextoConvocatorias | null {
-  if (!ctx.segundoFactorOk) return null;
+  if (!ctx.segundoFactorOk || ctx.politicaPendiente) return null;
   const roles: ContextoConvocatorias['roles'] = ctx.roles
     .filter((r) => r.rol !== 'asistente' && r.rol !== 'postulante')
     .map((r) => ({ rol: ROL_CONVOCATORIAS[r.rol], ...(r.alcance ? { alcance: { [ALCANCE[r.alcance.tipo]]: r.alcance.valor } } : {}) }));

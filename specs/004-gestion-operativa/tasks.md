@@ -339,13 +339,13 @@ tiene una prueba nombrada; en dominio se escribe **primero** la prueba y se comp
 
 ### Tests
 
-- [ ] T114 [P] [US11] Prueba de integración `apps/api/test/identidad/mis-datos.int.test.ts`: `US11-AS1` (JSON con cuenta, consentimientos, notificaciones y sesiones), `US11-AS2` (anonimización según [data-model §Anonimización](data-model.md#anonimización-rn-010-us11-as2), no puede iniciar sesión, `CuentaEliminada` publicado), `US11-AS3` (aviso por `destinatario_funcion` con `funcion_aviso.inicio` futuro o `postulacion_en_curso`; al confirmar se anonimiza), `US11-AS4` (nueva `documento_legal.version` ⇒ sesión restringida hasta aceptar)
+- [X] T114 [P] [US11] Prueba de integración `apps/api/test/identidad/mis-datos.int.test.ts`: `US11-AS1` (JSON con cuenta, consentimientos, notificaciones y sesiones), `US11-AS2` (anonimización según [data-model §Anonimización](data-model.md#anonimización-rn-010-us11-as2), no puede iniciar sesión, `CuentaEliminada` publicado), `US11-AS3` (aviso por `destinatario_funcion` con `funcion_aviso.inicio` futuro o `postulacion_en_curso`; al confirmar se anonimiza), `US11-AS4` (nueva `documento_legal.version` ⇒ sesión restringida hasta aceptar)
 
 ### Implementation
 
-- [ ] T115 [US11] Casos de uso `id/application/mi-cuenta/{descargar-datos,consultar-eliminacion,eliminar-cuenta,aceptar-politica,preferencias}.ts`; `cuenta.preferencias` registra el consentimiento de novedades (FR-022)
-- [ ] T116 [US11] Endpoints `GET /yo/datos`, `GET/POST /yo/eliminacion`, `POST /yo/politica` en `id/interface/mi-cuenta.controller.ts`; hace pasar T114
-- [ ] T117 [US11] Páginas `apps/web/src/app/(publico)/mi-cuenta/page.tsx` (descarga, eliminación con confirmación explicada) y `(publico)/cuenta/politica/page.tsx`
+- [X] T115 [US11] Casos de uso `id/application/mi-cuenta/{descargar-datos,consultar-eliminacion,eliminar-cuenta,aceptar-politica,preferencias}.ts`; `cuenta.preferencias` registra el consentimiento de novedades (FR-022) — en `mi-cuenta/mi-cuenta.servicio.ts` (`misDatos`, `evaluarEliminacion`, `eliminar`, `aceptarPolitica`). `ContextoIdentidad` suma `politicaPendiente?` (aditivo) y `RequiereGuard` responde 403 `requiere_politica` salvo en rutas `@PermiteSinPolitica` (ver mi cuenta, segundo factor, mis datos, eliminación y aceptar). Los adaptadores de 001/002/003 tampoco autorizan con la política pendiente. Las cuentas del personal creadas por el administrador la aceptan en su primer ingreso
+- [X] T116 [US11] Endpoints `GET /yo/datos`, `GET/POST /yo/eliminacion`, `POST /yo/politica` en `id/interface/mi-cuenta.controller.ts`; hace pasar T114
+- [X] T117 [US11] Páginas `apps/web/src/app/(publico)/mi-cuenta/page.tsx` (descarga, eliminación con confirmación explicada) y `(publico)/cuenta/politica/page.tsx` — más `e2e/identidad-mis-datos.spec.ts`; el inicio de sesión y el segundo factor llevan a `/cuenta/politica` si hay versión pendiente
 
 **Checkpoint**: escenarios 31–32.
 

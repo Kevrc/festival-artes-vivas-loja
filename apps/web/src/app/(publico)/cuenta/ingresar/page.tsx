@@ -37,7 +37,8 @@ export default function IngresarPage() {
       // Mi agenda (spec 001, US5): los favoritos del dispositivo se suman a los de la cuenta.
       if (yo.segundoFactorOk) await fusionarConCuenta().catch(() => undefined);
       // Personal sin segundo factor: primero debe configurarlo (US9-AS3).
-      window.location.assign(yo.segundoFactorOk ? volver : `/cuenta/segundo-factor?volver=${encodeURIComponent(volver)}`);
+      const siguiente = !yo.segundoFactorOk ? '/cuenta/segundo-factor' : yo.politicaPendiente ? '/cuenta/politica' : null;
+      window.location.assign(siguiente ? `${siguiente}?volver=${encodeURIComponent(volver)}` : volver);
     } catch (err) {
       setError(err instanceof ErrorApiIdentidad && err.status === 401 ? err.message : 'No se pudo conectar con el servidor. Intenta de nuevo.');
       setEnviando(false);

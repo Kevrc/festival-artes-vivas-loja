@@ -32,6 +32,8 @@ export interface ContextoIdentidad {
   estudianteAcreditado: boolean;
   /** Personal: false ⇒ solo puede configurar o verificar el segundo factor. */
   segundoFactorOk: boolean;
+  /** US11-AS4: hay una versión nueva de la política sin aceptar ⇒ solo puede aceptarla (o ver o borrar sus datos). */
+  politicaPendiente?: boolean;
   roles: RolConAlcance[];
 }
 

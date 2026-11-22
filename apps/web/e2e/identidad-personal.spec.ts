@@ -60,7 +60,13 @@ test.describe('US9 · Cuentas del personal', () => {
       // Mientras tanto, nada más funciona.
       const restringida = await pagina.request.get(`${API}/api/identidad/yo/sesiones`);
       expect(restringida.status()).toBe(403);
-      await escribirCodigo(pagina, clave, /\/mi-cuenta$/);
+      // Una cuenta creada por el administrador acepta la política de privacidad en su primer ingreso (US11-AS4).
+      await escribirCodigo(pagina, clave, /\/cuenta\/politica/);
+      await expect(pagina.getByRole('heading', { name: 'Actualizamos la política de privacidad', level: 1 })).toBeVisible();
+      await sinViolacionesAxe(pagina);
+      await pagina.getByLabel(/Leí y acepto la política de privacidad/).check();
+      await pagina.getByRole('button', { name: 'Aceptar y continuar' }).click();
+      await expect(pagina).toHaveURL(/\/mi-cuenta$/);
       await expect(pagina.getByRole('heading', { name: 'Mi cuenta', level: 1 })).toBeVisible();
     } else {
       info.annotations.push({ type: 'omitido', description: 'Sin Mailpit: el validador nuevo no elige contraseña; se usa el de la semilla (lo cubre la integración).' });

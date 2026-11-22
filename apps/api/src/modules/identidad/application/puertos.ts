@@ -102,6 +102,8 @@ export interface SesionConCuenta extends SesionVista {
   cuenta: CuentaVista & { esPersonal: boolean; preferencias: { novedades: boolean } };
   roles: RolVista[];
   estudianteAcreditado: boolean;
+  /** Última versión aceptada de la política de privacidad (US11-AS4), o null. */
+  politicaAceptada: number | null;
 }
 
 export interface RepositorioIdentidad {
@@ -175,6 +177,16 @@ export interface RepositorioIdentidad {
   desactivarDestinatario(pedidoId: string): Promise<void>;
   destinatariosActivos(funcionId: string): Promise<{ cuentaId: string | null; correo: string | null }[]>;
   guardarPostulacion(postulacionId: string, cuentaId: string, estado: 'enviada' | 'subsanacion' | 'cerrada'): Promise<void>;
+
+  // Mis datos (US11, FR-023, RN-010) -------------------------------------------------------------
+  /** Todo lo personal de la cuenta para descargarlo (US11-AS1). Nunca hashes, secretos ni tokens. */
+  datosPersonales(cuentaId: string): Promise<Record<string, unknown> | null>;
+  /** Entradas activas para funciones que aún no empiezan (US11-AS3). */
+  funcionesFuturas(cuentaId: string, correo: string, ahora: Date): Promise<{ funcionId: string; titulo: string; inicio: Date }[]>;
+  postulacionesEnCurso(cuentaId: string): Promise<number>;
+  aceptarPolitica(cuentaId: string, version: number, ahora: Date): Promise<void>;
+  /** RN-010 (data-model §Anonimización), en la transacción ambiente. */
+  anonimizar(cuentaId: string, correo: string, ahora: Date): Promise<void>;
 }
 
 export interface FuncionAviso {

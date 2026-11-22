@@ -49,8 +49,9 @@ export default function SegundoFactorPage() {
     }
     setEnviando(true);
     try {
-      await apiIdentidad.verificarTotp(codigo.trim());
-      window.location.assign(volver);
+      const yo = await apiIdentidad.verificarTotp(codigo.trim());
+      // US11-AS4: una cuenta que aún no aceptó la política vigente la acepta antes de continuar.
+      window.location.assign(yo.politicaPendiente ? `/cuenta/politica?volver=${encodeURIComponent(volver)}` : volver);
     } catch (err) {
       setCodigo('');
       if (err instanceof ErrorApiIdentidad && err.status === 401 && err.codigo !== 'codigo_invalido') setSinSesion(true);

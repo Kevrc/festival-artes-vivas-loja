@@ -20,7 +20,7 @@ export class SesionGuard implements CanActivate {
     if (cookie.split(';').some((p) => p.trim().startsWith(`${COOKIE_SESION}=`))) {
       // Con cookie manda Identidad: vencida, revocada o sin segundo factor ⇒ 401, sin puente.
       const sesion = await this.identidad.resolverSesion(req).catch(() => null);
-      if (!sesion?.segundoFactorOk) throw new UnauthorizedException('Requiere sesión');
+      if (!sesion?.segundoFactorOk || sesion.politicaPendiente) throw new UnauthorizedException('Requiere sesión');
       req.cuentaId = sesion.cuentaId;
       return true;
     }

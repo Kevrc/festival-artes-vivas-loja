@@ -53,6 +53,11 @@ export interface Notificacion {
   ultimoError?: string | null;
 }
 
+export interface EvaluacionEliminacion {
+  funcionesFuturas: { funcionId: string; titulo: string; inicio: string }[];
+  postulacionesEnCurso: number;
+}
+
 export interface CuentaPersonal {
   cuentaId: string;
   nombre: string;
@@ -127,5 +132,14 @@ export const apiIdentidad = {
   misNotificaciones: (cursor?: string) =>
     pedir<{ items: Notificacion[]; siguiente: string | null }>(`/yo/notificaciones${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`),
   notificacionesFallidas: () => pedir<Notificacion[]>('/notificaciones/fallidas'),
+  /** US11-AS1: el JSON con mis datos, como archivo. */
+  misDatos: async (): Promise<Blob> => {
+    const res = await fetch(`${baseApiUrl()}/api/identidad/yo/datos`, { credentials: 'include', cache: 'no-store' });
+    if (!res.ok) throw new ErrorApiIdentidad(res.status, `No se pudieron descargar tus datos (error ${res.status}).`);
+    return res.blob();
+  },
+  evaluarEliminacion: () => pedir<EvaluacionEliminacion>('/yo/eliminacion'),
+  eliminarCuenta: (contrasena: string, asumoPerdida: boolean) => pedir<void>('/yo/eliminacion', { method: 'POST', body: JSON.stringify({ contrasena, asumoPerdida }) }),
+  aceptarPolitica: (version: string) => pedir<void>('/yo/politica', { method: 'POST', body: JSON.stringify({ version }) }),
   reenviar: (correo: string) => pedir<{ mensaje: string }>('/verificacion/reenvio', { method: 'POST', body: JSON.stringify({ correo }) }),
 };

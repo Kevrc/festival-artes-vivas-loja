@@ -163,6 +163,7 @@ export class PrismaIdentidadRepository implements RepositorioIdentidad {
           include: {
             roles: { where: { revocadoEn: null }, select: { rol: true, alcanceTipo: true, alcanceValor: true } },
             acreditaciones: { where: { tipo: 'estudiante', vigenteHasta: { gt: ahora } }, select: { id: true }, take: 1 },
+            consentimientos: { where: { documento: 'politica_privacidad', retiradoEn: null }, orderBy: { version: 'desc' }, take: 1, select: { version: true } },
           },
         },
       },
@@ -182,6 +183,7 @@ export class PrismaIdentidadRepository implements RepositorioIdentidad {
       },
       roles: c.roles.map(aRol),
       estudianteAcreditado: c.acreditaciones.length > 0,
+      politicaAceptada: c.consentimientos[0]?.version ?? null,
     };
   }
 
@@ -366,6 +368,82 @@ export class PrismaIdentidadRepository implements RepositorioIdentidad {
 
   async guardarPostulacion(postulacionId: string, cuentaId: string, estado: 'enviada' | 'subsanacion' | 'cerrada'): Promise<void> {
     await this.tx.postulacionEnCurso.upsert({ where: { postulacionId }, create: { postulacionId, cuentaId, estado }, update: { estado } });
+  }
+
+  async datosPersonales(cuentaId: string): Promise<Record<string, unknown> | null> {
+    const c = await this.tx.cuenta.findUnique({
+      where: { id: cuentaId },
+      include: {
+        consentimientos: { orderBy: { aceptadoEn: 'asc' }, select: { documento: true, version: true, aceptadoEn: true, retiradoEn: true } },
+        roles: { orderBy: { asignadoEn: 'asc' }, select: { rol: true, alcanceTipo: true, alcanceValor: true, asignadoEn: true, revocadoEn: true } },
+        sesiones: { orderBy: { creadaEn: 'desc' }, take: 100, select: { dispositivo: true, creadaEn: true, ultimaActividadEn: true, expiraEn: true, revocadaEn: true } },
+        acreditaciones: { select: { tipo: true, evidencia: true, vigenteHasta: true } },
+        credencial: { select: { totpActivo: true } },
+      },
+    });
+    if (!c) return null;
+    const notificaciones = await this.tx.notificacion.findMany({
+      where: { cuentaId },
+      orderBy: { creadaEn: 'desc' },
+      take: 500,
+      select: { plantilla: true, categoria: true, estado: true, correoDestino: true, creadaEn: true, enviadaEn: true },
+    });
+    const postulaciones = await this.tx.postulacionEnCurso.findMany({ where: { cuentaId }, select: { postulacionId: true, estado: true } });
+    return {
+      cuenta: {
+        id: c.id,
+        nombre: c.nombre,
+        correo: c.correo,
+        estado: c.estado,
+        verificadaEn: c.verificadaEn,
+        creadaEn: c.creadaEn,
+        preferencias: c.preferencias,
+        segundoFactorActivo: c.credencial?.totpActivo === true,
+      },
+      consentimientos: c.consentimientos,
+      roles: c.roles,
+      sesiones: c.sesiones,
+      acreditaciones: c.acreditaciones,
+      postulaciones,
+      notificaciones,
+    };
+  }
+
+  async funcionesFuturas(cuentaId: string, correo: string, ahora: Date) {
+    const destinos = await this.tx.destinatarioFuncion.findMany({ where: { activo: true, OR: [{ cuentaId }, { correo }] }, select: { funcionId: true } });
+    if (destinos.length === 0) return [];
+    const funciones = await this.tx.funcionAviso.findMany({
+      where: { funcionId: { in: [...new Set(destinos.map((d) => d.funcionId))] }, inicio: { gt: ahora }, estado: { not: 'cancelada' } },
+      orderBy: { inicio: 'asc' },
+      select: { funcionId: true, titulo: true, inicio: true },
+    });
+    return funciones;
+  }
+
+  postulacionesEnCurso(cuentaId: string): Promise<number> {
+    return this.tx.postulacionEnCurso.count({ where: { cuentaId, estado: { not: 'cerrada' } } });
+  }
+
+  async aceptarPolitica(cuentaId: string, version: number, ahora: Date): Promise<void> {
+    await this.tx.consentimiento.create({ data: { id: randomUUID(), cuentaId, documento: 'politica_privacidad', version, aceptadoEn: ahora } });
+  }
+
+  async anonimizar(cuentaId: string, correo: string, ahora: Date): Promise<void> {
+    const anonimo = `eliminada+${cuentaId}@anonimo.invalid`;
+    await this.tx.cuenta.update({
+      where: { id: cuentaId },
+      data: { nombre: 'Cuenta eliminada', correo: anonimo, estado: 'eliminada', bloqueadaHasta: null, esPersonal: false, preferencias: { novedades: false } },
+    });
+    await this.tx.credencial.deleteMany({ where: { cuentaId } });
+    await this.tx.sesion.deleteMany({ where: { cuentaId } });
+    await this.tx.tokenCuenta.deleteMany({ where: { cuentaId } });
+    await this.tx.consentimiento.deleteMany({ where: { cuentaId, documento: 'novedades' } });
+    await this.tx.destinatarioFuncion.deleteMany({ where: { OR: [{ cuentaId }, { correo }] } });
+    await this.tx.acreditacion.deleteMany({ where: { cuentaId } });
+    await this.tx.postulacionEnCurso.deleteMany({ where: { cuentaId } });
+    await this.tx.intentoAcceso.deleteMany({ where: { correo } });
+    await this.tx.notificacion.updateMany({ where: { OR: [{ cuentaId }, { correoDestino: correo }] }, data: { correoDestino: anonimo, datos: {} } });
+    await this.tx.rolAsignado.updateMany({ where: { cuentaId, revocadoEn: null }, data: { revocadoEn: ahora } });
   }
 
   async guardarEdicionVigente(edicionId: string, fechaFin: string): Promise<void> {

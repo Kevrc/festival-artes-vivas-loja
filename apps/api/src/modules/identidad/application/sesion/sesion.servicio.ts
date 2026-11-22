@@ -36,6 +36,8 @@ export class SesionServicio {
   private readonly log = new Logger(SesionServicio.name);
   /** Hash de una contraseña cualquiera: se verifica contra él cuando la cuenta no existe (mismo tiempo). */
   private hashSenuelo?: Promise<string>;
+  /** Versión vigente de la política, en caché 60 s: se consulta en cada petición (US11-AS4). */
+  private vigente: { version: number | null; hasta: number } = { version: null, hasta: 0 };
 
   constructor(
     private readonly repo: RepositorioIdentidad,
@@ -109,8 +111,22 @@ export class SesionServicio {
       estudianteAcreditado: s.estudianteAcreditado,
       // Quien dejó de ser personal ya no necesita el segundo factor; quien pasó a serlo volvió a ingresar.
       segundoFactorOk: s.segundoFactorOk || !s.cuenta.esPersonal,
+      politicaPendiente: await this.politicaPendiente(s.politicaAceptada, ahora),
       roles: s.roles,
     };
+  }
+
+  private async politicaPendiente(aceptada: number | null, ahora: Date): Promise<boolean> {
+    if (this.vigente.hasta <= Date.now()) {
+      const doc = await this.repo.documentoVigente('politica_privacidad', ahora);
+      this.vigente = { version: doc?.version ?? null, hasta: Date.now() + 60_000 };
+    }
+    return this.vigente.version !== null && (aceptada ?? 0) < this.vigente.version;
+  }
+
+  /** Tras publicar o aceptar una versión, la siguiente petición la ve sin esperar a la caché. */
+  olvidarPoliticaVigente(): void {
+    this.vigente = { version: null, hasta: 0 };
   }
 
   async cerrar(token: string): Promise<void> {

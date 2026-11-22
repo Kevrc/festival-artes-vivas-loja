@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useId, useState } from 'react';
 import estilos from '@/components/operacion/operacion.module.css';
-import { ErrorApiIdentidad, type Yo, apiIdentidad } from '@/lib/identidad/api';
+import { ErrorApiIdentidad, type EvaluacionEliminacion, type Yo, apiIdentidad } from '@/lib/identidad/api';
 
 /**
  * `/mi-cuenta` (US8, FR-022, FR-023): datos, preferencia de novedades, cambio de contraseña y
@@ -49,6 +49,17 @@ export default function MiCuentaPage() {
     );
   }
   if (!yo) return <h1>Mi cuenta</h1>;
+  if (yo.segundoFactorOk && yo.politicaPendiente) {
+    return (
+      <>
+        <h1>Mi cuenta</h1>
+        <p>
+          Hay una versión nueva de la política de privacidad. <Link href="/cuenta/politica?volver=/mi-cuenta">Revísala y acéptala para continuar</Link>.
+        </p>
+        <MisDatos />
+      </>
+    );
+  }
   if (!yo.segundoFactorOk) {
     return (
       <>
@@ -156,6 +167,9 @@ export default function MiCuentaPage() {
           <Link href="/mi-cuenta/notificaciones">Mis notificaciones</Link>
         </li>
         <li>
+          <Link href="/privacidad">Política de privacidad</Link>
+        </li>
+        <li>
           <button
             type="button"
             className={estilos.secundario}
@@ -168,6 +182,122 @@ export default function MiCuentaPage() {
           </button>
         </li>
       </ul>
+      <MisDatos />
     </>
+  );
+}
+
+/**
+ * Mis datos personales (US11, FR-023): descarga y eliminación de la cuenta. Antes de eliminar se
+ * explica qué se pierde y, si hay entradas para funciones futuras, se pide confirmarlo (US11-AS3).
+ */
+function MisDatos() {
+  const id = useId();
+  const [evaluacion, setEvaluacion] = useState<EvaluacionEliminacion | null>(null);
+  const [contrasena, setContrasena] = useState('');
+  const [asumo, setAsumo] = useState(false);
+  const [error, setError] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const pierde = !!evaluacion && (evaluacion.funcionesFuturas.length > 0 || evaluacion.postulacionesEnCurso > 0);
+
+  const descargar = async () => {
+    try {
+      const archivo = await apiIdentidad.misDatos();
+      const url = URL.createObjectURL(archivo);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'mis-datos-fiavl.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  return (
+    <section aria-labelledby={`${id}-titulo`} style={{ marginTop: 24 }}>
+      <h2 id={`${id}-titulo`}>Mis datos personales</h2>
+      <p>Puedes descargar todo lo que el festival guarda de ti: tu cuenta, tus consentimientos, tus sesiones y los avisos que te enviamos.</p>
+      <button type="button" className={estilos.secundario} onClick={descargar}>
+        Descargar mis datos
+      </button>
+      {error && (
+        <p role="alert" className={estilos.resumen}>
+          {error}
+        </p>
+      )}
+      <h3 style={{ marginTop: 16 }}>Eliminar mi cuenta</h3>
+      {!evaluacion ? (
+        <button
+          type="button"
+          className={estilos.secundario}
+          onClick={async () => {
+            try {
+              setEvaluacion(await apiIdentidad.evaluarEliminacion());
+            } catch (e) {
+              setError(e instanceof Error ? e.message : String(e));
+            }
+          }}
+        >
+          Quiero eliminar mi cuenta
+        </button>
+      ) : (
+        <form
+          className={estilos.formulario}
+          aria-label="Eliminar mi cuenta"
+          style={{ gridTemplateColumns: '1fr', maxWidth: 520 }}
+          onSubmit={async (e) => {
+            e.preventDefault();
+            setError('');
+            setEnviando(true);
+            try {
+              await apiIdentidad.eliminarCuenta(contrasena, asumo);
+              window.location.assign('/cartelera?cuenta=eliminada');
+            } catch (err) {
+              setError(err instanceof ErrorApiIdentidad ? err.message : String(err));
+              setEnviando(false);
+            }
+          }}
+        >
+          <div className="nota">
+            <p>
+              Se borrarán tu nombre, tu correo, tu contraseña y tus sesiones. Ya no podrás ingresar. Los registros contables (pagos y
+              devoluciones) se conservan sin datos que te identifiquen.
+            </p>
+            {evaluacion.funcionesFuturas.length > 0 && (
+              <>
+                <p>Tienes entradas para funciones que aún no se realizan:</p>
+                <ul>
+                  {evaluacion.funcionesFuturas.map((f) => (
+                    <li key={f.funcionId}>
+                      {f.titulo} · {new Date(f.inicio).toLocaleString('es-EC', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Guayaquil' })}
+                    </li>
+                  ))}
+                </ul>
+                <p>Seguirán valiendo con el QR que recibiste por correo, pero ya no las verás en tu cuenta. También puedes esperar a que termine el festival.</p>
+              </>
+            )}
+            {evaluacion.postulacionesEnCurso > 0 && <p>Tienes {evaluacion.postulacionesEnCurso} postulación(es) en curso: ya no recibirás sus avisos.</p>}
+          </div>
+          {pierde && (
+            <label>
+              <input type="checkbox" checked={asumo} onChange={(e) => setAsumo(e.target.checked)} required /> Entiendo lo que pierdo y quiero continuar
+            </label>
+          )}
+          <div className={estilos.campo}>
+            <label htmlFor={`${id}-contrasena`}>Tu contraseña, para confirmar</label>
+            <input id={`${id}-contrasena`} type="password" autoComplete="current-password" value={contrasena} onChange={(e) => setContrasena(e.target.value)} required />
+          </div>
+          <div className={estilos.acciones}>
+            <button type="submit" disabled={enviando || (pierde && !asumo)}>
+              Eliminar mi cuenta definitivamente
+            </button>
+            <button type="button" className={estilos.secundario} onClick={() => setEvaluacion(null)}>
+              No, conservar mi cuenta
+            </button>
+          </div>
+        </form>
+      )}
+    </section>
   );
 }

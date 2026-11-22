@@ -39,6 +39,7 @@ async function sesionDe(rol: 'taquilla' | 'validador' | 'jefe_sala' | null, sede
       verificadaEn: new Date(),
       esPersonal: rol !== null,
       credencial: { create: { hashContrasena: hash, ...(rol ? { totpSecretoCifrado: new Uint8Array(cifradorDelEntorno().cifrar(secreto)), totpActivo: true } : {}) } },
+      consentimientos: { create: [{ id: randomUUID(), documento: 'politica_privacidad', version: 1 }] },
       ...(rol ? { roles: { create: [{ id: randomUUID(), rol, asignadoPor: id, alcanceTipo: 'sede', alcanceValor: sedeId! }] } } : {}),
     },
   });
