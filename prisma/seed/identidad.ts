@@ -18,6 +18,12 @@ export const CUENTAS_PRUEBA = {
   secretoTotp: 'KRSXG5CTMVRXEZLUKRSXG5CTMVRXEZLU',
 } as const;
 
+/** Dominios institucionales de ejemplo para acreditar estudiantes (US12, solo desarrollo). */
+export const DOMINIOS_PRUEBA = [
+  { dominio: 'utpl.edu.ec', institucion: 'Universidad Técnica Particular de Loja' },
+  { dominio: 'unl.edu.ec', institucion: 'Universidad Nacional de Loja' },
+];
+
 type Rol = 'programador' | 'direccion' | 'administrador' | 'jefe_sala' | 'taquilla' | 'validador';
 const BOLIVAR = { alcanceTipo: 'sede' as const, alcanceValor: idDe('sede:bolivar') };
 
@@ -37,8 +43,15 @@ export async function seedIdentidad(db: PrismaClient, opciones: { cuentasPrueba?
     create: { documento: 'politica_privacidad', ...POLITICA_VIGENTE },
     update: {},
   });
+  // RN-012: Identidad conoce la edición vigente por ProgramacionPublicada; la semilla no pasa por la cola.
+  await db.edicionVigente.upsert({ where: { edicionId: idDe('edicion-2026') }, create: { edicionId: idDe('edicion-2026'), fechaFin: new Date('2026-11-22T00:00:00Z') }, update: {} });
   const conCuentas = opciones.cuentasPrueba ?? process.env.NODE_ENV !== 'production';
   if (!conCuentas) return 0;
+
+  const admin = await db.cuenta.findUnique({ where: { correo: 'admin@fiavl.test' }, select: { id: true } });
+  for (const d of DOMINIOS_PRUEBA) {
+    await db.dominioInstitucional.upsert({ where: { dominio: d.dominio }, create: { ...d, creadoPor: admin?.id ?? idDe('semilla') }, update: {} });
+  }
 
   const hash = await hashContrasena(CUENTAS_PRUEBA.contrasena);
   const secreto = cifradorDelEntorno().cifrar(desdeBase32(CUENTAS_PRUEBA.secretoTotp));

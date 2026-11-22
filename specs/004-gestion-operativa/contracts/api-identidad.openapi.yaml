@@ -599,7 +599,7 @@ components:
                  contrasena_larga, sin_politica, origen_no_permitido, sin_sesion, no_encontrado,
                  segundo_factor_requerido, segundo_factor_activo, sin_segundo_factor, codigo_invalido,
                  solo_personal, rol_personal_requerido, alcance_invalido, alcance_no_aplica,
-                 accion_sobre_si_mismo, cuenta_eliminada]
+                 accion_sobre_si_mismo, cuenta_eliminada, sin_edicion_vigente, dominio_invalido, dominio_existente]
     TokenEnlace:
       type: object
       required: [token]

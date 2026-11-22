@@ -187,6 +187,17 @@ export interface RepositorioIdentidad {
   aceptarPolitica(cuentaId: string, version: number, ahora: Date): Promise<void>;
   /** RN-010 (data-model §Anonimización), en la transacción ambiente. */
   anonimizar(cuentaId: string, correo: string, ahora: Date): Promise<void>;
+
+  // Estudiantes (US12, FR-025, RN-012) -------------------------------------------------------------
+  dominios(): Promise<{ dominio: string; institucion: string }[]>;
+  /** El dominio registrado que cubre `dominio` (el mismo o uno del que es subdominio), o null. */
+  dominioDe(dominio: string): Promise<{ dominio: string; institucion: string } | null>;
+  guardarDominio(d: { dominio: string; institucion: string; creadoPor: string }): Promise<boolean>;
+  /** Fecha de fin (AAAA-MM-DD) de la edición vigente, conocida por `ProgramacionPublicada`. */
+  finEdicionVigente(): Promise<string | null>;
+  datoToken(id: string): Promise<unknown>;
+  /** Reemplaza la acreditación de estudiante de la cuenta. */
+  acreditarEstudiante(cuentaId: string, evidencia: string, vigenteHasta: Date): Promise<void>;
 }
 
 export interface FuncionAviso {

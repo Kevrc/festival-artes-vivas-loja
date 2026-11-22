@@ -93,14 +93,14 @@ describe('US6 — ediciones, sedes y parámetros', () => {
     const e = (await ctx.http().get(`/api/operacion/ediciones/${ids.edicion}`).set(admin));
     expect(e.headers.etag).toBe(`"${e.body.version}"`);
     publicados.length = 0;
-    const r = await ctx.http().patch(`/api/operacion/ediciones/${ids.edicion}`).set(admin).set('If-Match', e.headers.etag)
+    const r = await ctx.http().patch(`/api/operacion/ediciones/${ids.edicion}`).set(admin).set('If-Match', e.headers.etag as string)
       .send({ numero: e.body.numero, anio: e.body.anio, fechaInicio: e.body.fechaInicio, fechaFin: e.body.fechaFin, precioCentavos: 700, maxPagadasPersona: 8, maxReservasPersona: 4 });
     expect(r.status).toBe(200);
     expect(r.body).toMatchObject({ precioCentavos: 700, maxPagadasPersona: 8, version: e.body.version + 1, advertencias: [] });
     expect((await ctx.db.pedidoRegistrado.aggregate({ _sum: { importeCentavos: true } }))._sum).toEqual(antes._sum);
     const anuncio = publicados.find((x) => x.tipo === 'ProgramacionPublicada');
     expect(anuncio?.datos.edicion).toMatchObject({ id: ids.edicion, precioCentavos: 700, maxPagadasPersona: 8 });
-    expect((await ctx.http().patch(`/api/operacion/ediciones/${ids.edicion}`).set(admin).set('If-Match', e.headers.etag).send({ numero: 'X', anio: e.body.anio, fechaInicio: e.body.fechaInicio, fechaFin: e.body.fechaFin, precioCentavos: 1, maxPagadasPersona: 1, maxReservasPersona: 1 })).status).toBe(412);
+    expect((await ctx.http().patch(`/api/operacion/ediciones/${ids.edicion}`).set(admin).set('If-Match', e.headers.etag as string).send({ numero: 'X', anio: e.body.anio, fechaInicio: e.body.fechaInicio, fechaFin: e.body.fechaFin, precioCentavos: 1, maxPagadasPersona: 1, maxReservasPersona: 1 })).status).toBe(412);
   });
 
   it('solo administración escribe; una edición cerrada es de solo lectura', async () => {

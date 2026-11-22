@@ -26,6 +26,7 @@ import {
   type RelojIdentidad,
   type RepositorioIdentidad,
 } from './application/puertos';
+import { EstudiantesServicio } from './application/estudiantes/estudiantes.servicio';
 import { MiCuentaServicio } from './application/mi-cuenta/mi-cuenta.servicio';
 import { PersonalServicio } from './application/personal/personal.servicio';
 import { RegistroServicio } from './application/registro/registro.servicio';
@@ -78,6 +79,12 @@ export class IdentidadModule {
         provide: MiCuentaServicio,
         inject: [REPOSITORIO_IDENTIDAD, SesionServicio, AUDITORIA_IDENTIDAD, RELOJ_IDENTIDAD, PUBLICADOR_IDENTIDAD],
         useFactory: (r: RepositorioIdentidad, s: SesionServicio, a: AuditoriaIdentidad, reloj: RelojIdentidad, p: PublicadorIdentidad) => new MiCuentaServicio(r, s, a, reloj, p),
+      },
+      {
+        provide: EstudiantesServicio,
+        inject: [REPOSITORIO_IDENTIDAD, PROVEEDOR_CORREO, AUDITORIA_IDENTIDAD, RELOJ_IDENTIDAD],
+        useFactory: (r: RepositorioIdentidad, c: ProveedorCorreo, a: AuditoriaIdentidad, reloj: RelojIdentidad) =>
+          new EstudiantesServicio(r, c, a, reloj, process.env.WEB_URL ?? 'http://localhost:3100'),
       },
       { provide: CIFRADOR, useFactory: () => cifradorDelEntorno() },
       { provide: RELOJ_TOTP, useValue: () => new Date() },

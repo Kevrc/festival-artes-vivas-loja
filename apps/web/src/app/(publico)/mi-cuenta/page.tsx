@@ -167,6 +167,9 @@ export default function MiCuentaPage() {
           <Link href="/mi-cuenta/notificaciones">Mis notificaciones</Link>
         </li>
         <li>
+          <Link href="/mi-cuenta/estudiante">{yo.estudianteAcreditado ? 'Condición de estudiante (acreditada)' : 'Acreditarme como estudiante'}</Link>
+        </li>
+        <li>
           <Link href="/privacidad">Política de privacidad</Link>
         </li>
         <li>

@@ -141,5 +141,10 @@ export const apiIdentidad = {
   evaluarEliminacion: () => pedir<EvaluacionEliminacion>('/yo/eliminacion'),
   eliminarCuenta: (contrasena: string, asumoPerdida: boolean) => pedir<void>('/yo/eliminacion', { method: 'POST', body: JSON.stringify({ contrasena, asumoPerdida }) }),
   aceptarPolitica: (version: string) => pedir<void>('/yo/politica', { method: 'POST', body: JSON.stringify({ version }) }),
+  pedirAcreditacion: (correoInstitucional: string) => pedir<{ mensaje: string }>('/yo/estudiante', { method: 'POST', body: JSON.stringify({ correoInstitucional }) }),
+  confirmarAcreditacion: (token: string) => pedir<{ vigenteHasta: string; institucion: string }>('/estudiante/confirmacion', { method: 'POST', body: JSON.stringify({ token }) }),
+  dominios: () => pedir<{ dominio: string; institucion: string }[]>('/dominios-institucionales'),
+  agregarDominio: (dominio: string, institucion: string) =>
+    pedir<{ dominio: string; institucion: string }>('/dominios-institucionales', { method: 'POST', body: JSON.stringify({ dominio, institucion }) }),
   reenviar: (correo: string) => pedir<{ mensaje: string }>('/verificacion/reenvio', { method: 'POST', body: JSON.stringify({ correo }) }),
 };

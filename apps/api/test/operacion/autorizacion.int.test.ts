@@ -62,6 +62,8 @@ const OPERACIONES: Op[] = [
   { nombre: 'crear una sede', metodo: 'post', ruta: `/api/operacion/ediciones/${e}/sedes`, cuerpo: {}, permitidos: ['administrador'] },
   { nombre: 'editar una sede', metodo: 'patch', ruta: `/api/operacion/sedes/${randomUUID()}`, cuerpo: {}, permitidos: ['administrador'] },
   { nombre: 'eliminar una sede', metodo: 'delete', ruta: `/api/operacion/sedes/${randomUUID()}`, permitidos: ['administrador'] },
+  { nombre: 'listar dominios de estudiantes', metodo: 'get', ruta: '/api/identidad/dominios-institucionales', permitidos: ['administrador'] },
+  { nombre: 'registrar un dominio de estudiantes', metodo: 'post', ruta: '/api/identidad/dominios-institucionales', cuerpo: {}, permitidos: ['administrador'] },
   { nombre: 'listar el personal', metodo: 'get', ruta: '/api/identidad/personal', permitidos: ['administrador'] },
   { nombre: 'crear personal', metodo: 'post', ruta: '/api/identidad/personal', cuerpo: {}, permitidos: ['administrador'] },
   { nombre: 'cambiar roles', metodo: 'put', ruta: `/api/identidad/personal/${randomUUID()}/roles`, cuerpo: {}, permitidos: ['administrador'] },

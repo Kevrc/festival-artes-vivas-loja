@@ -100,3 +100,15 @@ export function invitacionPersonal(nombre: string, enlace: string): Correo {
   const accion = { texto: 'Elegir mi contraseña', url: enlace };
   return { asunto: `${titulo} · FIAVL`, texto: texto(titulo, parrafos, accion), html: html(titulo, parrafos, accion) };
 }
+
+/** US12: enlace al correo institucional para acreditar la condición de estudiante (24 h, un solo uso). */
+export function verificacionEstudiante(nombre: string, institucion: string, enlace: string): Correo {
+  const titulo = 'Confirma tu condición de estudiante';
+  const parrafos = [
+    `Hola, ${nombre}:`,
+    `Pediste acreditarte como estudiante de ${institucion} en tu cuenta del festival. Abre el enlace con tu cuenta iniciada para confirmarlo.`,
+    'El enlace vale durante 24 horas y se puede usar una sola vez. La acreditación dura hasta el último día de la edición vigente.',
+  ];
+  const accion = { texto: 'Confirmar que soy estudiante', url: enlace };
+  return { asunto: `${titulo} · FIAVL`, texto: texto(titulo, parrafos, accion), html: html(titulo, parrafos, accion) };
+}

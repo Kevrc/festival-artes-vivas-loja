@@ -446,6 +446,37 @@ export class PrismaIdentidadRepository implements RepositorioIdentidad {
     await this.tx.rolAsignado.updateMany({ where: { cuentaId, revocadoEn: null }, data: { revocadoEn: ahora } });
   }
 
+  dominios() {
+    return this.tx.dominioInstitucional.findMany({ orderBy: { dominio: 'asc' }, select: { dominio: true, institucion: true } });
+  }
+
+  async dominioDe(dominio: string) {
+    // utpl.edu.ec cubre también estudiantes.utpl.edu.ec: se prueban el dominio y sus sufijos.
+    const partes = dominio.split('.');
+    const candidatos = partes.slice(0, -1).map((_, i) => partes.slice(i).join('.'));
+    const filas = await this.tx.dominioInstitucional.findMany({ where: { dominio: { in: candidatos } }, select: { dominio: true, institucion: true } });
+    return filas.sort((a, b) => b.dominio.length - a.dominio.length)[0] ?? null;
+  }
+
+  async guardarDominio(d: { dominio: string; institucion: string; creadoPor: string }): Promise<boolean> {
+    const { count } = await this.tx.dominioInstitucional.createMany({ data: [d], skipDuplicates: true });
+    return count > 0;
+  }
+
+  async finEdicionVigente(): Promise<string | null> {
+    const e = await this.tx.edicionVigente.findFirst({ orderBy: { fechaFin: 'desc' }, select: { fechaFin: true } });
+    return e ? e.fechaFin.toISOString().slice(0, 10) : null;
+  }
+
+  async datoToken(id: string): Promise<unknown> {
+    return (await this.tx.tokenCuenta.findUnique({ where: { id }, select: { dato: true } }))?.dato ?? null;
+  }
+
+  async acreditarEstudiante(cuentaId: string, evidencia: string, vigenteHasta: Date): Promise<void> {
+    await this.tx.acreditacion.deleteMany({ where: { cuentaId, tipo: 'estudiante' } });
+    await this.tx.acreditacion.create({ data: { id: randomUUID(), cuentaId, tipo: 'estudiante', evidencia, vigenteHasta } });
+  }
+
   async guardarEdicionVigente(edicionId: string, fechaFin: string): Promise<void> {
     const fin = new Date(`${fechaFin}T00:00:00Z`);
     await this.tx.edicionVigente.upsert({ where: { edicionId }, create: { edicionId, fechaFin: fin }, update: { fechaFin: fin } });

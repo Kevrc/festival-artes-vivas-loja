@@ -447,7 +447,7 @@ export interface components {
             status: number;
             detail?: string;
             /** @enum {string} */
-            codigo?: "contrasena_corta" | "contrasena_filtrada" | "politica_no_aceptada" | "enlace_vencido" | "enlace_usado" | "credenciales_invalidas" | "requiere_segundo_factor" | "requiere_politica" | "alcance_requerido" | "dominio_no_institucional" | "limite_reenvios" | "funciones_futuras" | "postulaciones_en_curso" | "contrasena_larga" | "sin_politica" | "origen_no_permitido" | "sin_sesion" | "no_encontrado" | "segundo_factor_requerido" | "segundo_factor_activo" | "sin_segundo_factor" | "codigo_invalido" | "solo_personal" | "rol_personal_requerido" | "alcance_invalido" | "alcance_no_aplica" | "accion_sobre_si_mismo" | "cuenta_eliminada";
+            codigo?: "contrasena_corta" | "contrasena_filtrada" | "politica_no_aceptada" | "enlace_vencido" | "enlace_usado" | "credenciales_invalidas" | "requiere_segundo_factor" | "requiere_politica" | "alcance_requerido" | "dominio_no_institucional" | "limite_reenvios" | "funciones_futuras" | "postulaciones_en_curso" | "contrasena_larga" | "sin_politica" | "origen_no_permitido" | "sin_sesion" | "no_encontrado" | "segundo_factor_requerido" | "segundo_factor_activo" | "sin_segundo_factor" | "codigo_invalido" | "solo_personal" | "rol_personal_requerido" | "alcance_invalido" | "alcance_no_aplica" | "accion_sobre_si_mismo" | "cuenta_eliminada" | "sin_edicion_vigente" | "dominio_invalido" | "dominio_existente";
         };
         TokenEnlace: {
             /** @description Valor del enlace (base64url, 256 bits) */

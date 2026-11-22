@@ -380,13 +380,13 @@ tiene una prueba nombrada; en dominio se escribe **primero** la prueba y se comp
 
 ### Tests
 
-- [ ] T123 [P] [US12] Prueba de integración `apps/api/test/identidad/estudiantes.int.test.ts`: `US12-AS1` (`acreditacion.vigente_hasta` = `edicion_vigente.fecha_fin`, RN-012), dominio no registrado ⇒ rechazo, `ContextoIdentidad.estudianteAcreditado` verdadero solo mientras esté vigente
+- [X] T123 [P] [US12] Prueba de integración `apps/api/test/identidad/estudiantes.int.test.ts`: `US12-AS1` (`acreditacion.vigente_hasta` = `edicion_vigente.fecha_fin`, RN-012), dominio no registrado ⇒ rechazo, `ContextoIdentidad.estudianteAcreditado` verdadero solo mientras esté vigente
 
 ### Implementation
 
-- [ ] T124 [US12] Casos de uso `id/application/estudiantes/{solicitar,confirmar,dominios}.ts` con `token_cuenta.tipo = estudiante` y `token_cuenta.dato`; `dominio_institucional` gestionado por el administrador
-- [ ] T125 [US12] Endpoints `POST /yo/estudiante`, `POST /estudiante/confirmacion`, `/dominios-institucionales`; hace pasar T123
-- [ ] T126 [US12] Página `apps/web/src/app/(publico)/mi-cuenta/estudiante/page.tsx`; E2E `apps/web/e2e/identidad-estudiante.spec.ts` que reserva una función "solo estudiantes" en Boletería
+- [X] T124 [US12] Casos de uso `id/application/estudiantes/{solicitar,confirmar,dominios}.ts` con `token_cuenta.tipo = estudiante` y `token_cuenta.dato`; `dominio_institucional` gestionado por el administrador — hecho como `estudiantes/estudiantes.servicio.ts` y reglas puras en `domain/estudiantes.ts`. Un dominio registrado cubre sus subdominios; el enlace solo vale con la sesión de quien lo pidió; la evidencia guardada es el dominio, no el correo institucional; 3 enlaces por hora. La semilla de desarrollo registra utpl.edu.ec y unl.edu.ec y la edición vigente 2026
+- [X] T125 [US12] Endpoints `POST /yo/estudiante`, `POST /estudiante/confirmacion`, `/dominios-institucionales`; hace pasar T123
+- [X] T126 [US12] Página `apps/web/src/app/(publico)/mi-cuenta/estudiante/page.tsx`; E2E `apps/web/e2e/identidad-estudiante.spec.ts` que reserva una función "solo estudiantes" en Boletería — más `/admin/estudiantes` para los dominios. La E2E verifica la cuenta, acredita con Mailpit y reserva el taller «solo estudiantes»; sin Mailpit comprueba la página y el rechazo de un dominio no institucional
 
 **Checkpoint**: escenario 33.
 

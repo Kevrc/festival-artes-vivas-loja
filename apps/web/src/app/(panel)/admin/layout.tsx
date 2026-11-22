@@ -16,6 +16,9 @@ export default function LayoutAdmin({ children }: { children: React.ReactNode })
             <Link href="/admin/sedes">Sedes</Link>
           </li>
           <li>
+            <Link href="/admin/estudiantes">Dominios de estudiantes</Link>
+          </li>
+          <li>
             <Link href="/admin/notificaciones">Avisos fallidos</Link>
           </li>
           <li>
