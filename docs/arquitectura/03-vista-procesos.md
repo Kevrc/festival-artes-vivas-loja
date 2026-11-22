@@ -220,7 +220,7 @@ sequenceDiagram
     ID->>SMTP: correo «Tu función fue cancelada»
     alt el SMTP falla
         ID->>DB: intentos + 1, último error (sin correos)
-        WK-->>ID: reintento 30 s · 2^n; pasadas 24 h ⇒ «fallida»
+        WK-->>ID: reintento a los 30 s · 2^n, tras 24 h queda fallida
     end
 ```
 
@@ -238,12 +238,12 @@ sequenceDiagram
     participant DB as PostgreSQL
     U->>W: correo y contraseña
     W->>ID: POST /sesion
-    ID->>DB: verifica scrypt; 5 fallos en 15 min ⇒ bloqueo 15 min
+    ID->>DB: verifica scrypt, con 5 fallos en 15 min bloquea 15 min
     ID-->>W: cookie fiavl_sesion (HttpOnly, 8 h) · sesión restringida
     W->>U: /cuenta/segundo-factor (QR y clave en texto si es el alta)
     U->>W: código de 6 dígitos
     W->>ID: POST /segundo-factor/verificacion
-    ID->>DB: TOTP con hora real, ±1 paso, sin repetir paso; sesión completa
+    ID->>DB: TOTP con hora real, ±1 paso, sin repetir paso, sesión completa
     opt política de privacidad pendiente
         W->>U: /cuenta/politica (hasta aceptar, 403 requiere_politica)
     end
