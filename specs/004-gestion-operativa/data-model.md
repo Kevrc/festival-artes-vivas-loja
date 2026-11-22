@@ -104,7 +104,7 @@ erDiagram
 | elenco_id | uuid | copia de `obra.elenco_id` para la restricción de elenco (FR-003) |
 | inicio, fin | timestamptz | `fin = inicio + duracion` al crear; editable **solo hacia más tiempo** (RN-002) |
 | continua | boolean | actividades continuas: un bloque por día (R1) |
-| tipo_acceso | enum `TipoAcceso` | |
+| tipo_acceso | enum `TipoAcceso`? | puede faltar en borrador; obligatorio para publicar (US2-AS2) |
 | publico | enum `Publico` | |
 | aforo_habilitado | int? > 0 | `≤ sede.aforo` (FR-004); `null` solo en acceso libre sin aforo |
 | estado | enum `borrador` · `programada` · `reprogramada` · `cancelada` | `finalizada` se **deriva**: `fin < ahora` y no cancelada (R8) |

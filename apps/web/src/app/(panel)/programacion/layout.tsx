@@ -12,6 +12,9 @@ export default function LayoutProgramacion({ children }: { children: React.React
           <li>
             <Link href="/programacion/obras">Obras</Link>
           </li>
+          <li>
+            <Link href="/programacion/publicar">Publicar</Link>
+          </li>
         </ul>
       </nav>
       {children}

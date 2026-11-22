@@ -218,7 +218,7 @@ model ObraOperacion {
   edadMinima     Int                 @default(0) @map("edad_minima")
   idioma         String?
   imagenes       Json                @default("[]")
-  fichaArtistica Json                @default("{}") @map("ficha_artistica")
+  fichaArtistica Json                @default("[]") @map("ficha_artistica")
   fichaTecnica   Json                @default("{}") @map("ficha_tecnica")
   estado         EstadoObra          @default(disponible)
   origen         OrigenObra
@@ -241,7 +241,7 @@ model FuncionOperacion {
   inicio          DateTime               @db.Timestamptz(3)
   fin             DateTime               @db.Timestamptz(3)
   continua        Boolean                @default(false)
-  tipoAcceso      TipoAccesoOperacion    @map("tipo_acceso")
+  tipoAcceso      TipoAccesoOperacion?    @map("tipo_acceso")
   publico         PublicoOperacion       @default(familiar)
   aforoHabilitado Int?                   @map("aforo_habilitado")
   estado          EstadoFuncionOperacion @default(borrador)

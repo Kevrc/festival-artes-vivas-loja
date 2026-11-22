@@ -131,16 +131,16 @@ tiene una prueba nombrada; en dominio se escribe **primero** la prueba y se comp
 
 ### Tests
 
-- [ ] T044 [P] [US2] Prueba de dominio `op/domain/publicacion.test.ts`: `US2-AS2`, errores por función sin sede, sin `funcion.tipo_acceso`, obra sin `obra.imagenes` o con cruces (R4)
-- [ ] T045 [P] [US2] Prueba de integración `apps/api/test/operacion/publicacion.int.test.ts`: `US2-AS1` (estado `programada`, `ProgramacionPublicada` y un `FuncionProgramada` por función, que pasan `EventoCartelera` y `EventoOperacionBoleteria`), `US2-AS3` (publicar una función sola sin republicar la edición); comprueba que se generó el registro de `auditoria` con su `correlacion_id` (Constitución IX)
+- [X] T044 [P] [US2] Prueba de dominio `op/domain/publicacion.test.ts`: `US2-AS2`, errores por función sin sede, sin `funcion.tipo_acceso`, obra sin `obra.imagenes` o con cruces (R4)
+- [X] T045 [P] [US2] Prueba de integración `apps/api/test/operacion/publicacion.int.test.ts`: `US2-AS1` (estado `programada`, `ProgramacionPublicada` y un `FuncionProgramada` por función, que pasan `EventoCartelera` y `EventoOperacionBoleteria`), `US2-AS3` (publicar una función sola sin republicar la edición); comprueba que se generó el registro de `auditoria` con su `correlacion_id` (Constitución IX)
 
 ### Implementation
 
-- [ ] T046 [US2] Implementar `op/domain/publicacion.ts` (`validarPublicacion`) (valida `funcion.tipo_acceso`, `obra.imagenes` ≥ 1 y sede asignada) y `op/domain/ciclo-funcion.ts` (transición `borrador → programada`, `funcion.version` +1, `funcion.publicada_en`); hace pasar T044
-- [ ] T047 [US2] Casos de uso `op/application/publicacion/{validar,publicar-edicion,publicar-funcion}.ts` que cambian estado y publican eventos en la misma transacción; `edicion.estado = publicada`; cada acción escribe `auditoria` (`auditoria.actor_id`, `auditoria.accion`, `auditoria.anterior`, `auditoria.nuevo`, `auditoria.correlacion_id`) en la misma transacción (FR-012)
-- [ ] T048 [US2] Controlador `op/interface/publicacion.controller.ts`: `GET /ediciones/{id}/publicacion/validacion`, `POST /ediciones/{id}/publicacion`, `POST /funciones/{id}/publicacion`; hace pasar T045
-- [ ] T049 [US2] Página `apps/web/src/app/(panel)/programacion/publicar/page.tsx`: lista de errores enlazada a cada función (resumen enfocable) y botón "Publicar" bloqueado mientras haya errores
-- [ ] T050 [US2] E2E `apps/web/e2e/operacion-publicacion.spec.ts`: corregir errores, publicar y ver la función en `/cartelera` en < 1 min (SC-003), con axe
+- [X] T046 [US2] Implementar `op/domain/publicacion.ts` (`validarPublicacion`) (valida `funcion.tipo_acceso`, `obra.imagenes` ≥ 1 y sede asignada) y `op/domain/ciclo-funcion.ts` (transición `borrador → programada`, `funcion.version` +1, `funcion.publicada_en`); hace pasar T044 — *`funcion.tipo_acceso` pasa a ser opcional en borradores (migración `20261121020000_ajustes_publicacion`) para que US2-AS2 sea posible; también corrige el valor por defecto de `obra.ficha_artistica` (lista).*
+- [X] T047 [US2] Casos de uso `op/application/publicacion/{validar,publicar-edicion,publicar-funcion}.ts` que cambian estado y publican eventos en la misma transacción; `edicion.estado = publicada`; cada acción escribe `auditoria` (`auditoria.actor_id`, `auditoria.accion`, `auditoria.anterior`, `auditoria.nuevo`, `auditoria.correlacion_id`) en la misma transacción (FR-012) — *Hecho en `publicacion/publicacion.servicio.ts` y `eventos-salida.ts` (eventos con los contratos existentes). La publicación toma un bloqueo consultivo por edición.*
+- [X] T048 [US2] Controlador `op/interface/publicacion.controller.ts`: `GET /ediciones/{id}/publicacion/validacion`, `POST /ediciones/{id}/publicacion`, `POST /funciones/{id}/publicacion`; hace pasar T045
+- [X] T049 [US2] Página `apps/web/src/app/(panel)/programacion/publicar/page.tsx`: lista de errores enlazada a cada función (resumen enfocable) y botón "Publicar" bloqueado mientras haya errores — *Los errores enlazan a `/programacion?funcion=<id>`, que abre ese día con la función elegida. La grilla ofrece "Publicar esta función" con la edición ya publicada (US2-AS3).*
+- [X] T050 [US2] E2E `apps/web/e2e/operacion-publicacion.spec.ts`: corregir errores, publicar y ver la función en `/cartelera` en < 1 min (SC-003), con axe — *Pasa en móvil y escritorio con API, worker y web reales; la ficha pública muestra la función en menos de 1 minuto.*
 
 **Checkpoint**: US1 + US2 sustituyen a la semilla simulada de cartelera (escenarios 6–7).
 

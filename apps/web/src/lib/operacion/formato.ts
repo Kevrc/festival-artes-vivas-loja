@@ -6,6 +6,9 @@ export const horaLoja = (iso: string) =>
 export const fechaLarga = (fecha: string) =>
   new Intl.DateTimeFormat('es-EC', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(`${fecha}T00:00:00Z`));
 
+/** Día del festival (YYYY-MM-DD en Loja) de un instante; lo que cruza medianoche cuenta para su inicio. */
+export const diaFestival = (iso: string) => new Date(Date.parse(iso) - 5 * 3_600_000).toISOString().slice(0, 10);
+
 /** Días de la edición, YYYY-MM-DD. */
 export function diasEntre(desde: string, hasta: string): string[] {
   const dias: string[] = [];

@@ -615,7 +615,8 @@ components:
           type: string
           enum: [cruce_sede, cruce_elenco, aforo_supera_sede, exceso_aforo, motivo_requerido, funcion_finalizada,
                  edicion_cerrada, obra_desistida, version_obsoleta, sede_con_funciones, fuera_de_alcance, fin_menor,
-                 funcion_publicada, version_requerida, fuera_de_edicion, no_encontrado, segundo_factor_requerido]
+                 funcion_publicada, version_requerida, fuera_de_edicion, no_encontrado, segundo_factor_requerido,
+                 publicacion_invalida, edicion_sin_publicar, idempotencia_requerida]
     Edicion:
       type: object
       required: [id, numero, anio, fechaInicio, fechaFin, estado, version]
@@ -723,14 +724,14 @@ components:
             version: { type: integer }
     FuncionEntrada:
       type: object
-      required: [obraId, sedeId, inicio, tipoAcceso, publico]
+      required: [obraId, sedeId, inicio, publico]
       properties:
         obraId: { type: string, format: uuid }
         sedeId: { type: string, format: uuid }
         inicio: { type: string, format: date-time }
         continua: { type: boolean, default: false }
         diasContinua: { type: array, items: { type: string, format: date }, description: Días de una actividad continua }
-        tipoAcceso: { type: string, enum: [pagada, gratuita_reserva, gratuita_libre, restringida] }
+        tipoAcceso: { type: [string, 'null'], enum: [pagada, gratuita_reserva, gratuita_libre, restringida, null], description: Puede faltar en un borrador; se exige al publicar (US2-AS2) }
         publico: { type: string, enum: [familiar, adultos, estudiantes] }
         aforoHabilitado: { type: [integer, 'null'], minimum: 1 }
     FuncionEdicion:
@@ -740,12 +741,12 @@ components:
         sedeId: { type: string, format: uuid }
         inicio: { type: string, format: date-time }
         fin: { type: string, format: date-time, description: Solo hacia más tiempo (RN-002) }
-        tipoAcceso: { type: string, enum: [pagada, gratuita_reserva, gratuita_libre, restringida] }
+        tipoAcceso: { type: [string, 'null'], enum: [pagada, gratuita_reserva, gratuita_libre, restringida, null], description: Puede faltar en un borrador; se exige al publicar (US2-AS2) }
         publico: { type: string, enum: [familiar, adultos, estudiantes] }
         aforoHabilitado: { type: [integer, 'null'], minimum: 1 }
     Funcion:
       type: object
-      required: [id, edicionId, obraId, sedeId, elencoId, inicio, fin, continua, tipoAcceso, publico, estado, version]
+      required: [id, edicionId, obraId, sedeId, elencoId, inicio, fin, continua, publico, estado, version]
       properties:
         id: { type: string, format: uuid }
         edicionId: { type: string, format: uuid }
@@ -756,7 +757,7 @@ components:
         inicio: { type: string, format: date-time }
         fin: { type: string, format: date-time }
         continua: { type: boolean }
-        tipoAcceso: { type: string, enum: [pagada, gratuita_reserva, gratuita_libre, restringida] }
+        tipoAcceso: { type: [string, 'null'], enum: [pagada, gratuita_reserva, gratuita_libre, restringida, null], description: Puede faltar en un borrador; se exige al publicar (US2-AS2) }
         publico: { type: string, enum: [familiar, adultos, estudiantes] }
         aforoHabilitado: { type: [integer, 'null'] }
         estado: { type: string, enum: [borrador, programada, reprogramada, cancelada, finalizada] }

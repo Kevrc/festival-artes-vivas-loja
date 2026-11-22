@@ -5,12 +5,15 @@ import { AlRecibirPostulacionSeleccionada } from './application/eventos/postulac
 import { FuncionesServicio } from './application/funciones/funciones.servicio';
 import { GrillaDelDia } from './application/funciones/grilla-del-dia';
 import { ObrasServicio } from './application/obras/obras.servicio';
+import { PublicacionServicio } from './application/publicacion/publicacion.servicio';
 import {
   AUDITORIA_OPERACION,
   type AuditoriaOperacion,
   MANEJADORES_OPERACION,
   PUBLICADOR_OPERACION,
+  type PublicadorOperacion,
   RELOJ_OPERACION,
+  type RelojOperacion,
   REPOSITORIO_OPERACION,
   type RepositorioOperacion,
 } from './application/puertos';
@@ -44,6 +47,12 @@ export class OperacionModule {
         provide: ObrasServicio,
         inject: [REPOSITORIO_OPERACION, AUDITORIA_OPERACION],
         useFactory: (r: RepositorioOperacion, a: AuditoriaOperacion) => new ObrasServicio(r, a),
+      },
+      {
+        provide: PublicacionServicio,
+        inject: [REPOSITORIO_OPERACION, PUBLICADOR_OPERACION, AUDITORIA_OPERACION, RELOJ_OPERACION],
+        useFactory: (r: RepositorioOperacion, pub: PublicadorOperacion, a: AuditoriaOperacion, reloj: RelojOperacion) =>
+          new PublicacionServicio(r, pub, a, reloj),
       },
       // Consumidores de eventos de otros módulos; cada historia añade los suyos.
       {

@@ -428,7 +428,7 @@ export interface components {
             status: number;
             detail?: string;
             /** @enum {string} */
-            codigo?: "cruce_sede" | "cruce_elenco" | "aforo_supera_sede" | "exceso_aforo" | "motivo_requerido" | "funcion_finalizada" | "edicion_cerrada" | "obra_desistida" | "version_obsoleta" | "sede_con_funciones" | "fuera_de_alcance" | "fin_menor" | "funcion_publicada" | "version_requerida" | "fuera_de_edicion" | "no_encontrado" | "segundo_factor_requerido";
+            codigo?: "cruce_sede" | "cruce_elenco" | "aforo_supera_sede" | "exceso_aforo" | "motivo_requerido" | "funcion_finalizada" | "edicion_cerrada" | "obra_desistida" | "version_obsoleta" | "sede_con_funciones" | "fuera_de_alcance" | "fin_menor" | "funcion_publicada" | "version_requerida" | "fuera_de_edicion" | "no_encontrado" | "segundo_factor_requerido" | "publicacion_invalida" | "edicion_sin_publicar" | "idempotencia_requerida";
         };
         Edicion: {
             /** Format: uuid */
@@ -545,8 +545,11 @@ export interface components {
             continua: boolean;
             /** @description Días de una actividad continua */
             diasContinua?: string[];
-            /** @enum {string} */
-            tipoAcceso: "pagada" | "gratuita_reserva" | "gratuita_libre" | "restringida";
+            /**
+             * @description Puede faltar en un borrador; se exige al publicar (US2-AS2)
+             * @enum {string|null}
+             */
+            tipoAcceso?: "pagada" | "gratuita_reserva" | "gratuita_libre" | "restringida" | null;
             /** @enum {string} */
             publico: "familiar" | "adultos" | "estudiantes";
             aforoHabilitado?: number | null;
@@ -563,8 +566,11 @@ export interface components {
              * @description Solo hacia más tiempo (RN-002)
              */
             fin?: string;
-            /** @enum {string} */
-            tipoAcceso?: "pagada" | "gratuita_reserva" | "gratuita_libre" | "restringida";
+            /**
+             * @description Puede faltar en un borrador; se exige al publicar (US2-AS2)
+             * @enum {string|null}
+             */
+            tipoAcceso?: "pagada" | "gratuita_reserva" | "gratuita_libre" | "restringida" | null;
             /** @enum {string} */
             publico?: "familiar" | "adultos" | "estudiantes";
             aforoHabilitado?: number | null;
@@ -586,8 +592,11 @@ export interface components {
             /** Format: date-time */
             fin: string;
             continua: boolean;
-            /** @enum {string} */
-            tipoAcceso: "pagada" | "gratuita_reserva" | "gratuita_libre" | "restringida";
+            /**
+             * @description Puede faltar en un borrador; se exige al publicar (US2-AS2)
+             * @enum {string|null}
+             */
+            tipoAcceso?: "pagada" | "gratuita_reserva" | "gratuita_libre" | "restringida" | null;
             /** @enum {string} */
             publico: "familiar" | "adultos" | "estudiantes";
             aforoHabilitado?: number | null;

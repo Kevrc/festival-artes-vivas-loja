@@ -17,7 +17,7 @@ export const FuncionEntradaSchema = z.object({
   inicio: Instante,
   continua: z.boolean().default(false),
   diasContinua: z.array(FechaSchema).optional(),
-  tipoAcceso: TipoAcceso,
+  tipoAcceso: TipoAcceso.nullable().default(null),
   publico: Publico,
   aforoHabilitado: Aforo.default(null),
 });
@@ -28,7 +28,7 @@ export const FuncionEdicionSchema = z
     sedeId: z.string().uuid(),
     inicio: Instante,
     fin: Instante,
-    tipoAcceso: TipoAcceso,
+    tipoAcceso: TipoAcceso.nullable(),
     publico: Publico,
     aforoHabilitado: Aforo,
   })

@@ -11,13 +11,14 @@ import {
   type EdicionVista,
   type ElencoVista,
   type FiltroObras,
+  type FuncionCompleta,
   type FuncionVista,
   type ObraVista,
   type RepositorioOperacion,
   type SedeVista,
 } from '../application/puertos';
 import type { Bloque, FuncionAgenda } from '../domain/agenda';
-import { normalizarAccesibilidad } from '../domain/tipos';
+import { type EstadoFuncionGuardado, normalizarAccesibilidad } from '../domain/tipos';
 
 type Tx = Prisma.TransactionClient | PrismaService;
 
@@ -67,8 +68,8 @@ const aObra = (o: ObraFila): ObraVista => ({
   duracionMin: o.duracionMin,
   edadMinima: o.edadMinima,
   idioma: o.idioma,
-  imagenes: (o.imagenes as string[] | null) ?? [],
-  fichaArtistica: (o.fichaArtistica as { rol: string; nombre: string }[] | null) ?? [],
+  imagenes: Array.isArray(o.imagenes) ? (o.imagenes as string[]) : [],
+  fichaArtistica: Array.isArray(o.fichaArtistica) ? (o.fichaArtistica as { rol: string; nombre: string }[]) : [],
   fichaTecnica: (o.fichaTecnica as Record<string, unknown> | null) ?? {},
   estado: o.estado,
   origen: o.origen,
@@ -132,6 +133,46 @@ export class PrismaOperacionRepository implements RepositorioOperacion {
       maxReservasPersona: e.maxReservasPersona,
       version: e.version,
     }));
+  }
+
+  async edicionDetalle(id: string): Promise<EdicionDetalle | null> {
+    return (await this.ediciones()).find((e) => e.id === id) ?? null;
+  }
+
+  async marcarEdicionPublicada(id: string): Promise<void> {
+    await this.tx.edicionOperacion.updateMany({ where: { id, estado: 'planificacion' }, data: { estado: 'publicada', version: { increment: 1 } } });
+  }
+
+  async funcionesCompletas(edicionId: string, f: { estados?: EstadoFuncionGuardado[]; ids?: string[] }): Promise<FuncionCompleta[]> {
+    const filas = await this.tx.funcionOperacion.findMany({
+      where: { edicionId, ...(f.estados ? { estado: { in: f.estados } } : {}), ...(f.ids ? { id: { in: f.ids } } : {}) },
+      include: { ...incluirFuncion, sede: true },
+      orderBy: [{ inicio: 'asc' }, { id: 'asc' }],
+    });
+    const obras = new Map(
+      (await this.tx.obraOperacion.findMany({ where: { id: { in: [...new Set(filas.map((x) => x.obraId))] } }, include: incluirObra })).map((o) => [o.id, aObra(o)]),
+    );
+    const vistas = await this.conEntradas(filas);
+    return filas.map((x, i) => ({ funcion: vistas[i]!, obra: obras.get(x.obraId)!, sede: aSede(x.sede) }));
+  }
+
+  async agendaPublicada(edicionId: string): Promise<FuncionAgenda[]> {
+    const filas = await this.tx.funcionOperacion.findMany({
+      where: { edicionId, estado: { in: ['programada', 'reprogramada'] } },
+      include: { obra: { select: { titulo: true } }, sede: { select: { nombre: true, montajeMin: true } } },
+    });
+    return filas.map((x) => ({
+      id: x.id, sedeId: x.sedeId, sedeNombre: x.sede.nombre, montajeMin: x.sede.montajeMin, elencoId: x.elencoId,
+      obraTitulo: x.obra.titulo, inicio: x.inicio, fin: x.fin, continua: x.continua, activa: true,
+    }));
+  }
+
+  async marcarFuncionPublicada(id: string, versionEsperada: number, versionNueva: number, publicadaEn: Date): Promise<FuncionVista | null> {
+    const { count } = await this.tx.funcionOperacion.updateMany({
+      where: { id, version: versionEsperada, estado: 'borrador' },
+      data: { estado: 'programada', version: versionNueva, publicadaEn },
+    });
+    return count === 0 ? null : this.funcion(id);
   }
 
   async sede(id: string): Promise<SedeVista | null> {

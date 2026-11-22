@@ -12,6 +12,7 @@ export type FuncionEntrada = Schemas['FuncionEntrada'];
 export type FuncionEdicion = Schemas['FuncionEdicion'];
 export type Grilla = Schemas['Grilla'];
 export type Conflicto = Schemas['Conflicto'];
+export type ValidacionPublicacion = Schemas['ValidacionPublicacion'];
 export type RolOperacion = 'programador' | 'direccion' | 'jefe_sala' | 'administrador';
 
 /**
@@ -58,6 +59,8 @@ export class ErrorApiOperacion extends Error {
     readonly codigo?: string,
     readonly conflictos: Conflicto[] = [],
     readonly versionVigente?: number,
+    /** Errores de validación de la publicación (422, US2-AS2). */
+    readonly errores: ValidacionPublicacion['errores'] = [],
   ) {
     super(message);
   }
@@ -74,13 +77,13 @@ async function pedir<T>(ruta: string, init: RequestInit & { version?: number } =
   }
   const res = await fetch(`${baseApiUrl()}/api/operacion${ruta}`, { ...init, headers, credentials: 'include', cache: 'no-store' });
   if (!res.ok) {
-    let p: { detail?: string; title?: string; codigo?: string; conflictos?: Conflicto[]; version?: number } = {};
+    let p: { detail?: string; title?: string; codigo?: string; conflictos?: Conflicto[]; version?: number; errores?: ValidacionPublicacion['errores'] } = {};
     try {
       p = await res.json();
     } catch {
       // sin cuerpo
     }
-    throw new ErrorApiOperacion(res.status, p.detail ?? p.title ?? `Error ${res.status}`, p.codigo, p.conflictos ?? [], p.version);
+    throw new ErrorApiOperacion(res.status, p.detail ?? p.title ?? `Error ${res.status}`, p.codigo, p.conflictos ?? [], p.version, p.errores ?? []);
   }
   const etag = res.headers.get('ETag')?.match(/\d+/)?.[0];
   const datos = res.status === 204 ? (undefined as T) : ((await res.json()) as T);
@@ -98,13 +101,18 @@ export const apiOperacion = {
   },
   crearObra: async (edicionId: string, obra: ObraEntrada) =>
     (await pedir<Obra>(`/ediciones/${edicionId}/obras`, { method: 'POST', body: json(obra) })).datos,
+  funcion: async (id: string) => (await pedir<Funcion>(`/funciones/${id}`)).datos,
   crearFuncion: async (edicionId: string, f: FuncionEntrada) =>
     (await pedir<Funcion>(`/ediciones/${edicionId}/funciones`, { method: 'POST', body: json(f) })).datos,
   editarFuncion: async (id: string, version: number, cambios: FuncionEdicion) =>
     (await pedir<Funcion>(`/funciones/${id}`, { method: 'PATCH', body: json(cambios), version })).datos,
+  validarPublicacion: async (edicionId: string) => (await pedir<ValidacionPublicacion>(`/ediciones/${edicionId}/publicacion/validacion`)).datos,
+  publicarEdicion: async (edicionId: string, claveIdempotencia: string) =>
+    (await pedir<{ funcionesPublicadas: number }>(`/ediciones/${edicionId}/publicacion`, { method: 'POST', headers: { 'Idempotency-Key': claveIdempotencia } })).datos,
+  publicarFuncion: async (id: string, version: number) => (await pedir<Funcion>(`/funciones/${id}/publicacion`, { method: 'POST', version })).datos,
   eliminarFuncion: async (id: string, version: number) => {
     await pedir<void>(`/funciones/${id}`, { method: 'DELETE', version });
   },
 };
 
-export { diasEntre, fechaLarga, horaDeInicio, horaLoja } from './formato';
+export { diaFestival, diasEntre, fechaLarga, horaDeInicio, horaLoja } from './formato';

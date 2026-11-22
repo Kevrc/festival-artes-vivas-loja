@@ -13,7 +13,7 @@ import {
 } from '@/lib/operacion/api';
 import estilos from './operacion.module.css';
 
-type TipoAcceso = FuncionEntrada['tipoAcceso'];
+type TipoAcceso = NonNullable<FuncionEntrada['tipoAcceso']>;
 type Publico = FuncionEntrada['publico'];
 
 const ACCESOS: { valor: TipoAcceso; nombre: string }[] = [
@@ -35,6 +35,8 @@ interface Props {
   obras: Obra[];
   /** Función en edición (solo borradores se editan aquí; las publicadas se cambian en US3). */
   funcion: Funcion | null;
+  /** Con la edición publicada, un borrador se puede publicar solo (US2-AS3). */
+  edicionPublicada: boolean;
   onGuardada: (f: Funcion) => void;
   onEliminada: () => void;
   onConflictos: (ids: string[]) => void;
@@ -49,13 +51,13 @@ const instante = (fecha: string, hora: string) => `${fecha}T${hora}:00-05:00`;
  * duración de la obra (RN-002). Si hay cruces, el resumen enfocable dice con qué función choca y
  * desde qué hora queda libre la sede (US1-AS2).
  */
-export function FormularioFuncion({ edicionId, fecha, sedes, obras, funcion, onGuardada, onEliminada, onConflictos, onCancelar }: Props) {
+export function FormularioFuncion({ edicionId, fecha, sedes, obras, funcion, edicionPublicada, onGuardada, onEliminada, onConflictos, onCancelar }: Props) {
   const id = useId();
   const resumenRef = useRef<HTMLDivElement>(null);
   const [obraId, setObraId] = useState('');
   const [sedeId, setSedeId] = useState('');
   const [hora, setHora] = useState('20:00');
-  const [tipoAcceso, setTipoAcceso] = useState<TipoAcceso>('pagada');
+  const [tipoAcceso, setTipoAcceso] = useState<TipoAcceso | ''>('pagada');
   const [publico, setPublico] = useState<Publico>('familiar');
   const [aforo, setAforo] = useState('');
   const [error, setError] = useState<{ mensaje: string; conflictos: Conflicto[] } | null>(null);
@@ -74,7 +76,7 @@ export function FormularioFuncion({ edicionId, fecha, sedes, obras, funcion, onG
       setObraId(funcion.obraId);
       setSedeId(funcion.sedeId);
       setHora(horaLoja(funcion.inicio));
-      setTipoAcceso(funcion.tipoAcceso);
+      setTipoAcceso(funcion.tipoAcceso ?? '');
       setPublico(funcion.publico);
       setAforo(funcion.aforoHabilitado ? String(funcion.aforoHabilitado) : '');
     } else {
@@ -110,7 +112,7 @@ export function FormularioFuncion({ edicionId, fecha, sedes, obras, funcion, onG
     const aforoHabilitado = aforo ? Number(aforo) : null;
     setEnviando(true);
     try {
-      const datos = { obraId, sedeId, inicio: instante(fecha, hora), tipoAcceso, publico, aforoHabilitado };
+      const datos = { obraId, sedeId, inicio: instante(fecha, hora), tipoAcceso: tipoAcceso || null, publico, aforoHabilitado };
       const guardada = funcion
         ? await apiOperacion.editarFuncion(funcion.id, funcion.version, datos)
         : await apiOperacion.crearFuncion(edicionId, { ...datos, continua: false });
@@ -119,6 +121,24 @@ export function FormularioFuncion({ edicionId, fecha, sedes, obras, funcion, onG
       onGuardada(guardada);
     } catch (e) {
       mostrarError(e);
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  const publicarSola = async () => {
+    if (!funcion) return;
+    setError(null);
+    setEnviando(true);
+    try {
+      const publicada = await apiOperacion.publicarFuncion(funcion.id, funcion.version);
+      setMensaje(`Publicada: ${publicada.obraTitulo}, ${horaLoja(publicada.inicio)}. Llega a la cartelera en menos de un minuto.`);
+      conservarMensaje.current = true;
+      onGuardada(publicada);
+    } catch (e) {
+      if (e instanceof ErrorApiOperacion && e.errores.length > 0) {
+        setError({ mensaje: e.errores.map((x) => x.mensaje).join(' '), conflictos: [] });
+      } else mostrarError(e);
     } finally {
       setEnviando(false);
     }
@@ -217,13 +237,17 @@ export function FormularioFuncion({ edicionId, fecha, sedes, obras, funcion, onG
 
         <div className={estilos.campo}>
           <label htmlFor={`${id}-acceso`}>Tipo de acceso</label>
-          <select id={`${id}-acceso`} value={tipoAcceso} onChange={(e) => setTipoAcceso(e.target.value as TipoAcceso)}>
+          <select id={`${id}-acceso`} value={tipoAcceso} onChange={(e) => setTipoAcceso(e.target.value as TipoAcceso | '')} aria-describedby={`${id}-acceso-ayuda`}>
+            <option value="">Sin definir (obligatorio para publicar)</option>
             {ACCESOS.map((a) => (
               <option key={a.valor} value={a.valor}>
                 {a.nombre}
               </option>
             ))}
           </select>
+          <span id={`${id}-acceso-ayuda`} className={estilos.ayuda}>
+            Puedes dejarlo sin definir en el borrador.
+          </span>
         </div>
 
         <div className={estilos.campo}>
@@ -260,6 +284,11 @@ export function FormularioFuncion({ edicionId, fecha, sedes, obras, funcion, onG
         <button type="submit" disabled={!editable || enviando}>
           {funcion ? 'Guardar cambios' : 'Crear en borrador'}
         </button>
+        {funcion && funcion.estado === 'borrador' && edicionPublicada && (
+          <button type="button" onClick={publicarSola} disabled={enviando}>
+            Publicar esta función
+          </button>
+        )}
         {funcion && funcion.estado === 'borrador' && (
           <button type="button" className={estilos.secundario} onClick={eliminar} disabled={enviando}>
             Eliminar borrador

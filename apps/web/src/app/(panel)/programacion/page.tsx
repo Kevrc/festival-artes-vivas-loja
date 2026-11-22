@@ -13,6 +13,7 @@ import {
   type Obra,
   type SesionDevOperacion,
   apiOperacion,
+  diaFestival,
   diasEntre,
   fechaLarga,
 } from '@/lib/operacion/api';
@@ -47,7 +48,8 @@ export default function ProgramacionPage() {
         const actual = lista.find((e) => e.estado !== 'cerrada') ?? lista[0];
         if (actual) {
           setEdicionId(actual.id);
-          setFecha(actual.fechaInicio);
+          // Si se llegó con ?funcion=, ese día ya está elegido.
+          setFecha((f) => f || actual.fechaInicio);
         }
         setError('');
       })
@@ -74,6 +76,23 @@ export default function ProgramacionPage() {
   useEffect(() => {
     if (edicionId && puedeProgramar) apiOperacion.obras(edicionId).then(setObras).catch(avisar);
   }, [edicionId, puedeProgramar]);
+
+  // Enlace desde "Publicar" (US2-AS2): /programacion?funcion=<id> abre su día y la selecciona.
+  const [pedida, setPedida] = useState<string | null>(null);
+  useEffect(() => {
+    setPedida(new URLSearchParams(window.location.search).get('funcion'));
+  }, []);
+  useEffect(() => {
+    if (!pedida || !sesion) return;
+    apiOperacion
+      .funcion(pedida)
+      .then((f) => {
+        setFecha(diaFestival(f.inicio));
+        setSeleccionada(f);
+        setPedida(null);
+      })
+      .catch(avisar);
+  }, [pedida, sesion]);
 
   return (
     <>
@@ -123,6 +142,7 @@ export default function ProgramacionPage() {
           sedes={grilla.sedes}
           obras={obras}
           funcion={seleccionada}
+          edicionPublicada={edicion.estado === 'publicada'}
           onGuardada={(f) => {
             setSeleccionada(f);
             setEnConflicto(new Set());

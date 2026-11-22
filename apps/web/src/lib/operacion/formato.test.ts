@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { diasEntre, fechaLarga, horaDeInicio, horaLoja } from './formato';
+import { diaFestival, diasEntre, fechaLarga, horaDeInicio, horaLoja } from './formato';
 
 describe('formato del panel de Operación (hora de Loja)', () => {
   it('muestra la hora local de Loja en 24 h', () => {
@@ -10,6 +10,11 @@ describe('formato del panel de Operación (hora de Loja)', () => {
   it('ubica la función en la fila de su hora de inicio', () => {
     expect(horaDeInicio('2026-11-15T04:30:00Z')).toBe(23);
     expect(horaDeInicio('2026-11-12T13:05:00Z')).toBe(8);
+  });
+
+  it('una función que cruza medianoche cuenta para su día de inicio', () => {
+    expect(diaFestival('2026-11-15T04:30:00Z')).toBe('2026-11-14');
+    expect(diaFestival('2026-11-15T05:00:00Z')).toBe('2026-11-15');
   });
 
   it('lista los días de la edición, ambos extremos incluidos', () => {

@@ -31,7 +31,8 @@ export interface EntradaFuncion {
   continua: boolean;
   /** Días de una actividad continua (consecutivos): se usa el primero y el último. */
   diasContinua?: string[];
-  tipoAcceso: TipoAccesoFuncion;
+  /** Puede faltar en un borrador; se exige al publicar (US2-AS2). */
+  tipoAcceso: TipoAccesoFuncion | null;
   publico: PublicoFuncion;
   aforoHabilitado: number | null;
 }
@@ -41,7 +42,7 @@ export interface EdicionFuncion {
   sedeId?: string;
   inicio?: Date;
   fin?: Date;
-  tipoAcceso?: TipoAccesoFuncion;
+  tipoAcceso?: TipoAccesoFuncion | null;
   publico?: PublicoFuncion;
   aforoHabilitado?: number | null;
 }
@@ -112,7 +113,7 @@ export class FuncionesServicio {
       inicio,
       fin,
       continua: actual.continua,
-      tipoAcceso: cambios.tipoAcceso ?? actual.tipoAcceso,
+      tipoAcceso: cambios.tipoAcceso !== undefined ? cambios.tipoAcceso : actual.tipoAcceso,
       publico: cambios.publico ?? actual.publico,
       aforoHabilitado: cambios.aforoHabilitado !== undefined ? cambios.aforoHabilitado : actual.aforoHabilitado,
     };

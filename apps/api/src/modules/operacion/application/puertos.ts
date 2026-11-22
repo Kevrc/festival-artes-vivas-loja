@@ -120,7 +120,8 @@ export interface FuncionVista {
   inicio: Date;
   fin: Date;
   continua: boolean;
-  tipoAcceso: TipoAccesoFuncion;
+  /** null en un borrador: se exige al publicar (US2-AS2). */
+  tipoAcceso: TipoAccesoFuncion | null;
   publico: PublicoFuncion;
   aforoHabilitado: number | null;
   estado: EstadoFuncionGuardado;
@@ -135,7 +136,7 @@ export interface DatosFuncion {
   inicio: Date;
   fin: Date;
   continua: boolean;
-  tipoAcceso: TipoAccesoFuncion;
+  tipoAcceso: TipoAccesoFuncion | null;
   publico: PublicoFuncion;
   aforoHabilitado: number | null;
 }
@@ -151,6 +152,13 @@ export interface DatosObra {
   imagenes: string[];
   fichaArtistica: { rol: string; nombre: string }[];
   fichaTecnica: Record<string, unknown>;
+}
+
+/** Función con su obra y su sede: lo que hace falta para validarla y para armar sus eventos. */
+export interface FuncionCompleta {
+  funcion: FuncionVista;
+  obra: ObraVista;
+  sede: SedeVista;
 }
 
 export interface FiltroObras {
@@ -187,6 +195,15 @@ export interface RepositorioOperacion {
   edicion(id: string): Promise<EdicionVista | null>;
   /** De la más reciente a la más antigua. */
   ediciones(): Promise<EdicionDetalle[]>;
+  edicionDetalle(id: string): Promise<EdicionDetalle | null>;
+  /** Pasa la edición a `publicada` (no cambia una edición cerrada). */
+  marcarEdicionPublicada(id: string): Promise<void>;
+  /** Funciones de la edición con su obra y sede, filtradas por estado o por ids. */
+  funcionesCompletas(edicionId: string, filtro: { estados?: EstadoFuncionGuardado[]; ids?: string[] }): Promise<FuncionCompleta[]>;
+  /** Funciones publicadas y activas de la edición (programadas o reprogramadas), para los cruces. */
+  agendaPublicada(edicionId: string): Promise<FuncionAgenda[]>;
+  /** borrador → programada con versión nueva; null si la versión o el estado no coinciden. */
+  marcarFuncionPublicada(id: string, versionEsperada: number, versionNueva: number, publicadaEn: Date): Promise<FuncionVista | null>;
   sede(id: string): Promise<SedeVista | null>;
   sedesDeEdicion(edicionId: string, soloActivas: boolean): Promise<SedeVista[]>;
   obra(id: string): Promise<ObraVista | null>;
