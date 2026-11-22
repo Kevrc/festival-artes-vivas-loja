@@ -114,8 +114,10 @@ class EscrituraPrisma implements EscrituraProyeccion {
     nuevo: Parameters<EscrituraProyeccion['reprogramar']>[3],
     dias: Parameters<EscrituraProyeccion['reprogramar']>[4],
   ) {
-    await this.tx.funcionCartelera.update({
-      where: { id },
+    // Solo si la versión guardada es menor: dos eventos de la misma función procesados en paralelo
+    // no se pisan (la fila se bloquea y el WHERE se vuelve a evaluar tras el otro commit).
+    await this.tx.funcionCartelera.updateMany({
+      where: { id, versionOrigen: { lt: version } },
       data: {
         estado: 'reprogramada',
         horarioAnterior: { ...anterior },
@@ -130,7 +132,7 @@ class EscrituraPrisma implements EscrituraProyeccion {
   }
 
   async cancelar(id: string, version: number) {
-    await this.tx.funcionCartelera.update({ where: { id }, data: { estado: 'cancelada', versionOrigen: version } });
+    await this.tx.funcionCartelera.updateMany({ where: { id, versionOrigen: { lt: version } }, data: { estado: 'cancelada', versionOrigen: version } });
   }
 
   async guardarDisponibilidad(id: string, d: Parameters<EscrituraProyeccion['guardarDisponibilidad']>[1]) {

@@ -68,6 +68,29 @@ describe('proyección de la cartelera (T014)', () => {
     expect((await db.funcionCartelera.findUniqueOrThrow({ where: { id: funcionId } })).estado).toBe('cancelada');
   });
 
+  it('reprogramación y cancelación aplicadas en paralelo: gana la versión mayor (spec 004)', async () => {
+    for (let i = 0; i < 10; i++) {
+      const edicionId = nuevoId();
+      const funcionId = nuevoId();
+      const sedeId = nuevoId();
+      await aplicar.ejecutar(ejemplo.funcionProgramada(edicionId, datosFuncion({ edicionId, funcionId, sedeId })));
+      await Promise.all([
+        aplicar.ejecutar(
+          ejemplo.funcionReprogramada(edicionId, {
+            funcionId,
+            version: 2,
+            anterior: { inicio: '2026-11-14T19:00:00-05:00', fin: '2026-11-14T20:30:00-05:00', sedeId },
+            nuevo: { inicio: '2026-11-15T19:00:00-05:00', fin: '2026-11-15T20:30:00-05:00', sedeId },
+            motivo: 'lluvia',
+          }),
+        ),
+        aplicar.ejecutar(ejemplo.funcionCancelada(edicionId, { funcionId, version: 3 })),
+      ]);
+      const f = await db.funcionCartelera.findUniqueOrThrow({ where: { id: funcionId } });
+      expect([f.estado, f.versionOrigen]).toEqual(['cancelada', 3]);
+    }
+  });
+
   it('una función que llega antes que su edición queda guardada pero la edición no es visible', async () => {
     const edicionId = nuevoId();
     await aplicar.ejecutar(ejemplo.funcionProgramada(edicionId, datosFuncion({ edicionId })));
