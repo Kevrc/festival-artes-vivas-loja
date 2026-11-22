@@ -3,7 +3,7 @@ import QRCode from 'qrcode';
 import { ErrorConCodigo } from '../../../../common/http/problema-codigo.filter';
 import { BLOQUEO, bloqueadaHasta, debeBloquear } from '../../domain/bloqueo';
 import { identidadBloqueosTotal } from '../../infrastructure/metricas-identidad';
-import { claveLegible, generarSecretoTotp, otpauthUri, verificarTotp } from '../../domain/totp';
+import { TOTP, claveLegible, codigoTotp, generarSecretoTotp, otpauthUri, pasoDe, verificarTotp } from '../../domain/totp';
 import type { AuditoriaIdentidad, Cifrador, RelojIdentidad, RepositorioIdentidad } from '../puertos';
 
 export interface AltaTotp {
@@ -46,6 +46,21 @@ export class SegundoFactorServicio {
   }
 
   /** Confirma el alta o completa el inicio de sesión. El mismo código no sirve dos veces. */
+  /**
+   * Solo desarrollo: el código vigente de la propia cuenta, para revisar la web sin teléfono (como
+   * Mailpit con los correos). El controlador lo expone únicamente con NODE_ENV=development.
+   */
+  async codigoDesarrollo(ctx: ContextoIdentidad): Promise<{ codigo: string; segundosRestantes: number }> {
+    const guardado = await this.repo.segundoFactor(ctx.cuentaId);
+    if (!guardado?.secretoCifrado) throw new ErrorConCodigo(409, 'sin_segundo_factor', 'Primero configura el segundo factor.');
+    const ahora = this.relojTotp();
+    const paso = pasoDe(ahora);
+    // Si este paso ya se usó (otro ingreso en los mismos 30 s), el siguiente también es válido (±1).
+    const usar = guardado.ultimoPaso !== null && guardado.ultimoPaso >= paso ? paso + 1 : paso;
+    const finPaso = (usar + 1) * TOTP.pasoSegundos * 1000;
+    return { codigo: codigoTotp(this.cifrador.descifrar(guardado.secretoCifrado), usar), segundosRestantes: Math.max(1, Math.round((finPaso - ahora.getTime()) / 1000)) };
+  }
+
   async verificar(ctx: ContextoIdentidad, codigo: string, correlacionId: string): Promise<void> {
     await this.exigirPersonal(ctx);
     const ahora = this.reloj();

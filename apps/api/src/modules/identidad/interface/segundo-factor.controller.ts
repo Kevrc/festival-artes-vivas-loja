@@ -1,8 +1,8 @@
-import { Body, Controller, Headers, HttpCode, Inject, Post, Res, UseFilters, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Headers, HttpCode, Inject, Post, Res, UseFilters, UseGuards } from '@nestjs/common';
 import type { ContextoIdentidad } from '@fiavl/contracts';
 import type { Response } from 'express';
 import { z } from 'zod';
-import { ProblemaCodigoFilter } from '../../../common/http/problema-codigo.filter';
+import { ErrorConCodigo, ProblemaCodigoFilter } from '../../../common/http/problema-codigo.filter';
 import { validar } from '../../../common/http/validar';
 import { OrigenGuard } from '../../../common/identidad/origen.guard';
 import { Identidad, PermiteSinPolitica, PermiteSinSegundoFactor, Requiere, RequiereGuard } from '../../../common/identidad/requiere.guard';
@@ -30,6 +30,14 @@ export class SegundoFactorController {
   alta(@Identidad() ctx: ContextoIdentidad, @Res({ passthrough: true }) res: Response) {
     res.setHeader('Cache-Control', 'no-store'); // el secreto no se guarda en ninguna caché
     return this.segundoFactor.alta(ctx);
+  }
+
+  /** Solo con NODE_ENV=development: el código vigente para revisar sin aplicación de códigos. */
+  @Get('codigo-dev')
+  codigoDesarrollo(@Identidad() ctx: ContextoIdentidad, @Res({ passthrough: true }) res: Response) {
+    if (process.env.NODE_ENV !== 'development') throw new ErrorConCodigo(404, 'no_encontrado', 'No existe.');
+    res.setHeader('Cache-Control', 'no-store');
+    return this.segundoFactor.codigoDesarrollo(ctx);
   }
 
   @Post('verificacion')

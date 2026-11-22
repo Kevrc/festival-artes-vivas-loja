@@ -122,6 +122,8 @@ export const apiIdentidad = {
   confirmarRecuperacion: (token: string, contrasenaNueva: string) =>
     pedir<void>('/recuperacion/confirmacion', { method: 'POST', body: JSON.stringify({ token, contrasenaNueva }) }),
   altaTotp: () => pedir<AltaTotp>('/segundo-factor/alta', { method: 'POST' }),
+  /** Solo desarrollo: la API responde 404 fuera de NODE_ENV=development. */
+  codigoDesarrollo: () => pedir<{ codigo: string; segundosRestantes: number }>('/segundo-factor/codigo-dev'),
   verificarTotp: (codigo: string) => pedir<Yo>('/segundo-factor/verificacion', { method: 'POST', body: JSON.stringify({ codigo }) }),
   personal: () => pedir<CuentaPersonal[]>('/personal'),
   crearPersonal: (d: { nombre: string; correo: string; roles: RolAsignado[] }) => pedir<CuentaPersonal>('/personal', { method: 'POST', body: JSON.stringify(d) }),

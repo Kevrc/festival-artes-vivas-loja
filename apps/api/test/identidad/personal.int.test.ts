@@ -117,6 +117,8 @@ describe('US9 — cuentas del personal, roles y segundo factor', () => {
     const otra = await ingresar(correo, CLAVE);
     expect(otra.yo).toMatchObject({ segundoFactorOk: false, segundoFactorActivo: true });
     expect((await ctx.http().post('/api/identidad/segundo-factor/alta').set('Cookie', otra.cookie)).body.codigo).toBe('segundo_factor_activo');
+    // El código de desarrollo solo existe con NODE_ENV=development (aquí, test): 404.
+    expect((await ctx.http().get('/api/identidad/segundo-factor/codigo-dev').set('Cookie', otra.cookie)).status).toBe(404);
     // El mismo código (mismo paso) no sirve dos veces.
     expect((await ctx.http().post('/api/identidad/segundo-factor/verificacion').set('Cookie', otra.cookie).send({ codigo })).status).toBe(401);
     avanzar();

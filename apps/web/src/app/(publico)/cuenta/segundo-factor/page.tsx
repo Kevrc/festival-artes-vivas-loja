@@ -21,6 +21,8 @@ export default function SegundoFactorPage() {
   const [error, setError] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [volver, setVolver] = useState('/mi-cuenta');
+  const [soloNumeros, setSoloNumeros] = useState(false);
+  const [codigoDev, setCodigoDev] = useState<{ codigo: string; segundosRestantes: number } | null>(null);
 
   useEffect(() => {
     setVolver(destinoSeguro(new URLSearchParams(window.location.search).get('volver')));
@@ -39,6 +41,29 @@ export default function SegundoFactorPage() {
   useEffect(() => {
     if (error) alerta.current?.focus();
   }, [error]);
+
+  // Modo desarrollo: la API muestra el código vigente (fuera de development responde 404 y no se ve nada).
+  const necesitaCodigo = !!yo && !yo.segundoFactorOk && (!!yo.segundoFactorActivo || !!alta);
+  useEffect(() => {
+    if (!necesitaCodigo) return;
+    let vivo = true;
+    let espera: ReturnType<typeof setTimeout>;
+    const pedir = async () => {
+      try {
+        const c = await apiIdentidad.codigoDesarrollo();
+        if (!vivo) return;
+        setCodigoDev(c);
+        espera = setTimeout(pedir, c.segundosRestantes * 1000 + 500);
+      } catch {
+        if (vivo) setCodigoDev(null);
+      }
+    };
+    void pedir();
+    return () => {
+      vivo = false;
+      clearTimeout(espera);
+    };
+  }, [necesitaCodigo]);
 
   const enviar = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -130,9 +155,18 @@ export default function SegundoFactorPage() {
             pattern="[0-9]{6}"
             maxLength={6}
             value={codigo}
-            onChange={(e) => setCodigo(e.target.value.replace(/\D/g, ''))}
+            onChange={(e) => {
+              setSoloNumeros(/\D/.test(e.target.value));
+              setCodigo(e.target.value.replace(/\D/g, ''));
+            }}
             required
+            aria-describedby={soloNumeros ? `${id}-solo-numeros` : undefined}
           />
+          {soloNumeros && (
+            <span id={`${id}-solo-numeros`} className={estilos.ayuda}>
+              El código solo tiene números.
+            </span>
+          )}
         </div>
         <div className={estilos.acciones}>
           <button type="submit" disabled={enviando}>
@@ -140,6 +174,17 @@ export default function SegundoFactorPage() {
           </button>
         </div>
       </form>
+      {codigoDev && (
+        <aside className="aviso no-imprimir" aria-label="Código de desarrollo">
+          <p>
+            <strong>Modo desarrollo:</strong> en lugar de la aplicación de códigos, el código vigente es{' '}
+            <code style={{ fontSize: '1.15rem', letterSpacing: '0.1em' }}>{codigoDev.codigo}</code> (cambia en unos {codigoDev.segundosRestantes} s).{' '}
+            <button type="button" className={estilos.secundario} onClick={() => setCodigo(codigoDev.codigo)}>
+              Usar este código
+            </button>
+          </p>
+        </aside>
+      )}
       <p className={estilos.ayuda}>¿Perdiste el teléfono? Pide al equipo de administración que restablezca tu segundo factor.</p>
     </>
   );
