@@ -4,11 +4,13 @@ import { enTransaccion, transaccionActual } from '../../../common/datos/transacc
 import type { PrismaService } from '../../../common/prisma/prisma.service';
 import type {
   CuentaAcceso,
+  CuentaPersonal,
   CuentaVista,
   DocumentoLegal,
   DocumentoLegalTipo,
   RepositorioIdentidad,
   RolVista,
+  SegundoFactorGuardado,
   SesionConCuenta,
   SesionVista,
   TokenVista,
@@ -217,6 +219,72 @@ export class PrismaIdentidadRepository implements RepositorioIdentidad {
     await this.tx.cuenta.update({ where: { id: cuentaId }, data: { preferencias: { novedades: acepta } } });
   }
 
+  async segundoFactor(cuentaId: string): Promise<SegundoFactorGuardado | null> {
+    const c = await this.tx.credencial.findUnique({ where: { cuentaId }, select: { totpSecretoCifrado: true, totpActivo: true, totpUltimoPaso: true } });
+    if (!c) return null;
+    return {
+      secretoCifrado: c.totpSecretoCifrado ? Buffer.from(c.totpSecretoCifrado) : null,
+      activo: c.totpActivo,
+      ultimoPaso: c.totpUltimoPaso === null ? null : Number(c.totpUltimoPaso),
+    };
+  }
+
+  async guardarSecretoPendiente(cuentaId: string, cifrado: Buffer): Promise<void> {
+    await this.tx.credencial.update({ where: { cuentaId }, data: { totpSecretoCifrado: bytes(cifrado), totpActivo: false, totpUltimoPaso: null } });
+  }
+
+  async usarPasoTotp(cuentaId: string, paso: number): Promise<boolean> {
+    const { count } = await this.tx.credencial.updateMany({
+      where: { cuentaId, totpSecretoCifrado: { not: null }, OR: [{ totpUltimoPaso: null }, { totpUltimoPaso: { lt: BigInt(paso) } }] },
+      data: { totpActivo: true, totpUltimoPaso: BigInt(paso) },
+    });
+    return count > 0;
+  }
+
+  async marcarSegundoFactorOk(sesionId: string): Promise<void> {
+    await this.tx.sesion.update({ where: { id: sesionId }, data: { segundoFactorOk: true } });
+  }
+
+  async restablecerSegundoFactor(cuentaId: string): Promise<void> {
+    await this.tx.credencial.update({ where: { cuentaId }, data: { totpSecretoCifrado: null, totpActivo: false, totpUltimoPaso: null } });
+  }
+
+  async rolesVigentes(cuentaId: string): Promise<RolVista[]> {
+    const filas = await this.tx.rolAsignado.findMany({ where: { cuentaId, revocadoEn: null }, orderBy: { asignadoEn: 'asc' }, select: { rol: true, alcanceTipo: true, alcanceValor: true } });
+    return filas.map(aRol);
+  }
+
+  async asignarRol(cuentaId: string, r: RolVista, asignadoPor: string, ahora: Date): Promise<void> {
+    await this.tx.rolAsignado.create({
+      data: { id: randomUUID(), cuentaId, rol: r.rol, alcanceTipo: r.alcance?.tipo ?? null, alcanceValor: r.alcance?.valor ?? null, asignadoPor, asignadoEn: ahora },
+    });
+  }
+
+  async revocarRol(cuentaId: string, r: RolVista, ahora: Date): Promise<void> {
+    await this.tx.rolAsignado.updateMany({
+      where: { cuentaId, rol: r.rol, alcanceValor: r.alcance?.valor ?? null, revocadoEn: null },
+      data: { revocadoEn: ahora },
+    });
+  }
+
+  async marcarPersonal(cuentaId: string, esPersonal: boolean): Promise<void> {
+    await this.tx.cuenta.update({ where: { id: cuentaId }, data: { esPersonal } });
+  }
+
+  async cambiarEstado(cuentaId: string, estado: 'verificada' | 'desactivada'): Promise<void> {
+    await this.tx.cuenta.update({ where: { id: cuentaId }, data: { estado, ...(estado === 'verificada' ? { bloqueadaHasta: null } : {}) } });
+  }
+
+  async listarPersonal(): Promise<CuentaPersonal[]> {
+    const filas = await this.tx.cuenta.findMany({ where: { esPersonal: true, estado: { not: 'eliminada' } }, include: incluirPersonal, orderBy: { nombre: 'asc' } });
+    return filas.map(aPersonal);
+  }
+
+  async cuentaPersonal(cuentaId: string): Promise<CuentaPersonal | null> {
+    const c = await this.tx.cuenta.findFirst({ where: { id: cuentaId, estado: { not: 'eliminada' } }, include: incluirPersonal });
+    return c ? aPersonal(c) : null;
+  }
+
   async guardarEdicionVigente(edicionId: string, fechaFin: string): Promise<void> {
     const fin = new Date(`${fechaFin}T00:00:00Z`);
     await this.tx.edicionVigente.upsert({ where: { edicionId }, create: { edicionId, fechaFin: fin }, update: { fechaFin: fin } });
@@ -237,4 +305,19 @@ const aSesion = (s: Prisma.SesionGetPayload<object>): SesionVista => ({
 const aRol = (r: { rol: RolVista['rol']; alcanceTipo: 'sede' | 'provincia' | 'disciplina' | null; alcanceValor: string | null }): RolVista => ({
   rol: r.rol,
   alcance: r.alcanceTipo && r.alcanceValor ? { tipo: r.alcanceTipo, valor: r.alcanceValor } : null,
+});
+
+const incluirPersonal = {
+  roles: { where: { revocadoEn: null }, orderBy: { asignadoEn: 'asc' }, select: { rol: true, alcanceTipo: true, alcanceValor: true } },
+  credencial: { select: { totpActivo: true } },
+} as const;
+
+const aPersonal = (c: Prisma.CuentaGetPayload<{ include: typeof incluirPersonal }>): CuentaPersonal => ({
+  cuentaId: c.id,
+  nombre: c.nombre,
+  correo: c.correo,
+  estado: c.estado,
+  esPersonal: c.esPersonal,
+  roles: c.roles.map(aRol),
+  segundoFactorActivo: c.credencial?.totpActivo === true,
 });

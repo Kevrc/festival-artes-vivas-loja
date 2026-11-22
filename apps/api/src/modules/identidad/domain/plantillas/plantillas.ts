@@ -78,3 +78,15 @@ export function cuentaBloqueada(nombre: string, hastaLocal: string, enlaceRecupe
   const accion = { texto: 'Cambiar mi contraseña', url: enlaceRecuperar };
   return { asunto: `${titulo} · FIAVL`, texto: texto(titulo, parrafos, accion), html: html(titulo, parrafos, accion) };
 }
+
+/** US9: el administrador creó una cuenta del personal; el titular elige su contraseña (24 h, un solo uso). */
+export function invitacionPersonal(nombre: string, enlace: string): Correo {
+  const titulo = 'Tu cuenta del equipo del festival';
+  const parrafos = [
+    `Hola, ${nombre}:`,
+    'El equipo del festival creó una cuenta para ti. Para activarla, elige tu contraseña con el enlace de abajo; vale durante 24 horas y se puede usar una sola vez.',
+    'Al ingresar por primera vez te pediremos configurar un segundo factor con una aplicación de códigos en tu teléfono.',
+  ];
+  const accion = { texto: 'Elegir mi contraseña', url: enlace };
+  return { asunto: `${titulo} · FIAVL`, texto: texto(titulo, parrafos, accion), html: html(titulo, parrafos, accion) };
+}

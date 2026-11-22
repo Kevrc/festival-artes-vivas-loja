@@ -13,13 +13,15 @@ export async function crearAppIdentidad() {
   process.env.WEB_URL = 'https://fiavl.test';
   const { AppModule } = await import('../../src/app.module');
   const { configurarApp } = await import('../../src/configurar-app');
-  const { RELOJ_IDENTIDAD, PROVEEDOR_CORREO } = await import('../../src/modules/identidad/application/puertos');
+  const { RELOJ_IDENTIDAD, RELOJ_TOTP, PROVEEDOR_CORREO } = await import('../../src/modules/identidad/application/puertos');
   const { CorreoMemoria } = await import('../../src/modules/identidad/infrastructure/correo.adapters');
   const { PublicadorPgBossIdentidad } = await import('../../src/modules/identidad/infrastructure/publicador.pgboss');
   const reloj = { ahora: new Date('2026-11-10T12:00:00-05:00') };
   const correo = new CorreoMemoria();
   const modulo = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(RELOJ_IDENTIDAD)
+    .useValue(() => reloj.ahora)
+    .overrideProvider(RELOJ_TOTP)
     .useValue(() => reloj.ahora)
     .overrideProvider(PROVEEDOR_CORREO)
     .useValue(correo)

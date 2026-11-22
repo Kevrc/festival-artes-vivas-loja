@@ -37,8 +37,8 @@ console.log(`Semilla: ${aplicadosCartelera} eventos aplicados a cartelera y ${ap
 const { funciones } = await seedOperacion(db);
 console.log(`Semilla: ${funciones} funciones 2026 y cifras 2025 en operacion`);
 
-// Spec 004: política de privacidad vigente (registro, US7).
-await seedIdentidad(db);
-console.log('Semilla: política de privacidad v1 en identidad');
+// Spec 004: política de privacidad vigente (registro, US7) y, fuera de producción, cuentas de prueba (US9).
+const cuentas = await seedIdentidad(db);
+console.log(`Semilla: política de privacidad v1 y ${cuentas} cuentas de prueba nuevas en identidad`);
 
 await db.$disconnect();

@@ -47,6 +47,11 @@ cuentas de prueba con contraseña y TOTP conocidos (solo desarrollo):
 | `validador.bolivar@fiavl.test` | validador · Teatro Bolívar |
 | `asistente@fiavl.test` | asistente verificado |
 
+Todas usan la contraseña `Festival-de-Loja-2026`. Las del personal tienen el segundo factor ya
+configurado con la clave `KRSX G5CT MVRX EZLU KRSX G5CT MVRX EZLU`: añádela en cualquier aplicación de
+códigos (Google Authenticator, FreeOTP…) con «ingresar una clave». La administración del personal
+está en `/admin/personal` (entra con `admin@fiavl.test`).
+
 ```bash
 pnpm dev
 ```

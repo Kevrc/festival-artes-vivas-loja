@@ -49,6 +49,17 @@ export default function MiCuentaPage() {
     );
   }
   if (!yo) return <h1>Mi cuenta</h1>;
+  if (!yo.segundoFactorOk) {
+    return (
+      <>
+        <h1>Mi cuenta</h1>
+        <p>
+          Tu cuenta es del equipo del festival: antes de continuar, verifica tu segundo factor.{' '}
+          <Link href="/cuenta/segundo-factor?volver=/mi-cuenta">Ir al segundo factor</Link>
+        </p>
+      </>
+    );
+  }
 
   return (
     <>

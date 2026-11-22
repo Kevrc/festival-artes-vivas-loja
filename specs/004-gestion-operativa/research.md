@@ -234,6 +234,11 @@ Boletería ya publica hacia las colas `operacion.*` e `identidad.*`
   sesión **restringida** (`segundo_factor_ok = false`) que solo permite configurar el TOTP; las
   demás rutas responden `403 requiere_segundo_factor`.
 - **Pérdida del dispositivo**: el administrador restablece el TOTP (acción auditada, FR-024).
+- **Hora** (implementación): los pasos TOTP usan siempre la hora real, aunque `FIAVL_AHORA` fije el
+  reloj de la demo o de CI: el teléfono calcula el código con su hora, y con un reloj congelado cada
+  cuenta solo podría verificar tres veces (el mismo paso no se acepta dos veces).
+- **Intentos** (implementación): 5 códigos fallidos en 15 minutos cierran la sesión y bloquean la
+  cuenta 15 minutos, igual que la contraseña (US8-AS2).
 - **Alternativas**: librería `otpauth` (dependencia para ~40 líneas); SMS (fuera de alcance).
 
 ### R14. Bloqueo por intentos fallidos y límites de reenvío (US8-AS2, caso borde)

@@ -45,7 +45,7 @@ export class SesionServicio {
     private readonly urlWeb: string,
   ) {}
 
-  /** US8-AS1/AS2. Personal: sesión de 8 h y, hasta el segundo factor (US9), restringida. */
+  /** US8-AS1/AS2. Personal: sesión de 8 h, restringida hasta el segundo factor (US9-AS3). */
   async iniciar(correoBruto: string, contrasena: string, agente: string | undefined, correlacionId: string): Promise<SesionIniciada> {
     const correo = normalizarCorreo(correoBruto);
     const ahora = this.reloj();
@@ -77,7 +77,7 @@ export class SesionServicio {
         cuentaId: cuenta.id,
         hash,
         dispositivo: describirDispositivo(agente),
-        // shortcut: el segundo factor llega con US9 (T082); hasta entonces el personal queda restringido.
+        // US9-AS3: el personal entra restringido hasta verificar (o dar de alta) su TOTP.
         segundoFactorOk: !cuenta.esPersonal,
         expiraEn: expiracionSesion(cuenta.esPersonal, ahora),
         ahora,
@@ -104,7 +104,8 @@ export class SesionServicio {
       correo: s.cuenta.correo,
       correoVerificado: s.cuenta.estado === 'verificada',
       estudianteAcreditado: s.estudianteAcreditado,
-      segundoFactorOk: s.segundoFactorOk,
+      // Quien dejó de ser personal ya no necesita el segundo factor; quien pasó a serlo volvió a ingresar.
+      segundoFactorOk: s.segundoFactorOk || !s.cuenta.esPersonal,
       roles: s.roles,
     };
   }

@@ -13,6 +13,9 @@ export interface Yo {
   novedades: boolean;
   roles: RolVista[];
   segundoFactorOk: boolean;
+  /** Solo personal: si ya tiene TOTP configurado (verificar) o le falta darlo de alta. */
+  segundoFactorActivo: boolean;
+  esPersonal: boolean;
   /** Versión de la política por aceptar (US11-AS4), o null si está al día. */
   politicaPendiente: string | null;
 }
@@ -29,10 +32,11 @@ export class MiCuentaServicio {
   async yo(ctx: ContextoIdentidad): Promise<Yo> {
     const cuenta = await this.repo.cuenta(ctx.cuentaId);
     if (!cuenta) throw new ErrorConCodigo(401, 'sin_sesion', 'Requiere sesión autenticada');
-    const [aceptada, vigente, acceso] = await Promise.all([
+    const [aceptada, vigente, acceso, personal] = await Promise.all([
       this.repo.versionAceptada(ctx.cuentaId, 'politica_privacidad'),
       this.repo.documentoVigente('politica_privacidad', this.reloj()),
       this.repo.versionAceptada(ctx.cuentaId, 'novedades'),
+      this.repo.cuentaPersonal(ctx.cuentaId),
     ]);
     return {
       cuentaId: cuenta.id,
@@ -43,6 +47,8 @@ export class MiCuentaServicio {
       novedades: acceso !== null,
       roles: ctx.roles,
       segundoFactorOk: ctx.segundoFactorOk,
+      segundoFactorActivo: personal?.segundoFactorActivo === true,
+      esPersonal: personal?.esPersonal === true,
       politicaPendiente: vigente && (aceptada ?? 0) < vigente.version ? String(vigente.version) : null,
     };
   }

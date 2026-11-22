@@ -4,6 +4,11 @@ import type { z } from 'zod';
 /** Puertos del módulo Identidad (spec 004, Parte B). El dominio no conoce Prisma, SMTP ni pg-boss. */
 
 export const RELOJ_IDENTIDAD = Symbol('RELOJ_IDENTIDAD');
+/**
+ * Hora para los pasos TOTP: siempre la real, aunque FIAVL_AHORA fije el reloj de la demo, porque el
+ * teléfono calcula el código con su propia hora (y un reloj congelado agotaría los pasos).
+ */
+export const RELOJ_TOTP = Symbol('RELOJ_TOTP');
 export const PUBLICADOR_IDENTIDAD = Symbol('PUBLICADOR_IDENTIDAD');
 export const AUDITORIA_IDENTIDAD = Symbol('AUDITORIA_IDENTIDAD');
 export const PROVEEDOR_CORREO = Symbol('PROVEEDOR_CORREO');
@@ -131,6 +136,39 @@ export interface RepositorioIdentidad {
   actualizarNombre(cuentaId: string, nombre: string): Promise<void>;
   /** FR-022: la preferencia de novedades se guarda como consentimiento (aceptado o retirado). */
   cambiarNovedades(cuentaId: string, acepta: boolean, version: number, ahora: Date): Promise<void>;
+
+  // Segundo factor y personal (US9, research R13/R16) ----------------------------------------
+  segundoFactor(cuentaId: string): Promise<SegundoFactorGuardado | null>;
+  /** Alta: guarda un secreto nuevo aún sin activar (reemplaza uno pendiente anterior). */
+  guardarSecretoPendiente(cuentaId: string, cifrado: Buffer): Promise<void>;
+  /** Acepta el paso solo si es posterior al último usado; false si otro lo usó antes (concurrencia). */
+  usarPasoTotp(cuentaId: string, paso: number): Promise<boolean>;
+  marcarSegundoFactorOk(sesionId: string): Promise<void>;
+  restablecerSegundoFactor(cuentaId: string): Promise<void>;
+  rolesVigentes(cuentaId: string): Promise<RolVista[]>;
+  asignarRol(cuentaId: string, rol: RolVista, asignadoPor: string, ahora: Date): Promise<void>;
+  revocarRol(cuentaId: string, rol: RolVista, ahora: Date): Promise<void>;
+  marcarPersonal(cuentaId: string, esPersonal: boolean): Promise<void>;
+  cambiarEstado(cuentaId: string, estado: 'verificada' | 'desactivada'): Promise<void>;
+  /** Cuentas con `es_personal` (también desactivadas), con roles vigentes y estado del TOTP. */
+  listarPersonal(): Promise<CuentaPersonal[]>;
+  cuentaPersonal(cuentaId: string): Promise<CuentaPersonal | null>;
+}
+
+export interface SegundoFactorGuardado {
+  secretoCifrado: Buffer | null;
+  activo: boolean;
+  ultimoPaso: number | null;
+}
+
+export interface CuentaPersonal {
+  cuentaId: string;
+  nombre: string;
+  correo: string;
+  estado: EstadoCuenta;
+  esPersonal: boolean;
+  roles: RolVista[];
+  segundoFactorActivo: boolean;
 }
 
 export interface EntradaAuditoria {

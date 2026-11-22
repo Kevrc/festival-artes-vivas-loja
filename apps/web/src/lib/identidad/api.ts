@@ -29,7 +29,25 @@ export interface Yo {
   novedades: boolean;
   roles: RolAsignado[];
   segundoFactorOk: boolean;
+  /** Personal: true ⇒ solo verificar el código; false ⇒ dar de alta el TOTP. */
+  segundoFactorActivo?: boolean;
+  esPersonal?: boolean;
   politicaPendiente: string | null;
+}
+
+export interface AltaTotp {
+  otpauthUri: string;
+  qrSvg: string;
+  clave: string;
+}
+
+export interface CuentaPersonal {
+  cuentaId: string;
+  nombre: string;
+  correo: string;
+  estado: 'pendiente_verificacion' | 'verificada' | 'desactivada';
+  roles: RolAsignado[];
+  segundoFactorActivo: boolean;
 }
 
 export interface SesionAbierta {
@@ -86,5 +104,13 @@ export const apiIdentidad = {
   pedirRecuperacion: (correo: string) => pedir<{ mensaje: string }>('/recuperacion', { method: 'POST', body: JSON.stringify({ correo }) }),
   confirmarRecuperacion: (token: string, contrasenaNueva: string) =>
     pedir<void>('/recuperacion/confirmacion', { method: 'POST', body: JSON.stringify({ token, contrasenaNueva }) }),
+  altaTotp: () => pedir<AltaTotp>('/segundo-factor/alta', { method: 'POST' }),
+  verificarTotp: (codigo: string) => pedir<Yo>('/segundo-factor/verificacion', { method: 'POST', body: JSON.stringify({ codigo }) }),
+  personal: () => pedir<CuentaPersonal[]>('/personal'),
+  crearPersonal: (d: { nombre: string; correo: string; roles: RolAsignado[] }) => pedir<CuentaPersonal>('/personal', { method: 'POST', body: JSON.stringify(d) }),
+  cambiarRoles: (cuentaId: string, roles: RolAsignado[]) => pedir<CuentaPersonal>(`/personal/${cuentaId}/roles`, { method: 'PUT', body: JSON.stringify({ roles }) }),
+  cambiarEstado: (cuentaId: string, estado: 'desactivada' | 'verificada') =>
+    pedir<void>(`/personal/${cuentaId}/estado`, { method: 'PUT', body: JSON.stringify({ estado }) }),
+  restablecerTotp: (cuentaId: string, motivo: string) => pedir<void>(`/personal/${cuentaId}/segundo-factor`, { method: 'DELETE', body: JSON.stringify({ motivo }) }),
   reenviar: (correo: string) => pedir<{ mensaje: string }>('/verificacion/reenvio', { method: 'POST', body: JSON.stringify({ correo }) }),
 };

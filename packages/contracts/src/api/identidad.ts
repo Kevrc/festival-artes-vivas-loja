@@ -447,7 +447,7 @@ export interface components {
             status: number;
             detail?: string;
             /** @enum {string} */
-            codigo?: "contrasena_corta" | "contrasena_filtrada" | "politica_no_aceptada" | "enlace_vencido" | "enlace_usado" | "credenciales_invalidas" | "requiere_segundo_factor" | "requiere_politica" | "alcance_requerido" | "dominio_no_institucional" | "limite_reenvios" | "funciones_futuras" | "postulaciones_en_curso" | "contrasena_larga" | "sin_politica" | "origen_no_permitido" | "sin_sesion" | "no_encontrado";
+            codigo?: "contrasena_corta" | "contrasena_filtrada" | "politica_no_aceptada" | "enlace_vencido" | "enlace_usado" | "credenciales_invalidas" | "requiere_segundo_factor" | "requiere_politica" | "alcance_requerido" | "dominio_no_institucional" | "limite_reenvios" | "funciones_futuras" | "postulaciones_en_curso" | "contrasena_larga" | "sin_politica" | "origen_no_permitido" | "sin_sesion" | "no_encontrado" | "segundo_factor_requerido" | "segundo_factor_activo" | "sin_segundo_factor" | "codigo_invalido" | "solo_personal" | "rol_personal_requerido" | "alcance_invalido" | "alcance_no_aplica" | "accion_sobre_si_mismo" | "cuenta_eliminada";
         };
         TokenEnlace: {
             /** @description Valor del enlace (base64url, 256 bits) */
@@ -475,6 +475,9 @@ export interface components {
             roles: components["schemas"]["RolAsignado"][];
             /** @description false ⇒ el personal debe configurar o verificar TOTP */
             segundoFactorOk: boolean;
+            /** @description Personal: true ⇒ solo verificar el código; false ⇒ dar de alta el TOTP */
+            segundoFactorActivo?: boolean;
+            esPersonal?: boolean;
             /** @description Versión de la política por aceptar (US11-AS4) */
             politicaPendiente: string | null;
         };
@@ -786,7 +789,19 @@ export interface operations {
                     "application/json": {
                         otpauthUri: string;
                         qrSvg: string;
+                        /** @description La misma clave en base32, en grupos de 4, para escribirla a mano o con lector de pantalla */
+                        clave: string;
                     };
+                };
+            };
+            403: components["responses"]["Problema"];
+            /** @description El TOTP ya está activo (`segundo_factor_activo`); solo el administrador lo restablece */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
                 };
             };
         };
@@ -815,7 +830,16 @@ export interface operations {
                     "application/json": components["schemas"]["Yo"];
                 };
             };
-            401: components["responses"]["Problema"];
+            /** @description Código incorrecto o ya usado (`codigo_invalido`); 5 fallos en 15 min cierran la sesión y bloquean la cuenta 15 min */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            409: components["responses"]["Problema"];
         };
     };
     obtenerYo: {

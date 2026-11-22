@@ -231,18 +231,18 @@ tiene una prueba nombrada; en dominio se escribe **primero** la prueba y se comp
 
 ### Tests
 
-- [ ] T079 [P] [US9] Prueba de dominio `id/domain/totp.test.ts` con los vectores oficiales de RFC 6238 (SHA-1, 30 s, 6 dígitos), ventana ±1 y rechazo del mismo paso dos veces (`credencial.totp_ultimo_paso`)
-- [ ] T080 [P] [US9] Prueba de integración `apps/api/test/identidad/personal.int.test.ts`: `US9-AS3` (sesión con `sesion.segundo_factor_ok = false` solo puede dar de alta o verificar TOTP), `US9-AS4` (cambio de rol auditado, `RolAsignado` publicado y aplicado en la siguiente petición), `US9-AS5` (desactivar revoca sesiones y conserva historial), alcance obligatorio por rol; auditoría de inicios de sesión del personal, cambios de rol, restablecimientos de segundo factor y desactivaciones (FR-024)
-- [ ] T081 [P] [US9] Matriz de autorización parametrizada `apps/api/test/operacion/autorizacion.int.test.ts` (rol × operación de Operación e Identidad ⇒ 200/403, incluidos `US9-AS1` y `US9-AS2` del lado de Operación) (SC-007)
+- [X] T079 [P] [US9] Prueba de dominio `id/domain/totp.test.ts` con los vectores oficiales de RFC 6238 (SHA-1, 30 s, 6 dígitos), ventana ±1 y rechazo del mismo paso dos veces (`credencial.totp_ultimo_paso`)
+- [X] T080 [P] [US9] Prueba de integración `apps/api/test/identidad/personal.int.test.ts`: `US9-AS3` (sesión con `sesion.segundo_factor_ok = false` solo puede dar de alta o verificar TOTP), `US9-AS4` (cambio de rol auditado, `RolAsignado` publicado y aplicado en la siguiente petición), `US9-AS5` (desactivar revoca sesiones y conserva historial), alcance obligatorio por rol; auditoría de inicios de sesión del personal, cambios de rol, restablecimientos de segundo factor y desactivaciones (FR-024)
+- [X] T081 [P] [US9] Matriz de autorización parametrizada `apps/api/test/operacion/autorizacion.int.test.ts` (rol × operación de Operación e Identidad ⇒ 200/403, incluidos `US9-AS1` y `US9-AS2` del lado de Operación) (SC-007)
 
 ### Implementation
 
-- [ ] T082 [P] [US9] Implementar `id/domain/totp.ts` con `node:crypto` y `id/infrastructure/cifrador-aes-gcm.ts` para `credencial.totp_secreto_cifrado` con `IDENTIDAD_CLAVE_CIFRADO`; hace pasar T079
-- [ ] T083 [US9] Casos de uso `id/application/segundo-factor/{alta,verificar,restablecer}.ts` y `id/application/personal/{crear,listar,asignar-rol,revocar-rol,cambiar-estado}.ts`; `cuenta.es_personal` derivado de los roles; auditoría de cada acción (FR-024)
-- [ ] T084 [US9] Controladores `id/interface/segundo-factor.controller.ts` y `id/interface/personal.controller.ts` (`/personal`, `/personal/{id}/roles`, `/personal/{id}/estado`, `/personal/{id}/segundo-factor`) con `@Requiere('administrador')`; hace pasar T080 y T081
-- [ ] T085 [US9] Páginas `apps/web/src/app/(publico)/cuenta/segundo-factor/page.tsx` (QR y clave en texto para lectores de pantalla) y `apps/web/src/app/(panel)/admin/personal/page.tsx`
-- [ ] T086 [US9] Semilla `prisma/seed/identidad.ts` con las cuentas de prueba del [quickstart](quickstart.md#preparación) (contraseña y secreto TOTP conocidos, solo desarrollo) y `documento_legal` de la política v1
-- [ ] T087 [US9] E2E `apps/web/e2e/identidad-personal.spec.ts`: crear un validador, primer ingreso con TOTP, 403 fuera de su sede, con axe
+- [X] T082 [P] [US9] Implementar `id/domain/totp.ts` con `node:crypto` y `id/infrastructure/cifrador-aes-gcm.ts` para `credencial.totp_secreto_cifrado` con `IDENTIDAD_CLAVE_CIFRADO`; hace pasar T079
+- [X] T083 [US9] Casos de uso `id/application/segundo-factor/{alta,verificar,restablecer}.ts` y `id/application/personal/{crear,listar,asignar-rol,revocar-rol,cambiar-estado}.ts`; `cuenta.es_personal` derivado de los roles; auditoría de cada acción (FR-024) — hecho como `segundo-factor/segundo-factor.servicio.ts` y `personal/personal.servicio.ts` (un servicio por área, como US7/US8). Si un correo ya tiene cuenta, se le suman los roles; al pasar a ser personal se cierran sus sesiones del público; el administrador no puede desactivarse ni quitarse su rol; 5 códigos fallidos cierran la sesión y bloquean 15 min. Los pasos TOTP usan siempre la hora real (`RELOJ_TOTP`), aunque `FIAVL_AHORA` fije el reloj de la demo
+- [X] T084 [US9] Controladores `id/interface/segundo-factor.controller.ts` y `id/interface/personal.controller.ts` (`/personal`, `/personal/{id}/roles`, `/personal/{id}/estado`, `/personal/{id}/segundo-factor`) con `@Requiere('administrador')`; hace pasar T080 y T081
+- [X] T085 [US9] Páginas `apps/web/src/app/(publico)/cuenta/segundo-factor/page.tsx` (QR y clave en texto para lectores de pantalla) y `apps/web/src/app/(panel)/admin/personal/page.tsx`
+- [X] T086 [US9] Semilla `prisma/seed/identidad.ts` con las cuentas de prueba del [quickstart](quickstart.md#preparación) (contraseña y secreto TOTP conocidos, solo desarrollo) y `documento_legal` de la política v1
+- [X] T087 [US9] E2E `apps/web/e2e/identidad-personal.spec.ts`: crear un validador, primer ingreso con TOTP, 403 fuera de su sede, con axe — el 403 "fuera de su sede" de Boletería llega con la fase 9 (Boletería usará IdentidadPublica); aquí se comprueba el 403 fuera de su rol (US9-AS2) y la matriz T081 cubre el alcance (US9-AS1). Sin Mailpit (CI) se usa el validador de la semilla
 
 **Checkpoint**: Identidad P1 completa (escenarios 26–28).
 

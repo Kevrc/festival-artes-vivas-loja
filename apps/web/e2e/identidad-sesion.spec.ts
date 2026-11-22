@@ -1,5 +1,6 @@
 import { type APIRequestContext, expect, test } from '@playwright/test';
 import { sinViolacionesAxe } from './ayuda';
+import { enlaceDeMailpit, hayMailpit } from './ayuda-identidad';
 import { API } from './ayuda-operacion';
 
 /**
@@ -7,30 +8,7 @@ import { API } from './ayuda-operacion';
  * de Mailpit, con axe. Sin Mailpit (CI) la recuperación se omite con una anotación; la cubre
  * apps/api/test/identidad/sesion.int.test.ts.
  */
-const MAILPIT = process.env.MAILPIT_URL ?? 'http://localhost:8025';
 const CLAVE = 'Teatro-en-Loja-2026';
-
-async function hayMailpit(request: APIRequestContext) {
-  try {
-    return (await request.get(`${MAILPIT}/api/v1/info`, { timeout: 2_000 })).ok();
-  } catch {
-    return false;
-  }
-}
-
-async function enlaceDeMailpit(request: APIRequestContext, para: string, ruta: string) {
-  let enlace = '';
-  await expect(async () => {
-    const lista = await (await request.get(`${MAILPIT}/api/v1/search?query=${encodeURIComponent(`to:"${para}"`)}`)).json();
-    for (const m of lista.messages ?? []) {
-      const texto = (await (await request.get(`${MAILPIT}/api/v1/message/${m.ID}`)).json()).Text as string;
-      enlace = texto.match(new RegExp(`https?://\\S+${ruta}\\?token=[A-Za-z0-9_-]+`))?.[0] ?? '';
-      if (enlace) break;
-    }
-    expect(enlace).not.toBe('');
-  }).toPass({ timeout: 30_000, intervals: [1_000] });
-  return new URL(enlace);
-}
 
 /** Cuenta nueva creada por la API (una cuenta pendiente de verificación ya puede ingresar). */
 async function crearCuenta(request: APIRequestContext, correo: string) {

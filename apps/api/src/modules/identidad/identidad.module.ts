@@ -7,6 +7,8 @@ import { AlRecibirProgramacionPublicada } from './application/eventos/programaci
 import {
   AUDITORIA_IDENTIDAD,
   type AuditoriaIdentidad,
+  CIFRADOR,
+  type Cifrador,
   LISTA_FILTRADAS,
   type ListaFiltradas,
   MANEJADORES_IDENTIDAD,
@@ -15,13 +17,17 @@ import {
   PUBLICADOR_IDENTIDAD,
   type PublicadorIdentidad,
   RELOJ_IDENTIDAD,
+  RELOJ_TOTP,
   REPOSITORIO_IDENTIDAD,
   type RelojIdentidad,
   type RepositorioIdentidad,
 } from './application/puertos';
 import { MiCuentaServicio } from './application/mi-cuenta/mi-cuenta.servicio';
+import { PersonalServicio } from './application/personal/personal.servicio';
 import { RegistroServicio } from './application/registro/registro.servicio';
+import { SegundoFactorServicio } from './application/segundo-factor/segundo-factor.servicio';
 import { SesionServicio } from './application/sesion/sesion.servicio';
+import { cifradorDelEntorno } from './infrastructure/cifrador-aes-gcm';
 import { IdentidadPublicaSesionProvider } from './infrastructure/identidad-publica.provider';
 import { correoDelEntorno } from './infrastructure/correo.adapters';
 import { cargarListaFiltradas } from './infrastructure/lista-filtradas';
@@ -67,6 +73,20 @@ export class IdentidadModule {
         provide: MiCuentaServicio,
         inject: [REPOSITORIO_IDENTIDAD, SesionServicio, AUDITORIA_IDENTIDAD, RELOJ_IDENTIDAD],
         useFactory: (r: RepositorioIdentidad, s: SesionServicio, a: AuditoriaIdentidad, reloj: RelojIdentidad) => new MiCuentaServicio(r, s, a, reloj),
+      },
+      { provide: CIFRADOR, useFactory: () => cifradorDelEntorno() },
+      { provide: RELOJ_TOTP, useValue: () => new Date() },
+      {
+        provide: SegundoFactorServicio,
+        inject: [REPOSITORIO_IDENTIDAD, CIFRADOR, AUDITORIA_IDENTIDAD, RELOJ_IDENTIDAD, RELOJ_TOTP],
+        useFactory: (r: RepositorioIdentidad, c: Cifrador, a: AuditoriaIdentidad, reloj: RelojIdentidad, totp: RelojIdentidad) =>
+          new SegundoFactorServicio(r, c, a, reloj, totp),
+      },
+      {
+        provide: PersonalServicio,
+        inject: [REPOSITORIO_IDENTIDAD, PROVEEDOR_CORREO, PUBLICADOR_IDENTIDAD, AUDITORIA_IDENTIDAD, RELOJ_IDENTIDAD],
+        useFactory: (r: RepositorioIdentidad, c: ProveedorCorreo, pub: PublicadorIdentidad, a: AuditoriaIdentidad, reloj: RelojIdentidad) =>
+          new PersonalServicio(r, c, pub, a, reloj, process.env.WEB_URL ?? 'http://localhost:3100'),
       },
       // FR-020: sesión real de la cookie; en development/test cae a las cabeceras x-*-dev (ADR-0009).
       { provide: IDENTIDAD_PUBLICA, inject: [SesionServicio], useFactory: (s: SesionServicio) => new IdentidadPublicaSesionProvider(s) },
