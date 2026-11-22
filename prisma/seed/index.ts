@@ -5,6 +5,7 @@ import { AplicarEvento } from '../../apps/api/src/modules/programacion/applicati
 import { PrismaCarteleraRepository } from '../../apps/api/src/modules/programacion/infrastructure/prisma-cartelera.repository';
 import { RevalidadorNext } from '../../apps/api/src/modules/programacion/infrastructure/revalidador-next';
 import { eventosEdicion2026 } from './edicion-2026';
+import { seedIdentidad } from './identidad';
 import { seedOperacion } from './operacion';
 import { seedConvocatorias } from './convocatorias';
 import { crearAlmacenamientoDocumentos } from '../../apps/api/src/modules/convocatorias/infrastructure/almacenamiento.factory.js';
@@ -35,5 +36,9 @@ console.log(`Semilla: ${aplicadosCartelera} eventos aplicados a cartelera y ${ap
 // Spec 004: esquema `operacion` con la misma edición y los mismos ids (aditivo).
 const { funciones } = await seedOperacion(db);
 console.log(`Semilla: ${funciones} funciones 2026 y cifras 2025 en operacion`);
+
+// Spec 004: política de privacidad vigente (registro, US7).
+await seedIdentidad(db);
+console.log('Semilla: política de privacidad v1 en identidad');
 
 await db.$disconnect();

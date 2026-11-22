@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/politica": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Versión y enlace de la política de privacidad vigente, para el formulario de registro (US7-AS5) */
+        get: operations["politicaVigente"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/registro": {
         parameters: {
             query?: never;
@@ -430,7 +447,7 @@ export interface components {
             status: number;
             detail?: string;
             /** @enum {string} */
-            codigo?: "contrasena_corta" | "contrasena_filtrada" | "politica_no_aceptada" | "enlace_vencido" | "enlace_usado" | "credenciales_invalidas" | "requiere_segundo_factor" | "requiere_politica" | "alcance_requerido" | "dominio_no_institucional" | "limite_reenvios" | "funciones_futuras" | "postulaciones_en_curso";
+            codigo?: "contrasena_corta" | "contrasena_filtrada" | "politica_no_aceptada" | "enlace_vencido" | "enlace_usado" | "credenciales_invalidas" | "requiere_segundo_factor" | "requiere_politica" | "alcance_requerido" | "dominio_no_institucional" | "limite_reenvios" | "funciones_futuras" | "postulaciones_en_curso" | "contrasena_larga" | "sin_politica";
         };
         TokenEnlace: {
             /** @description Valor del enlace (base64url, 256 bits) */
@@ -522,6 +539,32 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    politicaVigente: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Política vigente */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        version: number;
+                        url: string;
+                        /** Format: date-time */
+                        vigenteDesde: string;
+                    };
+                };
+            };
+            503: components["responses"]["Problema"];
+        };
+    };
     registrarCuenta: {
         parameters: {
             query?: never;
@@ -542,7 +585,8 @@ export interface operations {
                      * @constant
                      */
                     aceptaPolitica: true;
-                    versionPolitica: string;
+                    /** @description Versión vigente de GET /politica */
+                    versionPolitica: string | number;
                     /** @default false */
                     aceptaNovedades?: boolean;
                 };

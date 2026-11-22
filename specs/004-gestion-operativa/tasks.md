@@ -179,20 +179,20 @@ tiene una prueba nombrada; en dominio se escribe **primero** la prueba y se comp
 
 ### Tests
 
-- [ ] T060 [P] [US7] Prueba de dominio `id/domain/contrasenas.test.ts`: scrypt N=2^15 r=8 p=3 con formato `credencial.hash_contrasena`, verificación en tiempo constante, `US7-AS4` (< 10 caracteres, contraseña de la lista sin importar mayúsculas) (R10, R11, RN-008)
-- [ ] T061 [P] [US7] Prueba de dominio `id/domain/tokens.test.ts`: token de 256 bits, guarda solo SHA-256 en `token_cuenta.hash_token`, caducidad de `token_cuenta.expira_en`, un solo uso con `token_cuenta.usado_en`
-- [ ] T062 [P] [US7] Prueba de integración `apps/api/test/identidad/registro.int.test.ts`: `US7-AS1` (`cuenta.estado = pendiente_verificacion`, correo en el adaptador de memoria), `US7-AS2` (verificada, `CuentaVerificada` publicado), `US7-AS3` (misma respuesta y aviso al dueño; `cuenta.correo` normalizado), `US7-AS5` (sin política ⇒ no se crea), límite de 3 reenvíos por hora
+- [X] T060 [P] [US7] Prueba de dominio `id/domain/contrasenas.test.ts`: scrypt N=2^15 r=8 p=3 con formato `credencial.hash_contrasena`, verificación en tiempo constante, `US7-AS4` (< 10 caracteres, contraseña de la lista sin importar mayúsculas) (R10, R11, RN-008)
+- [X] T061 [P] [US7] Prueba de dominio `id/domain/tokens.test.ts`: token de 256 bits, guarda solo SHA-256 en `token_cuenta.hash_token`, caducidad de `token_cuenta.expira_en`, un solo uso con `token_cuenta.usado_en`
+- [X] T062 [P] [US7] Prueba de integración `apps/api/test/identidad/registro.int.test.ts`: `US7-AS1` (`cuenta.estado = pendiente_verificacion`, correo en el adaptador de memoria), `US7-AS2` (verificada, `CuentaVerificada` publicado), `US7-AS3` (misma respuesta y aviso al dueño; `cuenta.correo` normalizado), `US7-AS5` (sin política ⇒ no se crea), límite de 3 reenvíos por hora
 
 ### Implementation
 
-- [ ] T063 [P] [US7] Implementar `id/domain/contrasenas.ts` con la lista cargada una vez en memoria desde `contrasenas-filtradas.txt`; escribe `credencial.hash_contrasena` con el formato `scrypt$N$r$p$sal$hash`; hace pasar T060
-- [ ] T064 [P] [US7] Implementar `id/domain/tokens.ts`: fija `token_cuenta.expira_en` (24 h verificación, 1 h recuperación) y marca `token_cuenta.usado_en`; hace pasar T061
-- [ ] T065 [P] [US7] Adaptadores de correo `id/infrastructure/correo-smtp.adapter.ts` (nodemailer con `SMTP_URL`) e `id/infrastructure/correo-memoria.adapter.ts` (pruebas), elegidos por entorno
-- [ ] T066 [P] [US7] Plantillas `id/domain/plantillas/{verificacion,cuenta-existente}.ts` en texto y HTML accesible, con prueba de que no incluyen tokens en logs
-- [ ] T067 [US7] `id/infrastructure/prisma-identidad.repository.ts` (cuentas, credenciales, tokens, consentimientos) y casos de uso `id/application/registro/{registrar,verificar,reenviar}.ts`; el aceptar la política crea `consentimiento` con `documento_legal.version` vigente
-- [ ] T068 [US7] Controlador `id/interface/registro.controller.ts`: `POST /registro`, `POST /verificacion`, `POST /verificacion/reenvio` según [api-identidad](contracts/api-identidad.openapi.yaml); hace pasar T062
-- [ ] T069 [US7] Páginas `apps/web/src/app/(publico)/cuenta/registro/page.tsx` y `cuenta/verificar/page.tsx` con requisitos de contraseña visibles, casilla de política enlazada y errores anunciados; cliente `apps/web/src/lib/identidad/api.ts`
-- [ ] T069a [US7] E2E `apps/web/e2e/identidad-registro.spec.ts`: `US7-AS1`, `US7-AS2` (enlace leído desde la API de Mailpit), `US7-AS4` y `US7-AS5`; registro y verificación en < 2 min (SC-006), con axe sin violaciones A/AA
+- [X] T063 [P] [US7] Implementar `id/domain/contrasenas.ts` con la lista cargada una vez en memoria desde `contrasenas-filtradas.txt`; escribe `credencial.hash_contrasena` con el formato `scrypt$N$r$p$sal$hash`; hace pasar T060 — *La carga del archivo está en `infrastructure/lista-filtradas.ts`; el dominio recibe la función de consulta.*
+- [X] T064 [P] [US7] Implementar `id/domain/tokens.ts`: fija `token_cuenta.expira_en` (24 h verificación, 1 h recuperación) y marca `token_cuenta.usado_en`; hace pasar T061
+- [X] T065 [P] [US7] Adaptadores de correo `id/infrastructure/correo-smtp.adapter.ts` (nodemailer con `SMTP_URL`) e `id/infrastructure/correo-memoria.adapter.ts` (pruebas), elegidos por entorno — *En `infrastructure/correo.adapters.ts`: SMTP si hay `SMTP_URL` fuera de pruebas; si no, memoria.*
+- [X] T066 [P] [US7] Plantillas `id/domain/plantillas/{verificacion,cuenta-existente}.ts` en texto y HTML accesible, con prueba de que no incluyen tokens en logs — *En `domain/plantillas/plantillas.ts`.*
+- [X] T067 [US7] `id/infrastructure/prisma-identidad.repository.ts` (cuentas, credenciales, tokens, consentimientos) y casos de uso `id/application/registro/{registrar,verificar,reenviar}.ts`; el aceptar la política crea `consentimiento` con `documento_legal.version` vigente — *Hecho en `registro/registro.servicio.ts`. shortcut hasta US10: el correo se envía después de confirmar, sin bloquear (RNF-007). Añade `GET /politica`, la página `/privacidad` y la política v1 en `prisma/seed/identidad.ts`. Se adelanta de US10 el consumidor de `ProgramacionPublicada` (`edicion_vigente`), que da el `edicionId` de `CuentaVerificada`.*
+- [X] T068 [US7] Controlador `id/interface/registro.controller.ts`: `POST /registro`, `POST /verificacion`, `POST /verificacion/reenvio` según [api-identidad](contracts/api-identidad.openapi.yaml); hace pasar T062
+- [X] T069 [US7] Páginas `apps/web/src/app/(publico)/cuenta/registro/page.tsx` y `cuenta/verificar/page.tsx` con requisitos de contraseña visibles, casilla de política enlazada y errores anunciados; cliente `apps/web/src/lib/identidad/api.ts`
+- [X] T069a [US7] E2E `apps/web/e2e/identidad-registro.spec.ts`: `US7-AS1`, `US7-AS2` (enlace leído desde la API de Mailpit), `US7-AS4` y `US7-AS5`; registro y verificación en < 2 min (SC-006), con axe sin violaciones A/AA — *Lee el enlace de la API de Mailpit; sin Mailpit (CI) ese paso se omite con una anotación.*
 
 **Checkpoint**: registro y verificación (escenarios 20–22).
 

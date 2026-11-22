@@ -34,6 +34,56 @@ export interface Cifrador {
   descifrar(cifrado: Buffer): Buffer;
 }
 
+export const REPOSITORIO_IDENTIDAD = Symbol('REPOSITORIO_IDENTIDAD');
+export const LISTA_FILTRADAS = Symbol('LISTA_FILTRADAS');
+
+/** RN-008: ¿la contraseña (en minúsculas) está en la lista local de filtradas? */
+export type ListaFiltradas = (contrasenaMinusculas: string) => boolean;
+
+export type EstadoCuenta = 'pendiente_verificacion' | 'verificada' | 'desactivada' | 'eliminada';
+export type DocumentoLegalTipo = 'politica_privacidad' | 'novedades';
+
+export interface CuentaVista {
+  id: string;
+  nombre: string;
+  correo: string;
+  estado: EstadoCuenta;
+  verificadaEn: Date | null;
+}
+
+export interface TokenVista {
+  id: string;
+  cuentaId: string;
+  tipo: 'verificacion' | 'recuperacion' | 'estudiante';
+  expiraEn: Date;
+  usadoEn: Date | null;
+}
+
+export interface DocumentoLegal {
+  documento: DocumentoLegalTipo;
+  version: number;
+  url: string;
+  vigenteDesde: Date;
+}
+
+export interface RepositorioIdentidad {
+  enTransaccion<T>(fn: () => Promise<T>): Promise<T>;
+  cuenta(id: string): Promise<CuentaVista | null>;
+  /** Por correo normalizado. */
+  cuentaPorCorreo(correo: string): Promise<CuentaVista | null>;
+  crearCuenta(c: { id: string; nombre: string; correo: string; hashContrasena: string; consentimientos: { documento: DocumentoLegalTipo; version: number }[] }): Promise<void>;
+  marcarVerificada(cuentaId: string, ahora: Date): Promise<boolean>;
+  crearToken(t: { cuentaId: string; tipo: TokenVista['tipo']; hash: Buffer; expiraEn: Date; dato?: unknown }): Promise<void>;
+  contarTokens(cuentaId: string, tipo: TokenVista['tipo'], desde: Date): Promise<number>;
+  tokenPorHash(hash: Buffer): Promise<TokenVista | null>;
+  /** Marca el token como usado; false si ya lo estaba (un solo uso, también bajo concurrencia). */
+  usarToken(id: string, ahora: Date): Promise<boolean>;
+  documentoVigente(documento: DocumentoLegalTipo, ahora: Date): Promise<DocumentoLegal | null>;
+  /** Edición vigente para el sobre de los eventos de Identidad (research: `edicionId` del sobre). */
+  edicionVigente(): Promise<string | null>;
+  guardarEdicionVigente(edicionId: string, fechaFin: string): Promise<void>;
+}
+
 export interface EntradaAuditoria {
   accion: string;
   actorId: string | null;

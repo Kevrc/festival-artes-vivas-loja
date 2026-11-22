@@ -18,6 +18,25 @@ tags:
   - name: personal
   - name: estudiantes
 paths:
+  /politica:
+    get:
+      operationId: politicaVigente
+      tags: [registro]
+      summary: Versión y enlace de la política de privacidad vigente, para el formulario de registro (US7-AS5)
+      security: []
+      responses:
+        '200':
+          description: Política vigente
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [version, url, vigenteDesde]
+                properties:
+                  version: { type: integer, minimum: 1 }
+                  url: { type: string }
+                  vigenteDesde: { type: string, format: date-time }
+        '503': { $ref: '#/components/responses/Problema' }
   /registro:
     post:
       operationId: registrarCuenta
@@ -36,7 +55,7 @@ paths:
                 correo: { type: string, format: email, maxLength: 254 }
                 contrasena: { type: string, minLength: 10, maxLength: 128, description: RN-008 }
                 aceptaPolitica: { type: boolean, const: true, description: US7-AS5 }
-                versionPolitica: { type: string }
+                versionPolitica: { type: [string, integer], description: Versión vigente de GET /politica }
                 aceptaNovedades: { type: boolean, default: false }
       responses:
         '202': { description: 'Si el correo es válido, llegará un enlace' }
@@ -558,7 +577,8 @@ components:
           type: string
           enum: [contrasena_corta, contrasena_filtrada, politica_no_aceptada, enlace_vencido, enlace_usado,
                  credenciales_invalidas, requiere_segundo_factor, requiere_politica, alcance_requerido,
-                 dominio_no_institucional, limite_reenvios, funciones_futuras, postulaciones_en_curso]
+                 dominio_no_institucional, limite_reenvios, funciones_futuras, postulaciones_en_curso,
+                 contrasena_larga, sin_politica]
     TokenEnlace:
       type: object
       required: [token]
