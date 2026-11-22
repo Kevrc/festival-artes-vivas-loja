@@ -316,16 +316,16 @@ tiene una prueba nombrada; en dominio se escribe **primero** la prueba y se comp
 
 ### Tests
 
-- [ ] T107 [P] [US5] Prueba de dominio `op/domain/indicadores.test.ts`: `US5-AS1` (75 %), `US5-AS2` (50 000 + 113 162 = 163 162), ocupación solo con `funcion.aforo_habilitado`, recaudación en centavos, variación interanual (RN-003, RN-004)
-- [ ] T108 [P] [US5] Prueba de integración `apps/api/test/operacion/estadisticas.int.test.ts`: `US5-AS3` (CSV con `;` y BOM UTF-8 con los filtros), `US5-AS4` (cierre por el trabajo `operacion.cerrar-ediciones`, `informe_cierre.datos` congelado, `edicion.estado = cerrada` ⇒ solo lectura, comparación con `cifras_historicas`)
+- [X] T107 [P] [US5] Prueba de dominio `op/domain/indicadores.test.ts`: `US5-AS1` (75 %), `US5-AS2` (50 000 + 113 162 = 163 162), ocupación solo con `funcion.aforo_habilitado`, recaudación en centavos, variación interanual (RN-003, RN-004)
+- [X] T108 [P] [US5] Prueba de integración `apps/api/test/operacion/estadisticas.int.test.ts`: `US5-AS3` (CSV con `;` y BOM UTF-8 con los filtros), `US5-AS4` (cierre por el trabajo `operacion.cerrar-ediciones`, `informe_cierre.datos` congelado, `edicion.estado = cerrada` ⇒ solo lectura, comparación con `cifras_historicas`)
 
 ### Implementation
 
-- [ ] T109 [US5] Implementar `op/domain/indicadores.ts`; hace pasar T107
-- [ ] T110 [US5] Consultas `op/application/estadisticas/{indicadores,exportar-csv,generar-informe,cerrar-ediciones}.ts` sobre `metrica_funcion`, `conteo_estimado` y `funcion`; cron diario 03:00 en `op/infrastructure/consumidores.pgboss.ts` (R8)
-- [ ] T111 [US5] Controlador `op/interface/estadisticas.controller.ts`: `GET /indicadores`, `GET /indicadores.csv`, `GET/POST /ediciones/{id}/informe` con `@Requiere('direccion')`; hace pasar T108
-- [ ] T112 [US5] Páginas `apps/web/src/app/(panel)/estadisticas/page.tsx` (filtros y tabla de datos accesible junto a cada gráfico) y `estadisticas/informe/page.tsx`
-- [ ] T113 [US5] E2E `apps/web/e2e/operacion-estadisticas.spec.ts` con axe
+- [X] T109 [US5] Implementar `op/domain/indicadores.ts`; hace pasar T107
+- [X] T110 [US5] Consultas `op/application/estadisticas/{indicadores,exportar-csv,generar-informe,cerrar-ediciones}.ts` sobre `metrica_funcion`, `conteo_estimado` y `funcion`; cron diario 03:00 en `op/infrastructure/consumidores.pgboss.ts` (R8) — hecho como `estadisticas/estadisticas.servicio.ts`; una consulta por edición y la agregación en el dominio (cientos de funciones). Comparación con el informe del año anterior o, si no existe, con `cifras_historicas`
+- [X] T111 [US5] Controlador `op/interface/estadisticas.controller.ts`: `GET /indicadores`, `GET /indicadores.csv`, `GET/POST /ediciones/{id}/informe` con `@Requiere('direccion')`; hace pasar T108 — roles según el OpenAPI: indicadores y CSV para dirección, programación y administración; informe GET dirección y administración, POST solo administración. Rutas añadidas a la matriz T081
+- [X] T112 [US5] Páginas `apps/web/src/app/(panel)/estadisticas/page.tsx` (filtros y tabla de datos accesible junto a cada gráfico) y `estadisticas/informe/page.tsx`
+- [X] T113 [US5] E2E `apps/web/e2e/operacion-estadisticas.spec.ts` con axe — también `e2e/operacion-incidencias.spec.ts` (US4, fase 11)
 
 **Checkpoint**: escenarios 17–18.
 

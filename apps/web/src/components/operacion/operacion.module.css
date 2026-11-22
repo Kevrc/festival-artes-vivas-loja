@@ -92,6 +92,17 @@
   border: 1px solid var(--borde);
   border-radius: var(--radio);
 }
+/* Tabla que se desplaza también en el teléfono (la grilla usa .envoltura, que allí se oculta). */
+.desplazable {
+  overflow-x: auto;
+  margin: 12px 0;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+}
+.desplazable:focus-visible {
+  outline: 3px solid var(--foco, #1d4ed8);
+  outline-offset: 2px;
+}
 .tabla {
   border-collapse: collapse;
   width: 100%;

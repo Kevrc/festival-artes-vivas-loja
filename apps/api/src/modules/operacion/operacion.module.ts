@@ -16,13 +16,17 @@ import {
   type PublicadorOperacion,
   RELOJ_OPERACION,
   type RelojOperacion,
+  REPOSITORIO_ESTADISTICAS,
   REPOSITORIO_INCIDENCIAS,
   REPOSITORIO_OPERACION,
+  type RepositorioEstadisticas,
   type RepositorioIncidencias,
   type RepositorioOperacion,
 } from './application/puertos';
 import { AlRecibirAforoExcedido, AlRecibirConflictoDeIngreso, AlRecibirSeleccionDesistida } from './application/eventos/alertas';
+import { EstadisticasServicio } from './application/estadisticas/estadisticas.servicio';
 import { IncidenciasServicio } from './application/incidencias/incidencias.servicio';
+import { PrismaEstadisticasRepository } from './infrastructure/prisma-estadisticas.repository';
 import { PrismaIncidenciasRepository } from './infrastructure/prisma-incidencias.repository';
 import { ConsumidoresOperacion } from './infrastructure/consumidores.pgboss';
 import { AuditoriaPrismaOperacion, procesarUnaVezOperacion } from './infrastructure/persistencia.prisma';
@@ -69,6 +73,12 @@ export class OperacionModule {
           new PublicacionServicio(r, pub, a, reloj),
       },
       // Consumidores de eventos de otros módulos; cada historia añade los suyos.
+      { provide: REPOSITORIO_ESTADISTICAS, inject: [PrismaService], useFactory: (db: PrismaService) => new PrismaEstadisticasRepository(db) },
+      {
+        provide: EstadisticasServicio,
+        inject: [REPOSITORIO_OPERACION, REPOSITORIO_ESTADISTICAS, AUDITORIA_OPERACION, RELOJ_OPERACION],
+        useFactory: (r: RepositorioOperacion, e: RepositorioEstadisticas, a: AuditoriaOperacion, reloj: RelojOperacion) => new EstadisticasServicio(r, e, a, reloj),
+      },
       { provide: REPOSITORIO_INCIDENCIAS, inject: [PrismaService], useFactory: (db: PrismaService) => new PrismaIncidenciasRepository(db) },
       {
         provide: IncidenciasServicio,

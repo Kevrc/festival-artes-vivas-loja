@@ -428,7 +428,7 @@ export interface components {
             status: number;
             detail?: string;
             /** @enum {string} */
-            codigo?: "cruce_sede" | "cruce_elenco" | "aforo_supera_sede" | "exceso_aforo" | "motivo_requerido" | "funcion_finalizada" | "edicion_cerrada" | "obra_desistida" | "version_obsoleta" | "sede_con_funciones" | "fuera_de_alcance" | "fin_menor" | "funcion_publicada" | "version_requerida" | "fuera_de_edicion" | "no_encontrado" | "segundo_factor_requerido" | "publicacion_invalida" | "edicion_sin_publicar" | "idempotencia_requerida" | "funcion_en_borrador" | "funcion_cancelada" | "sin_cambios" | "usar_reprogramacion" | "sin_tipo_acceso";
+            codigo?: "cruce_sede" | "cruce_elenco" | "aforo_supera_sede" | "exceso_aforo" | "motivo_requerido" | "funcion_finalizada" | "edicion_cerrada" | "obra_desistida" | "version_obsoleta" | "sede_con_funciones" | "fuera_de_alcance" | "fin_menor" | "funcion_publicada" | "version_requerida" | "fuera_de_edicion" | "no_encontrado" | "segundo_factor_requerido" | "publicacion_invalida" | "edicion_sin_publicar" | "idempotencia_requerida" | "funcion_en_borrador" | "funcion_cancelada" | "sin_cambios" | "usar_reprogramacion" | "sin_tipo_acceso" | "conteo_no_aplica" | "edicion_abierta";
         };
         Edicion: {
             /** Format: uuid */
@@ -743,6 +743,13 @@ export interface components {
             /** @description Diferencia porcentual frente a la edición anterior por cada cifra */
             variacion?: {
                 [key: string]: number;
+            } | null;
+            anio?: number;
+            /** @description Con qué se comparó (informe de cierre de esa edición o cifras históricas publicadas) */
+            anterior?: {
+                anio?: number;
+                /** @enum {string} */
+                fuente?: "informe" | "cifras_historicas";
             } | null;
         };
     };

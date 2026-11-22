@@ -142,7 +142,10 @@ export default function IncidenciasPage() {
             setReprogramar(r.ofrecerReprogramar && r.funcionId ? r.funcionId : null);
             setDescripcion('');
             setAfecta(false);
-            await cargar();
+            // La API fecha la incidencia con su reloj: se muestra el día en que quedó registrada.
+            const dia = diaFestival(r.ocurridaEn);
+            if (dia !== fecha) setFecha(dia);
+            else await cargar();
           } catch (err) {
             setError(mensaje(err));
           }

@@ -313,3 +313,32 @@ export interface RepositorioIncidencias {
   crearConteo(c: ConteoVista): Promise<{ conteo: ConteoVista; nuevo: boolean }>;
   marcarObraDesistida(obraId: string): Promise<boolean>;
 }
+
+// Estadísticas e informe de cierre (US5, FR-009, FR-010) -----------------------------------------
+export const REPOSITORIO_ESTADISTICAS = Symbol('REPOSITORIO_ESTADISTICAS');
+
+export interface FiltroIndicadores {
+  desde?: string;
+  hasta?: string;
+  sedeId?: string;
+  disciplina?: string;
+  componente?: string;
+  pais?: string;
+}
+
+export interface InformeGuardado {
+  edicionId: string;
+  generadoEn: Date;
+  datos: Record<string, unknown>;
+}
+
+export interface RepositorioEstadisticas {
+  datos(edicionId: string, filtro: FiltroIndicadores): Promise<import('../domain/indicadores').DatoFuncion[]>;
+  ultimaActualizacion(edicionId: string): Promise<Date | null>;
+  cifrasHistoricas(anio: number): Promise<{ actividades: number; elencos: number; obras: number; paises: number; asistenciaTotal: number; asistenciaValidada: number | null; asistenciaEstimada: number | null; ocupacionMedia: number | null; recaudacionCentavos: number | null } | null>;
+  informe(edicionId: string): Promise<InformeGuardado | null>;
+  informeDelAnio(anio: number): Promise<InformeGuardado | null>;
+  guardarInforme(edicionId: string, generadoEn: Date, datos: Record<string, unknown>): Promise<void>;
+  edicionesPublicadas(): Promise<{ id: string; anio: number; fechaFin: string; ultimoFin: Date | null }[]>;
+  cerrarEdicion(edicionId: string): Promise<boolean>;
+}

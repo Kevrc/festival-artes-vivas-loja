@@ -125,6 +125,54 @@ export interface Conteo {
   registradoEn: string;
 }
 
+export type Dimension = 'dia' | 'sede' | 'disciplina' | 'componente' | 'pais' | 'funcion';
+
+export interface FilaIndicador {
+  clave: string;
+  etiqueta: string;
+  funcionesRealizadas: number;
+  funcionesCanceladas: number;
+  entradasEmitidas: number;
+  ingresosValidados: number;
+  asistenciaEstimada: number;
+  asistenciaTotal: number;
+  ocupacion: number | null;
+  recaudacionCentavos: number;
+}
+
+export interface Indicadores {
+  dimension: Dimension;
+  totales: FilaIndicador;
+  filas: FilaIndicador[];
+  actualizadoEn: string;
+}
+
+export interface FiltroIndicadores {
+  dimension: Dimension;
+  desde?: string;
+  hasta?: string;
+  sedeId?: string;
+}
+
+export interface InformeCierre {
+  edicionId: string;
+  anio: number;
+  generadoEn: string;
+  actividades: number;
+  elencos: number;
+  obras: number;
+  paises: number;
+  asistenciaValidada: number;
+  asistenciaEstimada: number;
+  asistenciaTotal: number;
+  ocupacionMedia: number | null;
+  recaudacionCentavos: number;
+  variacion: Record<string, number> | null;
+  anterior: { anio: number; fuente: 'informe' | 'cifras_historicas' } | null;
+}
+
+const consulta = (f: FiltroIndicadores) => new URLSearchParams(Object.entries(f).filter(([, v]) => v) as [string, string][]).toString();
+
 export const apiOperacion = {
   ediciones: async () => (await pedir<Edicion[]>('/ediciones')).datos,
   grilla: async (edicionId: string, fecha: string) => (await pedir<Grilla>(`/ediciones/${edicionId}/grilla?fecha=${fecha}`)).datos,
@@ -153,6 +201,21 @@ export const apiOperacion = {
   atenderIncidencia: async (id: string) => (await pedir<Incidencia>(`/incidencias/${id}`, { method: 'PATCH', body: json({ estado: 'atendida' }) })).datos,
   registrarConteo: async (funcionId: string, cantidad: number, metodo: string, claveIdempotencia: string) =>
     (await pedir<Conteo>(`/funciones/${funcionId}/conteos`, { method: 'POST', body: json({ cantidad, metodo }), headers: { 'Idempotency-Key': claveIdempotencia } })).datos,
+  indicadores: async (edicionId: string, f: FiltroIndicadores) => (await pedir<Indicadores>(`/ediciones/${edicionId}/indicadores?${consulta(f)}`)).datos,
+  /** US5-AS3: el CSV con los mismos filtros, como archivo para descargar. */
+  indicadoresCsv: async (edicionId: string, f: FiltroIndicadores): Promise<Blob> => {
+    const headers = new Headers();
+    const sesion = leerSesionDev();
+    if (sesion) {
+      headers.set('x-cuenta-dev', sesion.cuentaId);
+      headers.set('x-roles-dev', sesion.rol);
+    }
+    const res = await fetch(`${baseApiUrl()}/api/operacion/ediciones/${edicionId}/indicadores.csv?${consulta(f)}`, { headers, credentials: 'include', cache: 'no-store' });
+    if (!res.ok) throw new ErrorApiOperacion(res.status, `No se pudo exportar (error ${res.status})`);
+    return res.blob();
+  },
+  informe: async (edicionId: string) => (await pedir<InformeCierre>(`/ediciones/${edicionId}/informe`)).datos,
+  regenerarInforme: async (edicionId: string) => (await pedir<InformeCierre>(`/ediciones/${edicionId}/informe`, { method: 'POST' })).datos,
   historial: async (id: string) => (await pedir<CambioFuncion[]>(`/funciones/${id}/cambios`)).datos,
   reprogramar: async (id: string, version: number, r: Reprogramacion) =>
     (await pedir<Funcion>(`/funciones/${id}/reprogramacion`, { method: 'POST', body: json(r), version })).datos,

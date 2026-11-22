@@ -18,3 +18,9 @@ export function diasEntre(desde: string, hasta: string): string[] {
 
 /** Hora de inicio (Loja) de un ISO, en horas enteras, para ubicarla en la fila de la grilla. */
 export const horaDeInicio = (iso: string) => Number(horaLoja(iso).slice(0, 2));
+
+/** Números de las estadísticas en es-EC: miles con punto, porcentajes y dólares desde centavos. */
+export const entero = (n: number) => n.toLocaleString('es-EC');
+export const porcentaje = (fraccion: number | null) => (fraccion === null ? '—' : `${(fraccion * 100).toLocaleString('es-EC', { maximumFractionDigits: 1 })} %`);
+export const dolares = (centavos: number) => `USD ${(centavos / 100).toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+export const variacionTexto = (v: number | undefined) => (v === undefined ? 'sin dato anterior' : `${v > 0 ? '+' : ''}${v.toLocaleString('es-EC', { maximumFractionDigits: 1 })} %`);

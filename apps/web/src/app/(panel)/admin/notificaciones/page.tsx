@@ -39,7 +39,7 @@ export default function NotificacionesFallidasPage() {
       )}
       {items && items.length === 0 && <p>No hay avisos fallidos.</p>}
       {items && items.length > 0 && (
-        <div className={estilos.envoltura}>
+        <div className={estilos.desplazable} tabIndex={0} role="region" aria-label="Tabla de avisos fallidos (se desplaza)">
           <table className={estilos.tabla}>
             <caption>Avisos sin enviar tras 24 horas de reintentos</caption>
             <thead>

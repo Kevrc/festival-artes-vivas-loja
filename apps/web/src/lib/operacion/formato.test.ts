@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { diaFestival, diasEntre, fechaLarga, horaDeInicio, horaLoja } from './formato';
+import { diaFestival, diasEntre, fechaLarga, horaDeInicio, horaLoja, dolares, entero, porcentaje, variacionTexto } from './formato';
 
 describe('formato del panel de Operación (hora de Loja)', () => {
   it('muestra la hora local de Loja en 24 h', () => {
@@ -24,5 +24,17 @@ describe('formato del panel de Operación (hora de Loja)', () => {
 
   it('nombra el día en español sin desplazarlo por la zona horaria', () => {
     expect(fechaLarga('2026-11-20')).toMatch(/viernes.*20.*noviembre/);
+  });
+});
+
+describe('números de las estadísticas', () => {
+  it('enteros, porcentajes, dólares y variación', () => {
+    expect(entero(163162)).toMatch(/163.162/);
+    expect(porcentaje(0.75)).toMatch(/^75\s%$/);
+    expect(porcentaje(null)).toBe('—');
+    expect(dolares(230000)).toMatch(/^USD 2.300,00$/);
+    expect(variacionTexto(10.3)).toMatch(/^\+10,3\s%$/);
+    expect(variacionTexto(-20)).toMatch(/^-20\s%$/);
+    expect(variacionTexto(undefined)).toBe('sin dato anterior');
   });
 });
