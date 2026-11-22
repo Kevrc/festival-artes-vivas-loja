@@ -2,9 +2,11 @@ import { createHash } from 'node:crypto';
 import type { PrismaClient } from '../../apps/api/src/generated/prisma/index.js';
 import type { AlmacenamientoDocumentosPort } from '../../apps/api/src/modules/convocatorias/application/puertos.js';
 import { calcularObraFingerprint } from '../../apps/api/src/modules/convocatorias/domain/reglas-convocatoria.js';
+import { idDe } from './ids';
 
 export const SEED_CONVOCATORIA_ID = '11111111-1111-4111-8111-111111111111';
-const edicionId = '22222222-2222-4222-8222-222222222222';
+// Spec 004 (eventos §5.3): la misma edición 2026 que siembra Operación.
+const edicionId = idDe('edicion-2026');
 const criterios = [
   { id: '33333333-3333-4333-8333-333333333331', nombre: 'Propuesta artística', descripcion: 'Originalidad y coherencia', peso: 50 },
   { id: '33333333-3333-4333-8333-333333333332', nombre: 'Calidad técnica', descripcion: 'Solidez de la ejecución', peso: 30 },

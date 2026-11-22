@@ -25,8 +25,8 @@ export function leerCookie(req: PeticionConCabeceras, nombre: string): string | 
  * Contrato IdentidadPublica de verdad (ADR-0009, T075): sesión de la cookie `fiavl_sesion`, con
  * estado y roles leídos en cada petición. Falla cerrado: cualquier error ⇒ null (401).
  *
- * shortcut: en development/test, sin cookie válida, cae al proveedor de cabeceras `x-*-dev` que
- * usan el panel de Operación y las pruebas hasta que existan cuentas del personal (US9). En
+ * shortcut: en development/test, sin cookie, cae al proveedor de cabeceras `x-*-dev` que usan el
+ * panel de Operación y las pruebas. Con cookie (aunque no sea válida) nunca cae al puente. En
  * cualquier otro entorno el proveedor de desarrollo ya devuelve null.
  */
 export class IdentidadPublicaSesionProvider implements IdentidadPublica {
@@ -43,10 +43,8 @@ export class IdentidadPublicaSesionProvider implements IdentidadPublica {
   async resolverSesion(req: PeticionConCabeceras): Promise<ContextoIdentidad | null> {
     try {
       const token = leerCookie(req, COOKIE_SESION);
-      if (token && /^[A-Za-z0-9_-]{43}$/.test(token)) {
-        const ctx = await this.sesiones.resolver(token);
-        if (ctx) return ctx;
-      }
+      // Con cookie manda la sesión real: vencida, revocada o inventada ⇒ null, nunca el puente dev.
+      if (token !== null) return /^[A-Za-z0-9_-]{43}$/.test(token) ? await this.sesiones.resolver(token) : null;
       return this.dev ? await this.dev.resolverSesion(req) : null;
     } catch (e) {
       this.log.error({ error: e instanceof Error ? e.message : String(e) }, 'no se pudo resolver la sesión: acceso denegado');

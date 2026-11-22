@@ -5,6 +5,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import estilos from '@/components/operacion/operacion.module.css';
 import { ErrorApiIdentidad, apiIdentidad } from '@/lib/identidad/api';
 import { destinoSeguro } from '@/lib/identidad/requisitos';
+import { fusionarConCuenta } from '@/lib/cartelera/favoritos';
 
 /**
  * `/cuenta/ingresar` (US8-AS1): correo y contraseña. El mensaje ante un fallo es neutro (FR-016):
@@ -33,6 +34,8 @@ export default function IngresarPage() {
     try {
       const yo = await apiIdentidad.ingresar(correo, contrasena);
       const volver = destinoSeguro(new URLSearchParams(window.location.search).get('volver'));
+      // Mi agenda (spec 001, US5): los favoritos del dispositivo se suman a los de la cuenta.
+      if (yo.segundoFactorOk) await fusionarConCuenta().catch(() => undefined);
       // Personal sin segundo factor: primero debe configurarlo (US9-AS3).
       window.location.assign(yo.segundoFactorOk ? volver : `/cuenta/segundo-factor?volver=${encodeURIComponent(volver)}`);
     } catch (err) {

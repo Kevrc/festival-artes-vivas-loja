@@ -52,7 +52,12 @@ export interface IdentidadPublica {
 |--------|-----|---------------|
 | Boletería (002) | `AutorizacionDevAdapter` implementa `AutorizacionBoleteriaPort` | Nuevo `AutorizacionIdentidadAdapter` implementa el **mismo** puerto: mapea `roles[].alcance(tipo = sede)` a `sedeId` y filtra los roles que Boletería conoce. El adaptador dev queda para sus pruebas |
 | Cartelera (001) | `SesionGuard` lee `x-cuenta-dev` | `SesionGuard` usa `IDENTIDAD_PUBLICA` y deja `req.cuentaId` |
-| Convocatorias (003) | — | Usa el contrato desde el inicio |
+| Convocatorias (003) | `AutorizacionConvocatoriasDevAdapter` | `AutorizacionConvocatoriasIdentidadAdapter` traduce códigos a los nombres de FR-019 y el alcance a `{ sedeId \| provincia \| disciplina }`; toda cuenta es además `asistente` y `postulante` |
+
+**Prioridad de la cookie** (implementación, T088–T091): si la petición trae `fiavl_sesion`, manda
+Identidad aunque no sea válida (vencida, revocada o inventada ⇒ 401); solo sin cookie, y en
+development/test, se usan los puentes de desarrollo de cada módulo. Una sesión del personal sin
+segundo factor no autoriza nada en los otros módulos.
 
 Los cambios en 001 y 002 van en un PR propio aprobado por sus responsables (Constitución §6) con
 `/security-review` (Q8).

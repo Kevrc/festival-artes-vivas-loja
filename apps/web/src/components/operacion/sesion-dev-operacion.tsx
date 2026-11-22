@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { type RolOperacion, type SesionDevOperacion, guardarSesionDev, leerSesionDev } from '@/lib/operacion/api';
 import estilos from './operacion.module.css';
@@ -12,8 +13,8 @@ const ROLES: { rol: RolOperacion; nombre: string }[] = [
 ];
 
 /**
- * shortcut: elige un rol de demostración mientras no exista el inicio de sesión de Identidad
- * (US8, T077). Solo funciona contra una API en development/test.
+ * Elige un rol de demostración (puente de desarrollo). Solo funciona contra una API en
+ * development/test; con la sesión real de Identidad (T091) la API usa la cookie y lo ignora.
  */
 export function SesionDevOperacion({ onCambio }: { onCambio: (s: SesionDevOperacion | null) => void }) {
   const [sesion, setSesion] = useState<SesionDevOperacion | null>(null);
@@ -38,7 +39,7 @@ export function SesionDevOperacion({ onCambio }: { onCambio: (s: SesionDevOperac
   return (
     <aside className="aviso no-imprimir" aria-label="Sesión de demostración">
       <div className={estilos.campo}>
-        <label htmlFor="rol-demo">Sesión de demostración (hasta el inicio de sesión real)</label>
+        <label htmlFor="rol-demo">Sesión de demostración (solo desarrollo y pruebas)</label>
         <select id="rol-demo" value={sesion?.rol ?? ''} onChange={(e) => elegir(e.target.value as RolOperacion | '')}>
           <option value="">Sin sesión</option>
           {ROLES.map((r) => (
@@ -48,6 +49,9 @@ export function SesionDevOperacion({ onCambio }: { onCambio: (s: SesionDevOperac
           ))}
         </select>
       </div>
+      <p className={estilos.ayuda}>
+        Con tu cuenta del personal: <Link href="/cuenta/ingresar?volver=/programacion">Ingresar</Link> (la sesión real tiene prioridad).
+      </p>
     </aside>
   );
 }
