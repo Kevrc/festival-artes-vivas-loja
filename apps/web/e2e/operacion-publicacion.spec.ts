@@ -1,41 +1,19 @@
 import { randomUUID } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
-import { resolve } from 'node:path';
 import { type APIRequestContext, expect, test } from '@playwright/test';
 import { idDe, sinViolacionesAxe } from './ayuda';
+import { API, type DbE2e, EDICION_2026 as EDICION, IMAGEN_PRUEBA as IMAGEN, abrirDb, hayWorker } from './ayuda-operacion';
 
 /**
  * T050 · US2 — corregir los errores de publicación, publicar y ver la función en la cartelera en
  * menos de 1 minuto (SC-003), con axe. Requiere API, worker y web en marcha (quickstart.md).
  * Cada proyecto usa su propia obra y su propio día en el Teatro Segundo Cueva Celi.
  */
-const API = process.env.API_URL ?? 'http://localhost:4000';
-const EDICION = idDe('edicion-2026');
 const CUEVA = idDe('sede:cueva');
 const PROGRAMADOR = { 'x-cuenta-dev': '00000000-0000-4000-8000-0000000000e3', 'x-roles-dev': 'programador' };
-/** Imagen mínima en línea: la publicación exige al menos una imagen por obra (R4). */
-const IMAGEN = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="4" height="3"><rect width="4" height="3" fill="#a3201c"/></svg>')}`;
 const DIAS = { escritorio: '2026-11-16', movil: '2026-11-19' } as const;
 
-interface Db {
-  $executeRawUnsafe(sql: string, ...valores: unknown[]): Promise<number>;
-  $disconnect(): Promise<void>;
-}
-function abrirDb(): Db {
-  const req = createRequire(import.meta.url);
-  const raiz = resolve(import.meta.dirname, '../../..');
-  const env = resolve(raiz, '.env');
-  const url =
-    process.env.DATABASE_URL ??
-    (existsSync(env) ? readFileSync(env, 'utf8').split('\n').find((l) => l.startsWith('DATABASE_URL='))?.slice(13).trim() : undefined) ??
-    'postgresql://fiavl:fiavl@localhost:5433/fiavl';
-  const { PrismaClient } = req(resolve(raiz, 'apps/api/src/generated/prisma/index.js')) as { PrismaClient: new (o: unknown) => Db };
-  return new PrismaClient({ datasources: { db: { url } } });
-}
-
 /** Solo pruebas: borra la obra de la prueba y lo que generó en Operación, Cartelera y Boletería. */
-async function limpiar(db: Db, obraId: string) {
+async function limpiar(db: DbE2e, obraId: string) {
   const sql = [
     `DELETE FROM boleteria.inventario_funcion WHERE obra_id = $1::uuid`,
     `DELETE FROM programacion.funcion_cartelera WHERE obra_id = $1::uuid`,
@@ -104,7 +82,13 @@ test.describe('US2 · Publicar la programación', () => {
       await expect(page.getByRole('status').filter({ hasText: `Publicada: ${titulo}` })).toBeVisible();
       await sinViolacionesAxe(page);
 
-      // 4. SC-003: la ficha pública de la obra la muestra en menos de 1 minuto.
+      // 4. SC-003: la ficha pública de la obra la muestra en menos de 1 minuto. Necesita la cola y el
+      // worker; el job de CI corre la API con NODE_ENV=test (sin cola ni worker): allí lo cubre la
+      // integración (publicacion.int.test.ts aplica los eventos a la proyección de Cartelera).
+      if (!hayWorker()) {
+        info.annotations.push({ type: 'omitido', description: 'Sin cola ni worker (NODE_ENV=test): no se comprueba la llegada a la cartelera.' });
+        return;
+      }
       await expect(async () => {
         await page.goto(`/obras/${obraId}`);
         await expect(page.getByRole('heading', { name: titulo, level: 1 })).toBeVisible({ timeout: 2_000 });

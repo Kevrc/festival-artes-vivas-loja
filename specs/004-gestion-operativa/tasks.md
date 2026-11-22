@@ -154,18 +154,18 @@ tiene una prueba nombrada; en dominio se escribe **primero** la prueba y se comp
 
 ### Tests
 
-- [ ] T051 [P] [US3] Prueba de dominio `op/domain/ciclo-funcion.test.ts`: `US3-AS4` (sin motivo ⇒ rechazo), `US3-AS5` (finalizada derivada: `fin < ahora`), RN-005, RN-007 (edición `cerrada` ⇒ sin transiciones)
-- [ ] T052 [P] [US3] Prueba de integración `apps/api/test/operacion/cambios.int.test.ts`: `US3-AS1` (estado `reprogramada`, `cambio_funcion.anterior` con el horario previo, `FuncionReprogramada`), `US3-AS3` (`FuncionCancelada`, bloques desactivados), `US3-AS2` (409 con `exceso` y luego `confirmarExceso` guarda `cambio_funcion.exceso_confirmado`); comprueba que se generó el registro de `auditoria` con su `correlacion_id` (Constitución IX)
-- [ ] T053 [P] [US3] Prueba de integración `apps/api/test/operacion/proyeccion-boleteria.int.test.ts`: `EntradasEmitidas` y `PedidoReembolsado` mantienen `pedido_registrado` y `metrica_funcion.entradas_emitidas` / `metrica_funcion.entradas_reembolsadas` de forma idempotente (R5, R7)
+- [X] T051 [P] [US3] Prueba de dominio `op/domain/ciclo-funcion.test.ts`: `US3-AS4` (sin motivo ⇒ rechazo), `US3-AS5` (finalizada derivada: `fin < ahora`), RN-005, RN-007 (edición `cerrada` ⇒ sin transiciones)
+- [X] T052 [P] [US3] Prueba de integración `apps/api/test/operacion/cambios.int.test.ts`: `US3-AS1` (estado `reprogramada`, `cambio_funcion.anterior` con el horario previo, `FuncionReprogramada`), `US3-AS3` (`FuncionCancelada`, bloques desactivados), `US3-AS2` (409 con `exceso` y luego `confirmarExceso` guarda `cambio_funcion.exceso_confirmado`); comprueba que se generó el registro de `auditoria` con su `correlacion_id` (Constitución IX)
+- [X] T053 [P] [US3] Prueba de integración `apps/api/test/operacion/proyeccion-boleteria.int.test.ts`: `EntradasEmitidas` y `PedidoReembolsado` mantienen `pedido_registrado` y `metrica_funcion.entradas_emitidas` / `metrica_funcion.entradas_reembolsadas` de forma idempotente (R5, R7)
 
 ### Implementation
 
-- [ ] T054 [US3] Ampliar `op/domain/ciclo-funcion.ts` con `reprogramar` y `cancelar`; `cambio_funcion.motivo` obligatorio; hace pasar T051
-- [ ] T055 [US3] Consumidores `op/application/eventos/{entradas-emitidas,pedido-reembolsado,ingreso-registrado}.ts` para `pedido_registrado`, `metrica_funcion` e `ingreso_registrado` (sin contar dos veces `ingreso_registrado.ingreso_id`); hace pasar T053
-- [ ] T056 [US3] Casos de uso `op/application/cambios/{reprogramar,cancelar}.ts`: reescriben o desactivan `bloque_ocupacion.activo`, insertan `cambio_funcion` y publican `FuncionReprogramada` / `FuncionCancelada` / `AforoCambiado` en la misma transacción; exceso = entradas activas − aforo nuevo; cada acción escribe `auditoria` (`auditoria.actor_id`, `auditoria.accion`, `auditoria.anterior`, `auditoria.nuevo`, `auditoria.correlacion_id`) en la misma transacción (FR-012)
-- [ ] T057 [US3] Controlador `op/interface/cambios.controller.ts`: `POST /funciones/{id}/reprogramacion`, `POST /funciones/{id}/cancelacion`, `GET /funciones/{id}/cambios`; hace pasar T052
-- [ ] T058 [US3] Página `apps/web/src/app/(panel)/programacion/funciones/[id]/page.tsx` con historial, formularios de reprogramar y cancelar (motivo obligatorio) y diálogo accesible de confirmación de exceso
-- [ ] T059 [US3] E2E `apps/web/e2e/operacion-cambios.spec.ts`: reprogramar por lluvia, cancelar y ver el cambio en la cartelera, con axe
+- [X] T054 [US3] Ampliar `op/domain/ciclo-funcion.ts` con `reprogramar` y `cancelar`; `cambio_funcion.motivo` obligatorio; hace pasar T051
+- [X] T055 [US3] Consumidores `op/application/eventos/{entradas-emitidas,pedido-reembolsado,ingreso-registrado}.ts` para `pedido_registrado`, `metrica_funcion` e `ingreso_registrado` (sin contar dos veces `ingreso_registrado.ingreso_id`); hace pasar T053 — *En `eventos/proyeccion-boleteria.ts`. Un reembolso de un pedido que nunca emitió entradas (pago tardío sin cupo) no resta nada.*
+- [X] T056 [US3] Casos de uso `op/application/cambios/{reprogramar,cancelar}.ts`: reescriben o desactivan `bloque_ocupacion.activo`, insertan `cambio_funcion` y publican `FuncionReprogramada` / `FuncionCancelada` / `AforoCambiado` en la misma transacción; exceso = entradas activas − aforo nuevo; cada acción escribe `auditoria` (`auditoria.actor_id`, `auditoria.accion`, `auditoria.anterior`, `auditoria.nuevo`, `auditoria.correlacion_id`) en la misma transacción (FR-012) — *Hecho en `cambios/cambios.servicio.ts`. Con cambio de aforo, `FuncionReprogramada` (n+1) y `AforoCambiado` (n+2) diferido 15 s (research R3.6). También se completa la edición de funciones publicadas (`FuncionActualizada`/`AforoCambiado`) en `funciones.servicio.ts`, y el guardado sin cruces queda en `funciones/agenda-segura.ts`.*
+- [X] T057 [US3] Controlador `op/interface/cambios.controller.ts`: `POST /funciones/{id}/reprogramacion`, `POST /funciones/{id}/cancelacion`, `GET /funciones/{id}/cambios`; hace pasar T052
+- [X] T058 [US3] Página `apps/web/src/app/(panel)/programacion/funciones/[id]/page.tsx` con historial, formularios de reprogramar y cancelar (motivo obligatorio) y diálogo accesible de confirmación de exceso
+- [X] T059 [US3] E2E `apps/web/e2e/operacion-cambios.spec.ts`: reprogramar por lluvia, cancelar y ver el cambio en la cartelera, con axe — *Pasa en móvil y escritorio. La llegada a la cartelera necesita cola y worker: con `NODE_ENV=test` (job de CI) ese paso se omite con una anotación y lo cubre la integración.*
 
 **Checkpoint**: Operación P1 completa (escenarios 1–13 menos los de P2).
 

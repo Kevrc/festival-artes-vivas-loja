@@ -84,6 +84,14 @@ Boletería ya publica hacia las colas `operacion.*` e `identidad.*`
      - **Cancelar**: `FuncionCancelada`.
      Cada evento incrementa `version` de la función; los consumidores ya descartan versiones viejas.
   5. Las funciones en **borrador no emiten eventos** (no existen para los demás módulos).
+  6. **Orden entre tipos (hallado al implementar US3)**: las colas no garantizan orden entre tipos y
+     Boletería descarta versiones viejas, pero solo actualiza el aforo con `AforoCambiado` (ignora el
+     aforo de la sede que trae `FuncionReprogramada`). Cuando una reprogramación o una edición cambia
+     también el aforo, se emite el evento principal con versión n+1 y `AforoCambiado` con n+2,
+     **diferido 15 s** (`startAfter` de pg-boss). Riesgo residual: si el worker de Boletería está
+     detenido y ambos quedan disponibles a la vez, podría aplicar primero el aforo y descartar la
+     reprogramación. Mejora sugerida a la spec 002 (sin cambiarla aquí): leer `sede.aforo` de
+     `FuncionReprogramada`, con lo que bastaría un solo evento.
 - **Por qué**: Cartelera y Boletería ya funcionan con estos contratos vía la semilla y
   `pnpm events:emit`; Operación pasa a ser la fuente real sin tocar sus consumidores.
 

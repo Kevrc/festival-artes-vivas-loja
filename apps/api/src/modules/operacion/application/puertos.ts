@@ -23,9 +23,17 @@ export const MANEJADORES_OPERACION = Symbol('MANEJADORES_OPERACION');
 /** Hora actual; respeta FIAVL_AHORA fuera de producción (reprogramación, cierre). */
 export type RelojOperacion = () => Date;
 
+export interface OpcionesPublicacion {
+  /**
+   * Retrasa la entrega. Se usa para el `AforoCambiado` que sigue a una reprogramación o edición: las
+   * colas no garantizan orden entre tipos y Boletería descarta versiones viejas (research R3).
+   */
+  retrasoSegundos?: number;
+}
+
 export interface PublicadorOperacion {
   /** Publica dentro de la transacción ambiente: el cambio y su evento se confirman juntos (ADR-0003). */
-  publicar(evento: EventoPublicadoOperacion): Promise<void>;
+  publicar(evento: EventoPublicadoOperacion, opciones?: OpcionesPublicacion): Promise<void>;
 }
 
 export interface EntradaAuditoria {
@@ -167,6 +175,28 @@ export interface FiltroObras {
   incluirDesistidas: boolean;
 }
 
+export type TipoCambio = 'reprogramacion' | 'cambio_sede' | 'cancelacion' | 'cambio_aforo' | 'edicion';
+
+export interface CambioRegistro {
+  id: string;
+  funcionId: string;
+  tipo: TipoCambio;
+  anterior: Record<string, unknown>;
+  nuevo: Record<string, unknown>;
+  motivo: string | null;
+  excesoConfirmado: number | null;
+  autorId: string;
+  registradoEn: Date;
+}
+
+/** Cambio de una función publicada: campos nuevos, versión resultante y qué hacer con sus bloques. */
+export interface CambioFuncion {
+  datos: Partial<DatosFuncion> & { estado?: EstadoFuncionGuardado };
+  version: number;
+  /** Bloques nuevos (cambia horario o sede), `desactivar` (cancelación) o sin cambio. */
+  bloques?: Bloque[] | 'desactivar';
+}
+
 /** La base rechazó la escritura por la restricción EXCLUDE (carrera entre dos programadores). */
 export class CruceEnBaseDeDatos extends Error {
   constructor() {
@@ -223,6 +253,19 @@ export interface RepositorioOperacion {
   actualizarFuncion(id: string, versionEsperada: number, datos: DatosFuncion, bloques: Bloque[]): Promise<FuncionVista | null>;
   /** false si la versión no coincide. */
   eliminarFuncion(id: string, versionEsperada: number): Promise<boolean>;
+  /** Aplica un cambio a una función publicada; null si la versión no coincide (412). Lanza CruceEnBaseDeDatos. */
+  aplicarCambio(id: string, versionEsperada: number, cambio: CambioFuncion): Promise<FuncionVista | null>;
+  /** Historial de cambios, solo inserción (FR-006). */
+  registrarCambio(c: Omit<CambioRegistro, 'id' | 'registradoEn'>): Promise<void>;
+  cambios(funcionId: string): Promise<CambioRegistro[]>;
+  /** Proyección de Boletería (research R7): registra un pedido emitido; false si ya existía. */
+  registrarPedido(p: { pedidoId: string; funcionId: string; tipo: 'compra' | 'reserva'; canal: string; cantidad: number; importeCentavos: number }): Promise<boolean>;
+  /** Marca el pedido como reembolsado; devuelve lo que había sumado, o null si no existía o ya estaba reembolsado. */
+  reembolsarPedido(pedidoId: string): Promise<{ funcionId: string; cantidad: number; importeCentavos: number; tipo: 'compra' | 'reserva' } | null>;
+  /** Registra un ingreso validado; false si ya se había contado. */
+  registrarIngreso(i: { ingresoId: string; funcionId: string; escaneadoEn: Date }): Promise<boolean>;
+  /** Suma (o resta, con negativos) a la métrica de la función. */
+  sumarMetrica(funcionId: string, delta: { emitidas?: number; reembolsadas?: number; ingresos?: number; recaudacionCentavos?: number }): Promise<void>;
 }
 
 /** Un consumidor de eventos de otro módulo; el procesamiento es idempotente por `evento.id`. */

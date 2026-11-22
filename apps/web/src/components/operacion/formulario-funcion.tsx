@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useId, useRef, useState } from 'react';
 import {
   type Conflicto,
@@ -192,9 +193,10 @@ export function FormularioFuncion({ edicionId, fecha, sedes, obras, funcion, edi
         </div>
       )}
 
-      {!editable && (
+      {!editable && funcion && (
         <p className={`nota ${estilos.resumen}`}>
-          Esta función ya está {funcion?.estado}: el horario y la sede se cambian con reprogramación o cancelación, siempre con motivo.
+          Esta función ya está {funcion.estado}: el horario y la sede se cambian con reprogramación o cancelación, siempre con motivo.{' '}
+          <Link href={`/programacion/funciones/${funcion.id}`}>Reprogramar o cancelar</Link>
         </p>
       )}
 

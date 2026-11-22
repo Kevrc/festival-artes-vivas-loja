@@ -1,28 +1,35 @@
 import { randomUUID } from 'node:crypto';
 import type { ContextoIdentidad } from '@fiavl/contracts';
-import { type FuncionAgenda, bloquesDe, calcularFin, detectarConflictos, validarFinPedido } from '../../domain/agenda';
+import { type FuncionAgenda, bloquesDe, calcularFin, validarFinPedido } from '../../domain/agenda';
+import { excesoDeAforo } from '../../domain/ciclo-funcion';
 import type { PublicoFuncion, TipoAccesoFuncion } from '../../domain/tipos';
+import { RETRASO_AFORO_SEGUNDOS } from '../cambios/cambios.servicio';
 import {
   aforoSuperaSede,
-  conflictoAgenda,
+  cambioRechazado,
   edicionCerrada,
+  excesoAforo,
   finMenor,
   fueraDeEdicion,
   funcionPublicada,
   noEncontrado,
   obraDesistida,
+  tipoAccesoRequerido,
+  usarReprogramacion,
   versionObsoleta,
 } from '../errores';
-import {
-  type AuditoriaOperacion,
-  CruceEnBaseDeDatos,
-  InterbloqueoEnBaseDeDatos,
-  type DatosFuncion,
-  type FuncionVista,
-  type ObraVista,
-  type RepositorioOperacion,
-  type SedeVista,
+import { aforoCambiado, funcionActualizada } from '../eventos-salida';
+import type {
+  AuditoriaOperacion,
+  DatosFuncion,
+  FuncionVista,
+  ObraVista,
+  PublicadorOperacion,
+  RelojOperacion,
+  RepositorioOperacion,
+  SedeVista,
 } from '../puertos';
+import { guardarSinCruces } from './agenda-segura';
 
 export interface EntradaFuncion {
   obraId: string;
@@ -45,6 +52,8 @@ export interface EdicionFuncion {
   tipoAcceso?: TipoAccesoFuncion | null;
   publico?: PublicoFuncion;
   aforoHabilitado?: number | null;
+  /** Bajar el aforo por debajo de las entradas activas exige confirmarlo (US3-AS2). */
+  confirmarExceso?: boolean;
 }
 
 interface Peticion {
@@ -53,18 +62,19 @@ interface Peticion {
 }
 
 const DIA = 24 * 60 * 60_000;
-/** Reintentos ante un interbloqueo de la base; cada uno vuelve a comprobar los cruces. */
-const REINTENTOS_INTERBLOQUEO = 3;
-const VENTANA = DIA; // montaje < 24 h: basta mirar un día alrededor
 
 /**
- * Crear, editar y eliminar funciones en borrador (US1, FR-001–FR-004, FR-013).
- * Dos capas contra cruces (ADR-0010): el dominio explica el conflicto; la base lo garantiza.
+ * Crear, editar y eliminar funciones (US1, FR-001–FR-004, FR-013). Un borrador se edita en todo;
+ * una función publicada solo en público, tipo de acceso, aforo y fin (solo hacia más tiempo), y
+ * emite `FuncionActualizada` o `AforoCambiado` (research R3). El horario y la sede de una
+ * publicada se cambian con reprogramación (US3).
  */
 export class FuncionesServicio {
   constructor(
     private readonly repo: RepositorioOperacion,
     private readonly auditoria: AuditoriaOperacion,
+    private readonly publicador: PublicadorOperacion,
+    private readonly reloj: RelojOperacion,
   ) {}
 
   async crear(edicionId: string, e: EntradaFuncion, p: Peticion): Promise<FuncionVista> {
@@ -84,13 +94,11 @@ export class FuncionesServicio {
     };
     this.validarAforo(datos.aforoHabilitado, sede);
     const id = randomUUID();
-    return this.guardarSinCruces(id, datos, sede, obra, () =>
-      this.repo.enTransaccion(async () => {
-        const creada = await this.repo.crearFuncion(id, edicionId, datos, bloquesDe({ ...datos, montajeMin: sede.montajeMin }), p.actor.cuentaId);
-        await this.auditar('funcion.crear', p, creada.id, null, creada);
-        return creada;
-      }),
-    );
+    return guardarSinCruces(this.repo, candidata(id, datos, sede, obra), async () => {
+      const creada = await this.repo.crearFuncion(id, edicionId, datos, bloquesDe({ ...datos, montajeMin: sede.montajeMin }), p.actor.cuentaId);
+      await this.auditar('funcion.crear', p, creada.id, null, creada);
+      return creada;
+    });
   }
 
   async editar(funcionId: string, version: number, cambios: EdicionFuncion, p: Peticion): Promise<FuncionVista> {
@@ -98,8 +106,7 @@ export class FuncionesServicio {
     if (!actual) throw noEncontrado('La función');
     await this.exigirEdicionAbierta(actual.edicionId);
     if (actual.version !== version) throw versionObsoleta(actual.version);
-    // shortcut: las funciones publicadas se editan en US2/US3 (FuncionActualizada, AforoCambiado, reprogramación).
-    if (actual.estado !== 'borrador') throw funcionPublicada();
+    if (actual.estado !== 'borrador') return this.editarPublicada(actual, version, cambios, p);
 
     const { obra, sede } = await this.obraYSede(actual.edicionId, cambios.obraId ?? actual.obraId, cambios.sedeId ?? actual.sedeId);
     const inicio = cambios.inicio ?? actual.inicio;
@@ -118,14 +125,12 @@ export class FuncionesServicio {
       aforoHabilitado: cambios.aforoHabilitado !== undefined ? cambios.aforoHabilitado : actual.aforoHabilitado,
     };
     this.validarAforo(datos.aforoHabilitado, sede);
-    return this.guardarSinCruces(funcionId, datos, sede, obra, () =>
-      this.repo.enTransaccion(async () => {
-        const nueva = await this.repo.actualizarFuncion(funcionId, version, datos, bloquesDe({ ...datos, montajeMin: sede.montajeMin }));
-        if (!nueva) throw versionObsoleta((await this.repo.funcion(funcionId))?.version ?? null);
-        await this.auditar('funcion.editar', p, funcionId, actual, nueva);
-        return nueva;
-      }),
-    );
+    return guardarSinCruces(this.repo, candidata(funcionId, datos, sede, obra), async () => {
+      const nueva = await this.repo.actualizarFuncion(funcionId, version, datos, bloquesDe({ ...datos, montajeMin: sede.montajeMin }));
+      if (!nueva) throw versionObsoleta((await this.repo.funcion(funcionId))?.version ?? null);
+      await this.auditar('funcion.editar', p, funcionId, actual, nueva);
+      return nueva;
+    });
   }
 
   async eliminarBorrador(funcionId: string, version: number, p: Peticion): Promise<void> {
@@ -140,41 +145,72 @@ export class FuncionesServicio {
   }
 
   /**
-   * Guarda sin cruces (ADR-0010). En una transacción: bloqueo consultivo de la sede y del elenco
-   * (ordena a los programadores que guardan a la vez), comprobación del dominio y escritura. La
-   * restricción EXCLUDE sigue siendo la garantía final; si aun así la base rechaza o se interbloquea,
-   * se reintenta con una espera breve y el reintento responde 409 con la función que ganó.
+   * Función ya publicada: cambia datos sin motivo. Solo aforo ⇒ `AforoCambiado`; otros campos ⇒
+   * `FuncionActualizada` (lleva también el aforo) y, si el aforo cambió, `AforoCambiado` diferido
+   * para que Boletería calcule el excedente (versión n+1 y n+2).
    */
-  private async guardarSinCruces<T>(id: string, d: DatosFuncion, sede: SedeVista, obra: ObraVista, guardar: () => Promise<T>): Promise<T> {
-    const candidata: FuncionAgenda = { id, ...d, sedeNombre: sede.nombre, montajeMin: sede.montajeMin, obraTitulo: obra.titulo, activa: true };
-    for (let intento = 1; ; intento++) {
-      try {
-        return await this.repo.enTransaccion(async () => {
-          await this.repo.bloquearAgenda([`sede:${d.sedeId}`, `elenco:${d.elencoId}`]);
-          const conflictos = await this.conflictos(candidata);
-          if (conflictos.length > 0) throw conflictoAgenda(conflictos);
-          return guardar();
-        });
-      } catch (e) {
-        const reintentable = e instanceof InterbloqueoEnBaseDeDatos || e instanceof CruceEnBaseDeDatos;
-        if (!reintentable) throw e;
-        if (intento < REINTENTOS_INTERBLOQUEO) {
-          await esperar(20 + Math.random() * 80 * intento);
-          continue;
-        }
-        throw conflictoAgenda(await this.conflictos(candidata));
-      }
-    }
-  }
+  private async editarPublicada(actual: FuncionVista, version: number, c: EdicionFuncion, p: Peticion): Promise<FuncionVista> {
+    const ahora = this.reloj();
+    if (actual.estado === 'cancelada') throw cambioRechazado('funcion_cancelada');
+    if (ahora.getTime() >= actual.fin.getTime()) throw cambioRechazado('funcion_finalizada');
+    const mueve =
+      (c.obraId !== undefined && c.obraId !== actual.obraId) ||
+      (c.sedeId !== undefined && c.sedeId !== actual.sedeId) ||
+      (c.inicio !== undefined && c.inicio.getTime() !== actual.inicio.getTime());
+    if (mueve) throw usarReprogramacion();
+    if (c.tipoAcceso === null) throw tipoAccesoRequerido();
 
-  private async conflictos(candidata: FuncionAgenda) {
-    const vecinas = await this.repo.agendaVecina({
-      sedeId: candidata.sedeId,
-      elencoId: candidata.elencoId,
-      desde: new Date(candidata.inicio.getTime() - VENTANA),
-      hasta: new Date(candidata.fin.getTime() + VENTANA),
-    });
-    return detectarConflictos(candidata, vecinas);
+    const [completa] = await this.repo.funcionesCompletas(actual.edicionId, { ids: [actual.id] });
+    if (!completa) throw noEncontrado('La función');
+    const fin = c.fin ? validarFin(actual.fin, c.fin) : actual.fin;
+    const aforo = c.aforoHabilitado !== undefined ? c.aforoHabilitado : actual.aforoHabilitado;
+    this.validarAforo(aforo, completa.sede);
+    const datos = {
+      fin,
+      tipoAcceso: c.tipoAcceso ?? actual.tipoAcceso,
+      publico: c.publico ?? actual.publico,
+      aforoHabilitado: aforo,
+    };
+    const cambioAforo = aforo !== actual.aforoHabilitado;
+    const cambioOtros = fin.getTime() !== actual.fin.getTime() || datos.tipoAcceso !== actual.tipoAcceso || datos.publico !== actual.publico;
+    if (!cambioAforo && !cambioOtros) return actual;
+    const exceso = cambioAforo ? excesoDeAforo(actual.entradasActivas, aforo) : 0;
+    if (exceso > 0 && !c.confirmarExceso) throw excesoAforo(exceso, aforo);
+
+    const versionNueva = version + (cambioOtros ? 1 : 0) + (cambioAforo ? 1 : 0);
+    const guardar = async () => {
+      const nueva = await this.repo.aplicarCambio(actual.id, version, {
+        datos,
+        version: versionNueva,
+        ...(fin.getTime() !== actual.fin.getTime() ? { bloques: bloquesDe({ inicio: actual.inicio, fin, continua: actual.continua, montajeMin: completa.sede.montajeMin }) } : {}),
+      });
+      if (!nueva) throw versionObsoleta(null);
+      const anterior = { fin: actual.fin.toISOString(), tipoAcceso: actual.tipoAcceso, publico: actual.publico, aforoHabilitado: actual.aforoHabilitado };
+      const posterior = { fin: fin.toISOString(), tipoAcceso: datos.tipoAcceso, publico: datos.publico, aforoHabilitado: aforo };
+      await this.repo.registrarCambio({
+        funcionId: actual.id,
+        tipo: cambioOtros ? 'edicion' : 'cambio_aforo',
+        anterior,
+        nuevo: posterior,
+        motivo: null,
+        excesoConfirmado: exceso > 0 ? exceso : null,
+        autorId: p.actor.cuentaId,
+      });
+      await this.auditar('funcion.editar_publicada', p, actual.id, anterior, posterior);
+      if (cambioOtros) {
+        await this.publicador.publicar(funcionActualizada({ ...completa, funcion: { ...nueva, version: version + 1 } }, p.correlacionId, ahora));
+      }
+      if (cambioAforo) {
+        await this.publicador.publicar(
+          aforoCambiado(actual.edicionId, actual.id, versionNueva, actual.aforoHabilitado, aforo, p.correlacionId, ahora),
+          cambioOtros ? { retrasoSegundos: RETRASO_AFORO_SEGUNDOS } : {},
+        );
+      }
+      return nueva;
+    };
+    // Alargar el fin puede cruzarse con la siguiente función: misma protección que al crear.
+    if (fin.getTime() === actual.fin.getTime()) return this.repo.enTransaccion(guardar);
+    return guardarSinCruces(this.repo, { ...candidata(actual.id, { ...actual, fin }, completa.sede, completa.obra) }, guardar);
   }
 
   private async exigirEdicionAbierta(edicionId: string) {
@@ -202,27 +238,28 @@ export class FuncionesServicio {
   private finDe(inicio: Date, duracionMin: number, diasContinua?: string[]): Date {
     const finPrimerDia = calcularFin(inicio, duracionMin);
     if (!diasContinua || diasContinua.length === 0) return finPrimerDia;
-    const ultimo = [...diasContinua].sort().at(-1)!;
-    const primero = [...diasContinua].sort()[0]!;
-    const dias = Math.round((Date.parse(ultimo) - Date.parse(primero)) / DIA);
-    return new Date(finPrimerDia.getTime() + dias * DIA);
+    const dias = [...diasContinua].sort();
+    const n = Math.round((Date.parse(dias.at(-1)!) - Date.parse(dias[0]!)) / DIA);
+    return new Date(finPrimerDia.getTime() + n * DIA);
   }
 
   private auditar(accion: string, p: Peticion, entidadId: string, anterior: unknown, nuevo: unknown) {
-    return this.auditoria.registrar({
-      accion,
-      actorId: p.actor.cuentaId,
-      rol: 'programador',
-      entidad: 'funcion',
-      entidadId,
-      anterior,
-      nuevo,
-      correlacionId: p.correlacionId,
-    });
+    return this.auditoria.registrar({ accion, actorId: p.actor.cuentaId, rol: 'programador', entidad: 'funcion', entidadId, anterior, nuevo, correlacionId: p.correlacionId });
   }
 }
 
-const esperar = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const candidata = (id: string, d: Pick<DatosFuncion, 'sedeId' | 'elencoId' | 'inicio' | 'fin' | 'continua'>, sede: SedeVista, obra: ObraVista): FuncionAgenda => ({
+  id,
+  sedeId: d.sedeId,
+  elencoId: d.elencoId,
+  inicio: d.inicio,
+  fin: d.fin,
+  continua: d.continua,
+  sedeNombre: sede.nombre,
+  montajeMin: sede.montajeMin,
+  obraTitulo: obra.titulo,
+  activa: true,
+});
 
 function validarFin(calculado: Date, pedido: Date | undefined): Date {
   const r = validarFinPedido(calculado, pedido);

@@ -1,6 +1,8 @@
 import { type DynamicModule, Module, type Provider, type Type } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { relojDelEntorno } from '../../common/reloj';
+import { CambiosServicio } from './application/cambios/cambios.servicio';
+import { AlRecibirEntradasEmitidas, AlRecibirIngresoRegistrado, AlRecibirPedidoReembolsado } from './application/eventos/proyeccion-boleteria';
 import { AlRecibirPostulacionSeleccionada } from './application/eventos/postulacion-seleccionada';
 import { FuncionesServicio } from './application/funciones/funciones.servicio';
 import { GrillaDelDia } from './application/funciones/grilla-del-dia';
@@ -39,8 +41,15 @@ export class OperacionModule {
       { provide: REPOSITORIO_OPERACION, inject: [PrismaService], useFactory: (db: PrismaService) => new PrismaOperacionRepository(db) },
       {
         provide: FuncionesServicio,
-        inject: [REPOSITORIO_OPERACION, AUDITORIA_OPERACION],
-        useFactory: (r: RepositorioOperacion, a: AuditoriaOperacion) => new FuncionesServicio(r, a),
+        inject: [REPOSITORIO_OPERACION, AUDITORIA_OPERACION, PUBLICADOR_OPERACION, RELOJ_OPERACION],
+        useFactory: (r: RepositorioOperacion, a: AuditoriaOperacion, pub: PublicadorOperacion, reloj: RelojOperacion) =>
+          new FuncionesServicio(r, a, pub, reloj),
+      },
+      {
+        provide: CambiosServicio,
+        inject: [REPOSITORIO_OPERACION, PUBLICADOR_OPERACION, AUDITORIA_OPERACION, RELOJ_OPERACION],
+        useFactory: (r: RepositorioOperacion, pub: PublicadorOperacion, a: AuditoriaOperacion, reloj: RelojOperacion) =>
+          new CambiosServicio(r, pub, a, reloj),
       },
       { provide: GrillaDelDia, inject: [REPOSITORIO_OPERACION], useFactory: (r: RepositorioOperacion) => new GrillaDelDia(r) },
       {
@@ -60,7 +69,12 @@ export class OperacionModule {
         inject: [PrismaService, REPOSITORIO_OPERACION, AUDITORIA_OPERACION],
         useFactory: (db: PrismaService, r: RepositorioOperacion, a: AuditoriaOperacion) => {
           const unaVez = (e: { id: string; tipo: string }, fn: () => Promise<void>) => procesarUnaVezOperacion(db, e, fn);
-          return [new AlRecibirPostulacionSeleccionada(r, a, unaVez)];
+          return [
+            new AlRecibirPostulacionSeleccionada(r, a, unaVez),
+            new AlRecibirEntradasEmitidas(r, unaVez),
+            new AlRecibirPedidoReembolsado(r, unaVez),
+            new AlRecibirIngresoRegistrado(r, unaVez),
+          ];
         },
       },
     ];

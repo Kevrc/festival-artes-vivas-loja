@@ -3,6 +3,8 @@ import type { Prisma } from '../../../generated/prisma/index.js';
 import { enTransaccion, transaccionActual } from '../../../common/datos/transaccion';
 import type { PrismaService } from '../../../common/prisma/prisma.service';
 import {
+  type CambioFuncion,
+  type CambioRegistro,
   CruceEnBaseDeDatos,
   InterbloqueoEnBaseDeDatos,
   type DatosFuncion,
@@ -314,8 +316,89 @@ export class PrismaOperacionRepository implements RepositorioOperacion {
     return count > 0;
   }
 
+  async aplicarCambio(id: string, versionEsperada: number, c: CambioFuncion): Promise<FuncionVista | null> {
+    try {
+      const { count } = await this.tx.funcionOperacion.updateMany({
+        where: { id, version: versionEsperada },
+        data: { ...c.datos, version: c.version },
+      });
+      if (count === 0) return null;
+      if (c.bloques === 'desactivar') {
+        await this.tx.bloqueOcupacion.updateMany({ where: { funcionId: id }, data: { activo: false } });
+      } else if (c.bloques) {
+        const f = await this.tx.funcionOperacion.findUniqueOrThrow({ where: { id } });
+        await this.tx.bloqueOcupacion.deleteMany({ where: { funcionId: id } });
+        await this.escribirBloques(id, f, c.bloques);
+      }
+      return this.funcion(id);
+    } catch (e) {
+      traducir(e);
+    }
+  }
+
+  async registrarCambio(c: Omit<CambioRegistro, 'id' | 'registradoEn'>): Promise<void> {
+    await this.tx.cambioFuncion.create({
+      data: {
+        id: randomUUID(),
+        funcionId: c.funcionId,
+        tipo: c.tipo,
+        anterior: c.anterior as Prisma.InputJsonValue,
+        nuevo: c.nuevo as Prisma.InputJsonValue,
+        motivo: c.motivo,
+        excesoConfirmado: c.excesoConfirmado,
+        autorId: c.autorId,
+      },
+    });
+  }
+
+  async cambios(funcionId: string): Promise<CambioRegistro[]> {
+    const filas = await this.tx.cambioFuncion.findMany({ where: { funcionId }, orderBy: { registradoEn: 'asc' } });
+    return filas.map((c) => ({
+      id: c.id,
+      funcionId: c.funcionId,
+      tipo: c.tipo,
+      anterior: c.anterior as Record<string, unknown>,
+      nuevo: c.nuevo as Record<string, unknown>,
+      motivo: c.motivo,
+      excesoConfirmado: c.excesoConfirmado,
+      autorId: c.autorId,
+      registradoEn: c.registradoEn,
+    }));
+  }
+
+  async registrarPedido(p: { pedidoId: string; funcionId: string; tipo: 'compra' | 'reserva'; canal: string; cantidad: number; importeCentavos: number }): Promise<boolean> {
+    const { count } = await this.tx.pedidoRegistrado.createMany({ data: [p], skipDuplicates: true });
+    return count > 0;
+  }
+
+  async reembolsarPedido(pedidoId: string) {
+    const pedido = await this.tx.pedidoRegistrado.findUnique({ where: { pedidoId } });
+    if (!pedido || pedido.reembolsado) return null;
+    await this.tx.pedidoRegistrado.update({ where: { pedidoId }, data: { reembolsado: true } });
+    return { funcionId: pedido.funcionId, cantidad: pedido.cantidad, importeCentavos: pedido.importeCentavos, tipo: pedido.tipo };
+  }
+
+  async registrarIngreso(i: { ingresoId: string; funcionId: string; escaneadoEn: Date }): Promise<boolean> {
+    const { count } = await this.tx.ingresoRegistrado.createMany({ data: [i], skipDuplicates: true });
+    return count > 0;
+  }
+
+  async sumarMetrica(funcionId: string, d: { emitidas?: number; reembolsadas?: number; ingresos?: number; recaudacionCentavos?: number }): Promise<void> {
+    const v = { emitidas: d.emitidas ?? 0, reembolsadas: d.reembolsadas ?? 0, ingresos: d.ingresos ?? 0, recaudacion: d.recaudacionCentavos ?? 0 };
+    await this.tx.metricaFuncion.upsert({
+      where: { funcionId },
+      create: { funcionId, entradasEmitidas: v.emitidas, entradasReembolsadas: v.reembolsadas, ingresosValidados: v.ingresos, recaudacionCentavos: v.recaudacion },
+      update: {
+        entradasEmitidas: { increment: v.emitidas },
+        entradasReembolsadas: { increment: v.reembolsadas },
+        ingresosValidados: { increment: v.ingresos },
+        recaudacionCentavos: { increment: v.recaudacion },
+      },
+    });
+  }
+
   /** Los rangos `tstzrange` se escriben con SQL: Prisma no los modela. */
-  private async escribirBloques(funcionId: string, d: DatosFuncion, bloques: Bloque[]) {
+  private async escribirBloques(funcionId: string, d: Pick<DatosFuncion, 'sedeId' | 'elencoId'>, bloques: Bloque[]) {
     for (const b of bloques) {
       await this.tx.$executeRawUnsafe(
         `INSERT INTO operacion.bloque_ocupacion (id, funcion_id, sede_id, elenco_id, rango_sede, rango_elenco)

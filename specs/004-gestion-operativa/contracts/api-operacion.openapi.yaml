@@ -616,7 +616,8 @@ components:
           enum: [cruce_sede, cruce_elenco, aforo_supera_sede, exceso_aforo, motivo_requerido, funcion_finalizada,
                  edicion_cerrada, obra_desistida, version_obsoleta, sede_con_funciones, fuera_de_alcance, fin_menor,
                  funcion_publicada, version_requerida, fuera_de_edicion, no_encontrado, segundo_factor_requerido,
-                 publicacion_invalida, edicion_sin_publicar, idempotencia_requerida]
+                 publicacion_invalida, edicion_sin_publicar, idempotencia_requerida, funcion_en_borrador,
+                 funcion_cancelada, sin_cambios, usar_reprogramacion, sin_tipo_acceso]
     Edicion:
       type: object
       required: [id, numero, anio, fechaInicio, fechaFin, estado, version]
@@ -744,6 +745,7 @@ components:
         tipoAcceso: { type: [string, 'null'], enum: [pagada, gratuita_reserva, gratuita_libre, restringida, null], description: Puede faltar en un borrador; se exige al publicar (US2-AS2) }
         publico: { type: string, enum: [familiar, adultos, estudiantes] }
         aforoHabilitado: { type: [integer, 'null'], minimum: 1 }
+        confirmarExceso: { type: boolean, description: Bajar el aforo por debajo de las entradas activas exige confirmarlo (US3-AS2) }
     Funcion:
       type: object
       required: [id, edicionId, obraId, sedeId, elencoId, inicio, fin, continua, publico, estado, version]
@@ -814,6 +816,7 @@ components:
         anterior: { type: object, additionalProperties: true }
         nuevo: { type: object, additionalProperties: true }
         motivo: { type: [string, 'null'] }
+        excesoConfirmado: { type: [integer, 'null'], description: Entradas en exceso aceptadas al reprogramar (US3-AS2) }
         autorId: { type: string, format: uuid }
         registradoEn: { type: string, format: date-time }
     IncidenciaEntrada:

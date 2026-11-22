@@ -31,9 +31,19 @@ export const FuncionEdicionSchema = z
     tipoAcceso: TipoAcceso.nullable(),
     publico: Publico,
     aforoHabilitado: Aforo,
+    confirmarExceso: z.boolean(),
   })
   .partial()
   .strict();
+
+/** El mínimo del motivo lo comprueba el dominio (US3-AS4, `motivo_requerido`); aquí solo el largo máximo. */
+const Motivo = z.string().max(500).default('');
+
+export const ReprogramacionSchema = z
+  .object({ inicio: Instante.optional(), sedeId: z.string().uuid().optional(), motivo: Motivo, confirmarExceso: z.boolean().default(false) })
+  .strict();
+
+export const CancelacionSchema = z.object({ motivo: Motivo }).strict();
 
 const ElencoSchema = z.object({
   id: z.string().uuid().optional(),

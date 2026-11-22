@@ -11,6 +11,7 @@ export async function publicarEnCola(
   cola: ColaEventos,
   evento: { id: string; tipo: string },
   destinos: readonly string[],
+  opciones: { retrasoSegundos?: number } = {},
 ): Promise<void> {
   if (!cola.habilitada || destinos.length === 0) return;
   const boss = await cola.obtener();
@@ -20,7 +21,12 @@ export async function publicarEnCola(
   };
   for (const destino of destinos) {
     const nombre = colaDe(destino, evento.tipo);
-    await boss.send(nombre, evento, { ...(db ? { db } : {}), singletonKey: `${nombre}:${evento.id}`, singletonSeconds: 43_200 });
+    await boss.send(nombre, evento, {
+      ...(db ? { db } : {}),
+      ...(opciones.retrasoSegundos ? { startAfter: opciones.retrasoSegundos } : {}),
+      singletonKey: `${nombre}:${evento.id}`,
+      singletonSeconds: 43_200,
+    });
   }
 }
 

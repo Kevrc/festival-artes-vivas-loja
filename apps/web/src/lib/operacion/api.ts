@@ -13,6 +13,8 @@ export type FuncionEdicion = Schemas['FuncionEdicion'];
 export type Grilla = Schemas['Grilla'];
 export type Conflicto = Schemas['Conflicto'];
 export type ValidacionPublicacion = Schemas['ValidacionPublicacion'];
+export type CambioFuncion = Schemas['CambioFuncion'];
+export type Reprogramacion = Schemas['Reprogramacion'];
 export type RolOperacion = 'programador' | 'direccion' | 'jefe_sala' | 'administrador';
 
 /**
@@ -61,6 +63,8 @@ export class ErrorApiOperacion extends Error {
     readonly versionVigente?: number,
     /** Errores de validación de la publicación (422, US2-AS2). */
     readonly errores: ValidacionPublicacion['errores'] = [],
+    /** Entradas activas por encima del nuevo aforo (409 `exceso_aforo`, US3-AS2). */
+    readonly exceso?: number,
   ) {
     super(message);
   }
@@ -77,13 +81,13 @@ async function pedir<T>(ruta: string, init: RequestInit & { version?: number } =
   }
   const res = await fetch(`${baseApiUrl()}/api/operacion${ruta}`, { ...init, headers, credentials: 'include', cache: 'no-store' });
   if (!res.ok) {
-    let p: { detail?: string; title?: string; codigo?: string; conflictos?: Conflicto[]; version?: number; errores?: ValidacionPublicacion['errores'] } = {};
+    let p: { detail?: string; title?: string; codigo?: string; conflictos?: Conflicto[]; version?: number; errores?: ValidacionPublicacion['errores']; exceso?: number } = {};
     try {
       p = await res.json();
     } catch {
       // sin cuerpo
     }
-    throw new ErrorApiOperacion(res.status, p.detail ?? p.title ?? `Error ${res.status}`, p.codigo, p.conflictos ?? [], p.version, p.errores ?? []);
+    throw new ErrorApiOperacion(res.status, p.detail ?? p.title ?? `Error ${res.status}`, p.codigo, p.conflictos ?? [], p.version, p.errores ?? [], p.exceso);
   }
   const etag = res.headers.get('ETag')?.match(/\d+/)?.[0];
   const datos = res.status === 204 ? (undefined as T) : ((await res.json()) as T);
@@ -110,6 +114,12 @@ export const apiOperacion = {
   publicarEdicion: async (edicionId: string, claveIdempotencia: string) =>
     (await pedir<{ funcionesPublicadas: number }>(`/ediciones/${edicionId}/publicacion`, { method: 'POST', headers: { 'Idempotency-Key': claveIdempotencia } })).datos,
   publicarFuncion: async (id: string, version: number) => (await pedir<Funcion>(`/funciones/${id}/publicacion`, { method: 'POST', version })).datos,
+  sedes: async (edicionId: string) => (await pedir<Sede[]>(`/ediciones/${edicionId}/sedes`)).datos,
+  historial: async (id: string) => (await pedir<CambioFuncion[]>(`/funciones/${id}/cambios`)).datos,
+  reprogramar: async (id: string, version: number, r: Reprogramacion) =>
+    (await pedir<Funcion>(`/funciones/${id}/reprogramacion`, { method: 'POST', body: json(r), version })).datos,
+  cancelar: async (id: string, version: number, motivo: string) =>
+    (await pedir<Funcion>(`/funciones/${id}/cancelacion`, { method: 'POST', body: json({ motivo }), version })).datos,
   eliminarFuncion: async (id: string, version: number) => {
     await pedir<void>(`/funciones/${id}`, { method: 'DELETE', version });
   },

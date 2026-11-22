@@ -28,11 +28,13 @@ function repo(crear: () => Promise<unknown>, agenda: () => FuncionAgenda[]) {
   } as unknown as RepositorioOperacion & { crearFuncion: ReturnType<typeof vi.fn> };
 }
 const auditoria = { registrar: async () => undefined };
+const publicador = { publicar: async () => undefined };
+const reloj = () => new Date('2026-11-01T12:00:00-05:00');
 
 describe('FuncionesServicio ante la concurrencia (ADR-0010)', () => {
   it('bloquea la sede y el elenco antes de comprobar y guardar', async () => {
     const r = repo(async () => ({ id: 'nueva', version: 1 }), () => []);
-    await new FuncionesServicio(r, auditoria).crear('ed', entrada, p);
+    await new FuncionesServicio(r, auditoria, publicador, reloj).crear('ed', entrada, p);
     expect((r as unknown as { bloquearAgenda: ReturnType<typeof vi.fn> }).bloquearAgenda).toHaveBeenCalledWith(['sede:sede', 'elenco:elenco']);
   });
 
@@ -45,7 +47,7 @@ describe('FuncionesServicio ante la concurrencia (ADR-0010)', () => {
       },
       () => (ganó ? [ocupante] : []),
     );
-    const error = await new FuncionesServicio(r, auditoria).crear('ed', entrada, p).catch((e) => e);
+    const error = await new FuncionesServicio(r, auditoria, publicador, reloj).crear('ed', entrada, p).catch((e) => e);
     expect(error).toBeInstanceOf(ErrorConCodigo);
     expect(error.getStatus()).toBe(409);
     expect(error.codigo).toBe('cruce_sede');
@@ -59,7 +61,7 @@ describe('FuncionesServicio ante la concurrencia (ADR-0010)', () => {
       if (intentos === 1) throw new InterbloqueoEnBaseDeDatos();
       return { id: 'nueva', version: 1 };
     }, () => []);
-    await expect(new FuncionesServicio(r, auditoria).crear('ed', entrada, p)).resolves.toMatchObject({ id: 'nueva' });
+    await expect(new FuncionesServicio(r, auditoria, publicador, reloj).crear('ed', entrada, p)).resolves.toMatchObject({ id: 'nueva' });
     expect(intentos).toBe(2);
   });
 
@@ -67,7 +69,7 @@ describe('FuncionesServicio ante la concurrencia (ADR-0010)', () => {
     const r = repo(async () => {
       throw new CruceEnBaseDeDatos();
     }, () => []);
-    const error = await new FuncionesServicio(r, auditoria).crear('ed', entrada, p).catch((e) => e);
+    const error = await new FuncionesServicio(r, auditoria, publicador, reloj).crear('ed', entrada, p).catch((e) => e);
     expect(error.getStatus()).toBe(409);
     expect(r.crearFuncion).toHaveBeenCalledTimes(3);
   });

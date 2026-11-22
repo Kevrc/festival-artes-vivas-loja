@@ -2,7 +2,7 @@ import { Inject, Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import { EventoPublicadoOperacion } from '@fiavl/contracts';
 import { ColaEventos } from '../../../common/datos/datos.module';
 import { crearColas, publicarEnCola } from '../../../common/datos/publicar-en-cola';
-import type { PublicadorOperacion } from '../application/puertos';
+import type { OpcionesPublicacion, PublicadorOperacion } from '../application/puertos';
 
 /** Destinos de cada evento de Operación (research R3). Cartelera y Boletería ya los consumen. */
 export const DESTINOS_OPERACION: Readonly<Record<EventoPublicadoOperacion['tipo'], readonly string[]>> = {
@@ -27,10 +27,10 @@ export class PublicadorPgBossOperacion implements PublicadorOperacion, OnModuleI
     await crearColas(this.cola, DESTINOS_OPERACION);
   }
 
-  async publicar(eventoBruto: EventoPublicadoOperacion): Promise<void> {
+  async publicar(eventoBruto: EventoPublicadoOperacion, opciones: OpcionesPublicacion = {}): Promise<void> {
     const evento = EventoPublicadoOperacion.parse(eventoBruto);
     if (this.capturar) this.publicados.push(evento);
     this.log.log({ correlacionId: evento.correlacionId, tipo: evento.tipo, eventoId: evento.id }, 'evento publicado');
-    await publicarEnCola(this.cola, evento, DESTINOS_OPERACION[evento.tipo]);
+    await publicarEnCola(this.cola, evento, DESTINOS_OPERACION[evento.tipo], opciones);
   }
 }

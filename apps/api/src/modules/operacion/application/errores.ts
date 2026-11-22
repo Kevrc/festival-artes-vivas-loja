@@ -36,3 +36,30 @@ export function conflictoAgenda(conflictos: Conflicto[]): ErrorConCodigo {
     : `El elenco ya actúa a esa hora en "${primera?.obraTitulo}" (${primera?.sedeNombre}).`;
   return new ErrorConCodigo(409, deSede ? 'cruce_sede' : 'cruce_elenco', detalle, { conflictos: conflictos.map(aJson) });
 }
+
+const MENSAJES_CAMBIO: Record<string, [number, string]> = {
+  motivo_requerido: [400, 'El motivo es obligatorio (al menos 3 caracteres) (US3-AS4).'],
+  funcion_finalizada: [409, 'La función ya terminó: no se puede cambiar (RN-005).'],
+  edicion_cerrada: [409, 'La edición está cerrada: sus datos son de solo lectura (RN-007).'],
+  funcion_en_borrador: [409, 'La función está en borrador: edítala o elimínala directamente.'],
+  funcion_cancelada: [409, 'La función está cancelada y ya no se puede cambiar.'],
+};
+/** Rechazos del ciclo de vida (op/domain/ciclo-funcion.ts) con su estado HTTP. */
+export function cambioRechazado(codigo: string): ErrorConCodigo {
+  const [status, detalle] = MENSAJES_CAMBIO[codigo] ?? [409, 'El cambio no está permitido.'];
+  return new ErrorConCodigo(status, codigo, detalle);
+}
+
+/** US3-AS2: hay más entradas activas que el nuevo aforo; se repite con `confirmarExceso: true`. */
+export const excesoAforo = (exceso: number, aforoNuevo: number | null) =>
+  new ErrorConCodigo(
+    409,
+    'exceso_aforo',
+    `Hay ${exceso} entradas activas por encima del nuevo aforo (${aforoNuevo ?? 0}). Confirma para continuar: Boletería resolverá el excedente.`,
+    { exceso, conflictos: [] },
+  );
+
+export const sinCambios = () => new ErrorConCodigo(400, 'sin_cambios', 'Indica un nuevo horario o una nueva sede.');
+export const usarReprogramacion = () =>
+  new ErrorConCodigo(409, 'usar_reprogramacion', 'El horario, la sede o la obra de una función publicada se cambian con reprogramación, con motivo.');
+export const tipoAccesoRequerido = () => new ErrorConCodigo(400, 'sin_tipo_acceso', 'Una función publicada debe tener tipo de acceso.');

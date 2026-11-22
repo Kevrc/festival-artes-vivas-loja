@@ -79,3 +79,58 @@ export const programacionPublicada = (e: EdicionDetalle, funcionIds: string[], c
     funcionIds,
   },
 });
+
+export const funcionActualizada = (c: FuncionCompleta, correlacionId: string, ahora: Date): EventoPublicadoOperacion => ({
+  ...sobre(c.funcion.edicionId, correlacionId, ahora),
+  tipo: 'FuncionActualizada',
+  datos: datosFuncion(c),
+});
+
+interface Horario {
+  inicio: Date;
+  fin: Date;
+  sedeId: string;
+}
+const aHorario = (h: Horario) => ({ inicio: h.inicio.toISOString(), fin: h.fin.toISOString(), sedeId: h.sedeId });
+
+/** US3-AS1. `sede` va solo cuando cambia (contrato FuncionReprogramada). */
+export const funcionReprogramada = (
+  c: FuncionCompleta,
+  anterior: Horario,
+  motivo: string,
+  cambioSede: boolean,
+  correlacionId: string,
+  ahora: Date,
+): EventoPublicadoOperacion => ({
+  ...sobre(c.funcion.edicionId, correlacionId, ahora),
+  tipo: 'FuncionReprogramada',
+  datos: {
+    funcionId: c.funcion.id,
+    version: c.funcion.version,
+    anterior: aHorario(anterior),
+    nuevo: aHorario(c.funcion),
+    motivo,
+    ...(cambioSede ? { sede: datosFuncion(c).sede } : {}),
+  },
+});
+
+/** US3-AS3: Boletería anula entradas e inicia devoluciones al recibirlo. */
+export const funcionCancelada = (edicionId: string, funcionId: string, version: number, correlacionId: string, ahora: Date): EventoPublicadoOperacion => ({
+  ...sobre(edicionId, correlacionId, ahora),
+  tipo: 'FuncionCancelada',
+  datos: { funcionId, version },
+});
+
+export const aforoCambiado = (
+  edicionId: string,
+  funcionId: string,
+  version: number,
+  aforoAnterior: number | null,
+  aforoHabilitado: number | null,
+  correlacionId: string,
+  ahora: Date,
+): EventoPublicadoOperacion => ({
+  ...sobre(edicionId, correlacionId, ahora),
+  tipo: 'AforoCambiado',
+  datos: { funcionId, version, aforoAnterior: aforoAnterior ?? 0, aforoHabilitado: aforoHabilitado ?? 0 },
+});

@@ -428,7 +428,7 @@ export interface components {
             status: number;
             detail?: string;
             /** @enum {string} */
-            codigo?: "cruce_sede" | "cruce_elenco" | "aforo_supera_sede" | "exceso_aforo" | "motivo_requerido" | "funcion_finalizada" | "edicion_cerrada" | "obra_desistida" | "version_obsoleta" | "sede_con_funciones" | "fuera_de_alcance" | "fin_menor" | "funcion_publicada" | "version_requerida" | "fuera_de_edicion" | "no_encontrado" | "segundo_factor_requerido" | "publicacion_invalida" | "edicion_sin_publicar" | "idempotencia_requerida";
+            codigo?: "cruce_sede" | "cruce_elenco" | "aforo_supera_sede" | "exceso_aforo" | "motivo_requerido" | "funcion_finalizada" | "edicion_cerrada" | "obra_desistida" | "version_obsoleta" | "sede_con_funciones" | "fuera_de_alcance" | "fin_menor" | "funcion_publicada" | "version_requerida" | "fuera_de_edicion" | "no_encontrado" | "segundo_factor_requerido" | "publicacion_invalida" | "edicion_sin_publicar" | "idempotencia_requerida" | "funcion_en_borrador" | "funcion_cancelada" | "sin_cambios" | "usar_reprogramacion" | "sin_tipo_acceso";
         };
         Edicion: {
             /** Format: uuid */
@@ -574,6 +574,8 @@ export interface components {
             /** @enum {string} */
             publico?: "familiar" | "adultos" | "estudiantes";
             aforoHabilitado?: number | null;
+            /** @description Bajar el aforo por debajo de las entradas activas exige confirmarlo (US3-AS2) */
+            confirmarExceso?: boolean;
         };
         Funcion: {
             /** Format: uuid */
@@ -663,6 +665,8 @@ export interface components {
                 [key: string]: unknown;
             };
             motivo?: string | null;
+            /** @description Entradas en exceso aceptadas al reprogramar (US3-AS2) */
+            excesoConfirmado?: number | null;
             /** Format: uuid */
             autorId: string;
             /** Format: date-time */
