@@ -54,3 +54,27 @@ export function cuentaExistente(nombre: string, enlaceIngresar: string): Correo 
   const accion = { texto: 'Ingresar al festival', url: enlaceIngresar };
   return { asunto: `${titulo} · FIAVL`, texto: texto(titulo, parrafos, accion), html: html(titulo, parrafos, accion) };
 }
+
+/** US8-AS3: enlace para elegir una contraseña nueva (1 hora, un solo uso). */
+export function recuperacion(nombre: string, enlace: string): Correo {
+  const titulo = 'Elige una contraseña nueva';
+  const parrafos = [
+    `Hola, ${nombre}:`,
+    'Pediste recuperar el acceso a tu cuenta del festival. El enlace vale durante 1 hora y se puede usar una sola vez.',
+    'Al cambiar la contraseña se cerrarán tus sesiones abiertas en otros dispositivos. Si no lo pediste, ignora este mensaje: tu contraseña no cambia.',
+  ];
+  const accion = { texto: 'Elegir una contraseña nueva', url: enlace };
+  return { asunto: `${titulo} · FIAVL`, texto: texto(titulo, parrafos, accion), html: html(titulo, parrafos, accion) };
+}
+
+/** US8-AS2: aviso al titular de que su cuenta se bloqueó por intentos fallidos. */
+export function cuentaBloqueada(nombre: string, hastaLocal: string, enlaceRecuperar: string): Correo {
+  const titulo = 'Bloqueamos tu cuenta por seguridad';
+  const parrafos = [
+    `Hola, ${nombre}:`,
+    `Hubo 5 intentos fallidos de ingresar a tu cuenta. Por seguridad no se podrá ingresar hasta las ${hastaLocal}.`,
+    'Si no fuiste tú, te recomendamos cambiar tu contraseña.',
+  ];
+  const accion = { texto: 'Cambiar mi contraseña', url: enlaceRecuperar };
+  return { asunto: `${titulo} · FIAVL`, texto: texto(titulo, parrafos, accion), html: html(titulo, parrafos, accion) };
+}

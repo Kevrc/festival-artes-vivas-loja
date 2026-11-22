@@ -3,6 +3,7 @@ import { Logger } from '@nestjs/common';
 import { ErrorConCodigo } from '../../../../common/http/problema-codigo.filter';
 import { hashContrasena, validarContrasena } from '../../domain/contrasenas';
 import { type Correo, cuentaExistente, verificacion } from '../../domain/plantillas/plantillas';
+import { enviarSinBloquear } from '../enviar-correo';
 import { estadoToken, expiracionDe, generarToken, hashToken, normalizarCorreo, puedeReenviar } from '../../domain/tokens';
 import type {
   AuditoriaIdentidad,
@@ -153,11 +154,8 @@ export class RegistroServicio {
     return `${this.urlWeb}/cuenta/verificar?token=${token}`;
   }
 
-  /** No bloquea ni falla la petición; nunca registra el contenido (lleva enlaces de un solo uso). */
   private enviar(para: string, c: Correo) {
-    void this.correo.enviar({ para, ...c }).catch((err: unknown) => {
-      this.log.error({ asunto: c.asunto, error: err instanceof Error ? err.message : String(err) }, 'no se pudo enviar el correo');
-    });
+    enviarSinBloquear(this.correo, para, c, this.log);
   }
 
   private auditar(accion: string, cuentaId: string, correlacionId: string) {

@@ -206,18 +206,18 @@ tiene una prueba nombrada; en dominio se escribe **primero** la prueba y se comp
 
 ### Tests
 
-- [ ] T070 [P] [US8] Prueba de dominio `id/domain/sesiones.test.ts`: expiración deslizante 30 d / 8 h según `cuenta.es_personal` (`US8-AS1`), `sesion.ultima_actividad_en` escrito como máximo una vez por minuto
-- [ ] T071 [P] [US8] Prueba de dominio `id/domain/bloqueo.test.ts`: `US8-AS2`, 5 fallos en 15 min ⇒ `cuenta.bloqueada_hasta` = +15 min
-- [ ] T072 [P] [US8] Prueba de integración `apps/api/test/identidad/sesion.int.test.ts`: `US8-AS1`–`US8-AS4`, cookie `fiavl_sesion` `HttpOnly` y `SameSite=Lax`, rechazo de `Origin` ajeno en métodos que escriben (CSRF), enlace de recuperación usado dos veces, cambio de contraseña revoca las demás sesiones (`sesion.revocada_en`), FR-016: correo inexistente y contraseña errónea dan la misma respuesta
+- [X] T070 [P] [US8] Prueba de dominio `id/domain/sesiones.test.ts`: expiración deslizante 30 d / 8 h según `cuenta.es_personal` (`US8-AS1`), `sesion.ultima_actividad_en` escrito como máximo una vez por minuto
+- [X] T071 [P] [US8] Prueba de dominio `id/domain/bloqueo.test.ts`: `US8-AS2`, 5 fallos en 15 min ⇒ `cuenta.bloqueada_hasta` = +15 min
+- [X] T072 [P] [US8] Prueba de integración `apps/api/test/identidad/sesion.int.test.ts`: `US8-AS1`–`US8-AS4`, cookie `fiavl_sesion` `HttpOnly` y `SameSite=Lax`, rechazo de `Origin` ajeno en métodos que escriben (CSRF), enlace de recuperación usado dos veces, cambio de contraseña revoca las demás sesiones (`sesion.revocada_en`), FR-016: correo inexistente y contraseña errónea dan la misma respuesta
 
 ### Implementation
 
-- [ ] T073 [P] [US8] Implementar `id/domain/sesiones.ts` (calcula `sesion.expira_en`) y `id/domain/bloqueo.ts` (calcula `cuenta.bloqueada_hasta`); hacen pasar T070 y T071
-- [ ] T074 [US8] Casos de uso `id/application/sesion/{iniciar,cerrar,recuperar,confirmar-recuperacion,cambiar-contrasena,listar-sesiones,revocar-sesion}.ts`; `intento_acceso` registra cada intento; aviso de bloqueo al titular
-- [ ] T075 [US8] Implementar `id/infrastructure/identidad-publica.provider.ts` (`resolverSesion`: busca `sesion.hash_token`, lee en ese momento `cuenta.estado` y `rol_asignado` vigentes, falla cerrado) y registrarlo como proveedor global con `IDENTIDAD_PUBLICA`, reemplazando a `IdentidadPublicaDevProvider` fuera de pruebas (ADR-0009)
-- [ ] T076 [US8] Controladores `id/interface/sesion.controller.ts` (`POST/DELETE /sesion`, `POST /recuperacion`, `POST /recuperacion/confirmacion`) y `id/interface/mi-cuenta.controller.ts` (`GET/PATCH /yo`, `POST /yo/contrasena`, `GET /yo/sesiones`, `DELETE /yo/sesiones/{id}`), con el middleware `id/interface/origen.guard.ts`; hace pasar T072
-- [ ] T077 [US8] Páginas `apps/web/src/app/(publico)/cuenta/{ingresar,recuperar}/page.tsx` y `(publico)/mi-cuenta/{page,sesiones/page}.tsx`
-- [ ] T078 [US8] E2E `apps/web/e2e/identidad-sesion.spec.ts`: entrar, recuperar contraseña con el enlace de Mailpit y cerrar otra sesión, con axe
+- [X] T073 [P] [US8] Implementar `id/domain/sesiones.ts` (calcula `sesion.expira_en`) y `id/domain/bloqueo.ts` (calcula `cuenta.bloqueada_hasta`); hacen pasar T070 y T071
+- [X] T074 [US8] Casos de uso `id/application/sesion/{iniciar,cerrar,recuperar,confirmar-recuperacion,cambiar-contrasena,listar-sesiones,revocar-sesion}.ts`; `intento_acceso` registra cada intento; aviso de bloqueo al titular — *Hecho en `sesion/sesion.servicio.ts` y `mi-cuenta/mi-cuenta.servicio.ts`. Correo inexistente, contraseña errónea, cuenta bloqueada o inactiva dan el mismo 401 y siempre se calcula scrypt. Recuperar con el enlace también verifica una cuenta pendiente (demuestra control del correo).*
+- [X] T075 [US8] Implementar `id/infrastructure/identidad-publica.provider.ts` (`resolverSesion`: busca `sesion.hash_token`, lee en ese momento `cuenta.estado` y `rol_asignado` vigentes, falla cerrado) y registrarlo como proveedor global con `IDENTIDAD_PUBLICA`, reemplazando a `IdentidadPublicaDevProvider` fuera de pruebas (ADR-0009) — *En development/test, sin cookie válida, cae a las cabeceras `x-*-dev` (panel de Operación y pruebas hasta US9); en producción solo la cookie. El segundo factor llega con US9: hasta entonces la sesión del personal queda restringida.*
+- [X] T076 [US8] Controladores `id/interface/sesion.controller.ts` (`POST/DELETE /sesion`, `POST /recuperacion`, `POST /recuperacion/confirmacion`) y `id/interface/mi-cuenta.controller.ts` (`GET/PATCH /yo`, `POST /yo/contrasena`, `GET /yo/sesiones`, `DELETE /yo/sesiones/{id}`), con el middleware `id/interface/origen.guard.ts`; hace pasar T072 — *La guarda de `Origin` está en `common/identidad/origen.guard.ts` y se aplica a todos los controladores de Identidad. `PUT /yo/contrasena` según el contrato.*
+- [X] T077 [US8] Páginas `apps/web/src/app/(publico)/cuenta/{ingresar,recuperar}/page.tsx` y `(publico)/mi-cuenta/{page,sesiones/page}.tsx` — *Más `/cuenta/recuperar/nueva`. El enlace "Ingresar" en el encabezado público (de 001) queda para la integración (fase 9).*
+- [X] T078 [US8] E2E `apps/web/e2e/identidad-sesion.spec.ts`: entrar, recuperar contraseña con el enlace de Mailpit y cerrar otra sesión, con axe — *Corrigió una violación de axe real (label-content-name-mismatch) en "Cerrar esta sesión".*
 
 **Checkpoint**: escenarios 23–25.
 

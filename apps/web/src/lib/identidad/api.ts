@@ -15,6 +15,31 @@ export interface DatosRegistro {
   aceptaNovedades: boolean;
 }
 
+export interface RolAsignado {
+  rol: string;
+  alcance: { tipo: 'sede' | 'provincia' | 'disciplina'; valor: string } | null;
+}
+
+export interface Yo {
+  cuentaId: string;
+  nombre: string;
+  correo: string;
+  correoVerificado: boolean;
+  estudianteAcreditado: boolean;
+  novedades: boolean;
+  roles: RolAsignado[];
+  segundoFactorOk: boolean;
+  politicaPendiente: string | null;
+}
+
+export interface SesionAbierta {
+  id: string;
+  dispositivo: string;
+  creadaEn: string;
+  ultimaActividadEn: string;
+  actual: boolean;
+}
+
 export class ErrorApiIdentidad extends Error {
   constructor(
     readonly status: number,
@@ -50,5 +75,16 @@ export const apiIdentidad = {
   politica: () => pedir<Politica>('/politica'),
   registrar: (d: DatosRegistro) => pedir<{ mensaje: string }>('/registro', { method: 'POST', body: JSON.stringify(d) }),
   verificar: (token: string) => pedir<{ mensaje: string }>('/verificacion', { method: 'POST', body: JSON.stringify({ token }) }),
+  ingresar: (correo: string, contrasena: string) => pedir<Yo>('/sesion', { method: 'POST', body: JSON.stringify({ correo, contrasena }) }),
+  salir: () => pedir<void>('/sesion', { method: 'DELETE' }),
+  yo: () => pedir<Yo>('/yo'),
+  actualizar: (cambios: { nombre?: string; novedades?: boolean }) => pedir<Yo>('/yo', { method: 'PATCH', body: JSON.stringify(cambios) }),
+  cambiarContrasena: (contrasenaActual: string, contrasenaNueva: string) =>
+    pedir<void>('/yo/contrasena', { method: 'PUT', body: JSON.stringify({ contrasenaActual, contrasenaNueva }) }),
+  sesiones: () => pedir<SesionAbierta[]>('/yo/sesiones'),
+  cerrarSesion: (id: string) => pedir<void>(`/yo/sesiones/${id}`, { method: 'DELETE' }),
+  pedirRecuperacion: (correo: string) => pedir<{ mensaje: string }>('/recuperacion', { method: 'POST', body: JSON.stringify({ correo }) }),
+  confirmarRecuperacion: (token: string, contrasenaNueva: string) =>
+    pedir<void>('/recuperacion/confirmacion', { method: 'POST', body: JSON.stringify({ token, contrasenaNueva }) }),
   reenviar: (correo: string) => pedir<{ mensaje: string }>('/verificacion/reenvio', { method: 'POST', body: JSON.stringify({ correo }) }),
 };

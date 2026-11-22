@@ -16,3 +16,9 @@ export function requisitosContrasena(contrasena: string, correo: string): Requis
     { texto: 'Distinta de tu correo', cumple: contrasena.length > 0 && (usuario.length < 3 || !contrasena.toLowerCase().includes(usuario)) },
   ];
 }
+
+/** `?volver=` solo admite rutas relativas del propio sitio (evita redirecciones abiertas). */
+export function destinoSeguro(volver: string | null, porDefecto = '/mi-cuenta'): string {
+  if (!volver || !volver.startsWith('/') || volver.startsWith('//') || volver.startsWith('/\\')) return porDefecto;
+  return volver;
+}

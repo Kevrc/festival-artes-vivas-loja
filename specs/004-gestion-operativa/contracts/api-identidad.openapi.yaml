@@ -578,7 +578,7 @@ components:
           enum: [contrasena_corta, contrasena_filtrada, politica_no_aceptada, enlace_vencido, enlace_usado,
                  credenciales_invalidas, requiere_segundo_factor, requiere_politica, alcance_requerido,
                  dominio_no_institucional, limite_reenvios, funciones_futuras, postulaciones_en_curso,
-                 contrasena_larga, sin_politica]
+                 contrasena_larga, sin_politica, origen_no_permitido, sin_sesion, no_encontrado]
     TokenEnlace:
       type: object
       required: [token]

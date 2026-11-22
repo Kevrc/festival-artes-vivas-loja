@@ -1,6 +1,5 @@
 import { type DynamicModule, Global, Module, type Provider, type Type } from '@nestjs/common';
 import { IDENTIDAD_PUBLICA } from '@fiavl/contracts';
-import { IdentidadPublicaDevProvider } from '../../common/identidad/identidad-publica.dev';
 import { RequiereGuard } from '../../common/identidad/requiere.guard';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { relojDelEntorno } from '../../common/reloj';
@@ -20,7 +19,10 @@ import {
   type RelojIdentidad,
   type RepositorioIdentidad,
 } from './application/puertos';
+import { MiCuentaServicio } from './application/mi-cuenta/mi-cuenta.servicio';
 import { RegistroServicio } from './application/registro/registro.servicio';
+import { SesionServicio } from './application/sesion/sesion.servicio';
+import { IdentidadPublicaSesionProvider } from './infrastructure/identidad-publica.provider';
 import { correoDelEntorno } from './infrastructure/correo.adapters';
 import { cargarListaFiltradas } from './infrastructure/lista-filtradas';
 import { PrismaIdentidadRepository } from './infrastructure/prisma-identidad.repository';
@@ -34,8 +36,8 @@ import { CONTROLADORES_IDENTIDAD } from './interface';
  * `identidad` propio. Es global porque ofrece a todos los módulos el contrato IDENTIDAD_PUBLICA
  * (FR-020) y el guard `RequiereGuard`, sin que nadie importe su código.
  *
- * shortcut: hasta T075, IDENTIDAD_PUBLICA es el proveedor de desarrollo (cabeceras `x-*-dev`),
- * que falla cerrado fuera de development/test.
+ * IDENTIDAD_PUBLICA resuelve la sesión de la cookie `fiavl_sesion` (T075); solo en development/test
+ * acepta además las cabeceras `x-*-dev` del proveedor de desarrollo.
  */
 @Global()
 @Module({})
@@ -43,7 +45,6 @@ export class IdentidadModule {
   static registrar(opciones: { consumidores: boolean }): DynamicModule {
     const providers: Provider[] = [
       { provide: RELOJ_IDENTIDAD, useValue: relojDelEntorno() },
-      { provide: IDENTIDAD_PUBLICA, useFactory: () => new IdentidadPublicaDevProvider() },
       PublicadorPgBossIdentidad,
       { provide: PUBLICADOR_IDENTIDAD, useExisting: PublicadorPgBossIdentidad },
       { provide: AUDITORIA_IDENTIDAD, inject: [PrismaService], useFactory: (db: PrismaService) => new AuditoriaPrismaIdentidad(db) },
@@ -56,6 +57,19 @@ export class IdentidadModule {
         useFactory: (r: RepositorioIdentidad, c: ProveedorCorreo, pub: PublicadorIdentidad, a: AuditoriaIdentidad, reloj: RelojIdentidad, f: ListaFiltradas) =>
           new RegistroServicio(r, c, pub, a, reloj, f, process.env.WEB_URL ?? 'http://localhost:3100'),
       },
+      {
+        provide: SesionServicio,
+        inject: [REPOSITORIO_IDENTIDAD, PROVEEDOR_CORREO, AUDITORIA_IDENTIDAD, RELOJ_IDENTIDAD, LISTA_FILTRADAS],
+        useFactory: (r: RepositorioIdentidad, c: ProveedorCorreo, a: AuditoriaIdentidad, reloj: RelojIdentidad, f: ListaFiltradas) =>
+          new SesionServicio(r, c, a, reloj, f, process.env.WEB_URL ?? 'http://localhost:3100'),
+      },
+      {
+        provide: MiCuentaServicio,
+        inject: [REPOSITORIO_IDENTIDAD, SesionServicio, AUDITORIA_IDENTIDAD, RELOJ_IDENTIDAD],
+        useFactory: (r: RepositorioIdentidad, s: SesionServicio, a: AuditoriaIdentidad, reloj: RelojIdentidad) => new MiCuentaServicio(r, s, a, reloj),
+      },
+      // FR-020: sesión real de la cookie; en development/test cae a las cabeceras x-*-dev (ADR-0009).
+      { provide: IDENTIDAD_PUBLICA, inject: [SesionServicio], useFactory: (s: SesionServicio) => new IdentidadPublicaSesionProvider(s) },
       // Consumidores de eventos de otros módulos; cada historia añade los suyos.
       {
         provide: MANEJADORES_IDENTIDAD,

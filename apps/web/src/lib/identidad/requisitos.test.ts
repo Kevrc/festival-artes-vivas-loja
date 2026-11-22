@@ -17,3 +17,14 @@ describe('requisitos de contraseña visibles (US7-AS4)', () => {
     expect(requisitosContrasena('a'.repeat(129), 'x@y.z')[1]!.cumple).toBe(false);
   });
 });
+
+describe('destino tras iniciar sesión (rutas-web: ?volver= solo relativo)', () => {
+  it('acepta rutas del sitio y rechaza otros dominios', async () => {
+    const { destinoSeguro } = await import('./requisitos');
+    expect(destinoSeguro('/mis-entradas')).toBe('/mis-entradas');
+    expect(destinoSeguro(null)).toBe('/mi-cuenta');
+    expect(destinoSeguro('https://malicioso.example')).toBe('/mi-cuenta');
+    expect(destinoSeguro('//malicioso.example')).toBe('/mi-cuenta');
+    expect(destinoSeguro('/\\malicioso.example')).toBe('/mi-cuenta');
+  });
+});

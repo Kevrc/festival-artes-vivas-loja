@@ -29,3 +29,20 @@ describe('plantillas de correo (FR-021)', () => {
     expect(escaparHtml(`"'&<>`)).toBe('&quot;&#39;&amp;&lt;&gt;');
   });
 });
+
+describe('plantillas de sesión (US8)', () => {
+  it('recuperación: enlace de 1 hora y aviso de cierre de sesiones', async () => {
+    const { recuperacion } = await import('./plantillas');
+    const c = recuperacion('Ana', 'https://fiavl.ec/cuenta/recuperar/nueva?token=abc');
+    expect(c.texto).toContain('1 hora');
+    expect(c.texto).toContain('se cerrarán tus sesiones');
+    expect(c.html).toContain('href="https://fiavl.ec/cuenta/recuperar/nueva?token=abc"');
+  });
+
+  it('bloqueo: dice hasta cuándo y ofrece cambiar la contraseña', async () => {
+    const { cuentaBloqueada } = await import('./plantillas');
+    const c = cuentaBloqueada('Ana', '10:15', 'https://fiavl.ec/cuenta/recuperar');
+    expect(c.texto).toContain('hasta las 10:15');
+    expect(c.texto).toContain('5 intentos fallidos');
+  });
+});

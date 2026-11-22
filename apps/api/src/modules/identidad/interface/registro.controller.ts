@@ -2,6 +2,7 @@ import { Body, Controller, Get, Headers, HttpCode, Inject, Post, UseFilters, Use
 import { z } from 'zod';
 import { ProblemaCodigoFilter } from '../../../common/http/problema-codigo.filter';
 import { validar } from '../../../common/http/validar';
+import { OrigenGuard } from '../../../common/identidad/origen.guard';
 import { Publico, RequiereGuard } from '../../../common/identidad/requiere.guard';
 import { RegistroServicio } from '../application/registro/registro.servicio';
 import { correlacionDe } from './esquemas';
@@ -20,7 +21,7 @@ const TokenSchema = z.object({ token: z.string().min(43).max(64).regex(/^[A-Za-z
 const ReenvioSchema = z.object({ correo: z.string().trim().email().max(254) });
 
 @Controller('api/identidad')
-@UseGuards(RequiereGuard)
+@UseGuards(OrigenGuard, RequiereGuard)
 @UseFilters(ProblemaCodigoFilter)
 @Publico()
 export class RegistroController {
