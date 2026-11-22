@@ -153,6 +153,9 @@ export default function MiCuentaPage() {
           <Link href="/mi-cuenta/sesiones">Mis sesiones abiertas</Link>
         </li>
         <li>
+          <Link href="/mi-cuenta/notificaciones">Mis notificaciones</Link>
+        </li>
+        <li>
           <button
             type="button"
             className={estilos.secundario}

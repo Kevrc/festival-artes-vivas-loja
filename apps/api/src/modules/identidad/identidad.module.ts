@@ -3,11 +3,15 @@ import { IDENTIDAD_PUBLICA } from '@fiavl/contracts';
 import { RequiereGuard } from '../../common/identidad/requiere.guard';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { relojDelEntorno } from '../../common/reloj';
+import { crearManejadoresAvisos } from './application/eventos/avisos';
 import { AlRecibirProgramacionPublicada } from './application/eventos/programacion-publicada';
+import { NotificacionesServicio } from './application/notificaciones/notificaciones.servicio';
 import {
   AUDITORIA_IDENTIDAD,
   type AuditoriaIdentidad,
   CIFRADOR,
+  COLA_NOTIFICACIONES,
+  type ColaNotificaciones,
   type Cifrador,
   LISTA_FILTRADAS,
   type ListaFiltradas,
@@ -28,6 +32,7 @@ import { RegistroServicio } from './application/registro/registro.servicio';
 import { SegundoFactorServicio } from './application/segundo-factor/segundo-factor.servicio';
 import { SesionServicio } from './application/sesion/sesion.servicio';
 import { cifradorDelEntorno } from './infrastructure/cifrador-aes-gcm';
+import { ColaNotificacionesPgBoss } from './infrastructure/cola-notificaciones.pgboss';
 import { IdentidadPublicaSesionProvider } from './infrastructure/identidad-publica.provider';
 import { correoDelEntorno } from './infrastructure/correo.adapters';
 import { cargarListaFiltradas } from './infrastructure/lista-filtradas';
@@ -91,12 +96,20 @@ export class IdentidadModule {
       // FR-020: sesión real de la cookie; en development/test cae a las cabeceras x-*-dev (ADR-0009).
       { provide: IDENTIDAD_PUBLICA, inject: [SesionServicio], useFactory: (s: SesionServicio) => new IdentidadPublicaSesionProvider(s) },
       // Consumidores de eventos de otros módulos; cada historia añade los suyos.
+      ColaNotificacionesPgBoss,
+      { provide: COLA_NOTIFICACIONES, useExisting: ColaNotificacionesPgBoss },
+      {
+        provide: NotificacionesServicio,
+        inject: [REPOSITORIO_IDENTIDAD, COLA_NOTIFICACIONES, PROVEEDOR_CORREO, RELOJ_IDENTIDAD],
+        useFactory: (r: RepositorioIdentidad, cola: ColaNotificaciones, c: ProveedorCorreo, reloj: RelojIdentidad) =>
+          new NotificacionesServicio(r, cola, c, reloj, process.env.WEB_URL ?? 'http://localhost:3100'),
+      },
       {
         provide: MANEJADORES_IDENTIDAD,
-        inject: [PrismaService, REPOSITORIO_IDENTIDAD],
-        useFactory: (db: PrismaService, r: RepositorioIdentidad) => {
+        inject: [PrismaService, REPOSITORIO_IDENTIDAD, NotificacionesServicio],
+        useFactory: (db: PrismaService, r: RepositorioIdentidad, avisos: NotificacionesServicio) => {
           const unaVez = (e: { id: string; tipo: string }, fn: () => Promise<void>) => procesarUnaVezIdentidad(db, e, fn);
-          return [new AlRecibirProgramacionPublicada(r, unaVez)];
+          return [new AlRecibirProgramacionPublicada(r, unaVez), ...crearManejadoresAvisos({ repo: r, avisos, unaVez })];
         },
       },
     ];

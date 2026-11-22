@@ -17,7 +17,14 @@ export class CorreoSmtp implements ProveedorCorreo {
   }
 
   async enviar(c: CorreoSaliente): Promise<void> {
-    await this.transporte.sendMail({ from: this.remitente, to: c.para, subject: c.asunto, text: c.texto, html: c.html });
+    await this.transporte.sendMail({
+      from: this.remitente,
+      to: c.para,
+      subject: c.asunto,
+      text: c.texto,
+      html: c.html,
+      attachments: c.adjuntos?.map((a) => ({ filename: a.nombre, cid: a.cid, content: a.contenido, contentType: a.tipo })),
+    });
   }
 }
 

@@ -7,6 +7,7 @@ import { hashContrasena, necesitaRehash, validarContrasena, verificarContrasena 
 import { cuentaBloqueada, recuperacion } from '../../domain/plantillas/plantillas';
 import { debeRenovar, describirDispositivo, expiracionSesion, sesionVigente } from '../../domain/sesiones';
 import { estadoToken, expiracionDe, generarToken, hashToken, normalizarCorreo, puedeReenviar } from '../../domain/tokens';
+import { identidadBloqueosTotal, identidadIniciosSesionTotal } from '../../infrastructure/metricas-identidad';
 import { enviarSinBloquear } from '../enviar-correo';
 import type { AuditoriaIdentidad, ListaFiltradas, ProveedorCorreo, RelojIdentidad, RepositorioIdentidad } from '../puertos';
 
@@ -54,6 +55,7 @@ export class SesionServicio {
     const correcta = await verificarContrasena(contrasena, cuenta?.hashContrasena ?? (await this.hashSenuelo));
     const puede = !!cuenta && correcta && ACTIVAS.has(cuenta.estado) && !estaBloqueada(cuenta.bloqueadaHasta, ahora);
 
+    identidadIniciosSesionTotal.inc({ resultado: puede ? 'ok' : 'fallido' });
     if (!puede) {
       await this.repo.registrarIntento(correo, false, ahora);
       if (cuenta && ACTIVAS.has(cuenta.estado) && !estaBloqueada(cuenta.bloqueadaHasta, ahora)) {
@@ -61,6 +63,7 @@ export class SesionServicio {
         if (debeBloquear(fallos)) {
           const hasta = bloqueadaHasta(ahora);
           await this.repo.bloquear(cuenta.id, hasta);
+          identidadBloqueosTotal.inc({ motivo: 'contrasena' });
           await this.auditoria.registrar({ accion: 'cuenta.bloqueada', actorId: null, entidad: 'cuenta', entidadId: cuenta.id, nuevo: { hasta: hasta.toISOString(), fallos }, correlacionId });
           enviarSinBloquear(this.correo, correo, cuentaBloqueada(cuenta.nombre, horaLoja(hasta), `${this.urlWeb}/cuenta/recuperar`), this.log);
         }

@@ -1331,7 +1331,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Notificacion"][];
+                    "application/json": (components["schemas"]["Notificacion"] & {
+                        /** @description Sin direcciones de correo */
+                        ultimoError?: string | null;
+                    })[];
                 };
             };
         };

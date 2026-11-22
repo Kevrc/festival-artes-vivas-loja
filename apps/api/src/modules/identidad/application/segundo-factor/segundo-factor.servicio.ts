@@ -2,6 +2,7 @@ import type { ContextoIdentidad } from '@fiavl/contracts';
 import QRCode from 'qrcode';
 import { ErrorConCodigo } from '../../../../common/http/problema-codigo.filter';
 import { BLOQUEO, bloqueadaHasta, debeBloquear } from '../../domain/bloqueo';
+import { identidadBloqueosTotal } from '../../infrastructure/metricas-identidad';
 import { claveLegible, generarSecretoTotp, otpauthUri, verificarTotp } from '../../domain/totp';
 import type { AuditoriaIdentidad, Cifrador, RelojIdentidad, RepositorioIdentidad } from '../puertos';
 
@@ -79,6 +80,7 @@ export class SegundoFactorServicio {
     const hasta = bloqueadaHasta(ahora);
     await this.repo.enTransaccion(async () => {
       await this.repo.bloquear(ctx.cuentaId, hasta);
+      identidadBloqueosTotal.inc({ motivo: 'segundo_factor' });
       await this.repo.revocarSesionesDe(ctx.cuentaId, ahora);
       await this.auditoria.registrar({ accion: 'cuenta.bloqueada', actorId: null, entidad: 'cuenta', entidadId: ctx.cuentaId, nuevo: { hasta: hasta.toISOString(), fallos, por: 'segundo_factor' }, correlacionId });
     });

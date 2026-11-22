@@ -28,6 +28,16 @@ function html(titulo: string, parrafos: string[], accion?: { texto: string; url:
   );
 }
 
+/** Arma un correo con el formato del festival (lo usan también las plantillas de avisos, US10). */
+export function componer(titulo: string, parrafos: string[], accion?: { texto: string; url: string }, extraHtml = ''): Correo {
+  const cuerpoHtml = html(titulo, parrafos, accion);
+  return {
+    asunto: `${titulo} · FIAVL`,
+    texto: texto(titulo, parrafos, accion),
+    html: extraHtml ? cuerpoHtml.replace('</main>', `${extraHtml}</main>`) : cuerpoHtml,
+  };
+}
+
 const texto = (titulo: string, parrafos: string[], accion?: { texto: string; url: string }) =>
   [titulo, '', ...parrafos, ...(accion ? ['', `${accion.texto}: ${accion.url}`] : []), '', `— ${FIRMA}`].join('\n');
 

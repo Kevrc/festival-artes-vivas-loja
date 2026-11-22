@@ -8,6 +8,9 @@ import type {
   CuentaVista,
   DocumentoLegal,
   DocumentoLegalTipo,
+  FuncionAviso,
+  NotificacionGuardada,
+  NuevaNotificacion,
   RepositorioIdentidad,
   RolVista,
   SegundoFactorGuardado,
@@ -285,6 +288,86 @@ export class PrismaIdentidadRepository implements RepositorioIdentidad {
     return c ? aPersonal(c) : null;
   }
 
+  async contacto(cuentaId: string) {
+    const c = await this.tx.cuenta.findFirst({
+      where: { id: cuentaId, estado: { in: ['pendiente_verificacion', 'verificada'] } },
+      select: { correo: true, nombre: true, preferencias: true },
+    });
+    return c ? { correo: c.correo, nombre: c.nombre, novedades: (c.preferencias as { novedades?: boolean } | null)?.novedades === true } : null;
+  }
+
+  async crearNotificacion(n: NuevaNotificacion): Promise<string | null> {
+    const { count } = await this.tx.notificacion.createMany({
+      data: [{ ...n, datos: n.datos as Prisma.InputJsonValue }],
+      skipDuplicates: true,
+    });
+    return count > 0 ? n.id : null;
+  }
+
+  async notificacion(id: string): Promise<NotificacionGuardada | null> {
+    const n = await this.tx.notificacion.findUnique({ where: { id } });
+    return n ? aNotificacion(n) : null;
+  }
+
+  async marcarEnviada(id: string, ahora: Date, datos: Record<string, unknown>): Promise<void> {
+    await this.tx.notificacion.updateMany({
+      where: { id, estado: 'pendiente' },
+      data: { estado: 'enviada', enviadaEn: ahora, intentos: { increment: 1 }, ultimoError: null, datos: datos as Prisma.InputJsonValue },
+    });
+  }
+
+  async registrarFalloEnvio(id: string, error: string): Promise<void> {
+    await this.tx.notificacion.updateMany({ where: { id, estado: 'pendiente' }, data: { intentos: { increment: 1 }, ultimoError: error } });
+  }
+
+  async marcarFallida(id: string, error: string): Promise<void> {
+    await this.tx.notificacion.updateMany({ where: { id, estado: 'pendiente' }, data: { estado: 'fallida', ultimoError: error } });
+  }
+
+  async notificacionesDe(cuentaId: string, antesDe: Date | null, limite: number): Promise<NotificacionGuardada[]> {
+    const filas = await this.tx.notificacion.findMany({
+      where: { cuentaId, ...(antesDe ? { creadaEn: { lt: antesDe } } : {}) },
+      orderBy: { creadaEn: 'desc' },
+      take: limite,
+    });
+    return filas.map(aNotificacion);
+  }
+
+  async notificacionesFallidas(limite: number): Promise<NotificacionGuardada[]> {
+    const filas = await this.tx.notificacion.findMany({ where: { estado: 'fallida' }, orderBy: { creadaEn: 'desc' }, take: limite });
+    return filas.map(aNotificacion);
+  }
+
+  async guardarFuncionAviso(f: FuncionAviso): Promise<void> {
+    // Inserta o actualiza solo con una versión mayor, en una sola sentencia (eventos en paralelo).
+    await this.tx.$executeRaw`
+      INSERT INTO identidad.funcion_aviso (funcion_id, titulo, sede_nombre, inicio, fin, estado, version)
+      VALUES (${f.funcionId}::uuid, ${f.titulo}, ${f.sedeNombre}, ${f.inicio}, ${f.fin}, ${f.estado}, ${f.version})
+      ON CONFLICT (funcion_id) DO UPDATE SET titulo = EXCLUDED.titulo, sede_nombre = EXCLUDED.sede_nombre,
+        inicio = EXCLUDED.inicio, fin = EXCLUDED.fin, estado = EXCLUDED.estado, version = EXCLUDED.version
+      WHERE identidad.funcion_aviso.version < EXCLUDED.version`;
+  }
+
+  funcionAviso(funcionId: string): Promise<FuncionAviso | null> {
+    return this.tx.funcionAviso.findUnique({ where: { funcionId } });
+  }
+
+  async guardarDestinatario(d: { pedidoId: string; funcionId: string; cuentaId: string | null; correo: string | null }): Promise<void> {
+    await this.tx.destinatarioFuncion.upsert({ where: { pedidoId: d.pedidoId }, create: { ...d, activo: true }, update: { ...d, activo: true } });
+  }
+
+  async desactivarDestinatario(pedidoId: string): Promise<void> {
+    await this.tx.destinatarioFuncion.updateMany({ where: { pedidoId }, data: { activo: false } });
+  }
+
+  destinatariosActivos(funcionId: string) {
+    return this.tx.destinatarioFuncion.findMany({ where: { funcionId, activo: true }, select: { cuentaId: true, correo: true } });
+  }
+
+  async guardarPostulacion(postulacionId: string, cuentaId: string, estado: 'enviada' | 'subsanacion' | 'cerrada'): Promise<void> {
+    await this.tx.postulacionEnCurso.upsert({ where: { postulacionId }, create: { postulacionId, cuentaId, estado }, update: { estado } });
+  }
+
   async guardarEdicionVigente(edicionId: string, fechaFin: string): Promise<void> {
     const fin = new Date(`${fechaFin}T00:00:00Z`);
     await this.tx.edicionVigente.upsert({ where: { edicionId }, create: { edicionId, fechaFin: fin }, update: { fechaFin: fin } });
@@ -320,4 +403,20 @@ const aPersonal = (c: Prisma.CuentaGetPayload<{ include: typeof incluirPersonal 
   esPersonal: c.esPersonal,
   roles: c.roles.map(aRol),
   segundoFactorActivo: c.credencial?.totpActivo === true,
+});
+
+const aNotificacion = (n: Prisma.NotificacionGetPayload<object>): NotificacionGuardada => ({
+  id: n.id,
+  cuentaId: n.cuentaId,
+  correoDestino: n.correoDestino,
+  plantilla: n.plantilla as NotificacionGuardada['plantilla'],
+  categoria: n.categoria,
+  eventoOrigenId: n.eventoOrigenId,
+  claveDedup: n.claveDedup,
+  datos: (n.datos ?? {}) as Record<string, unknown>,
+  estado: n.estado,
+  intentos: n.intentos,
+  ultimoError: n.ultimoError,
+  creadaEn: n.creadaEn,
+  enviadaEn: n.enviadaEn,
 });

@@ -5,6 +5,7 @@ import { AplicarEvento } from '../../apps/api/src/modules/programacion/applicati
 import { PrismaCarteleraRepository } from '../../apps/api/src/modules/programacion/infrastructure/prisma-cartelera.repository';
 import { RevalidadorNext } from '../../apps/api/src/modules/programacion/infrastructure/revalidador-next';
 import { eventosEdicion2026 } from './edicion-2026';
+import { PrismaIdentidadRepository } from '../../apps/api/src/modules/identidad/infrastructure/prisma-identidad.repository';
 import { seedIdentidad } from './identidad';
 import { seedOperacion } from './operacion';
 import { seedConvocatorias } from './convocatorias';
@@ -36,6 +37,17 @@ console.log(`Semilla: ${aplicadosCartelera} eventos aplicados a cartelera y ${ap
 // Spec 004: esquema `operacion` con la misma edición y los mismos ids (aditivo).
 const { funciones } = await seedOperacion(db);
 console.log(`Semilla: ${funciones} funciones 2026 y cifras 2025 en operacion`);
+
+// Spec 004 (US10): ficha mínima de cada función 2026 para redactar los avisos de cambios.
+// El repositorio solo usa los métodos de PrismaClient que PrismaService hereda.
+const repoIdentidad = new PrismaIdentidadRepository(db as unknown as ConstructorParameters<typeof PrismaIdentidadRepository>[0]);
+for (const evento of eventosEdicion2026()) {
+  if (evento.tipo !== 'FuncionProgramada' && evento.tipo !== 'FuncionActualizada') continue;
+  const { funcion, obra, sede } = evento.datos;
+  await repoIdentidad.guardarFuncionAviso({
+    funcionId: funcion.id, titulo: obra.titulo, sedeNombre: sede.nombre, inicio: new Date(funcion.inicio), fin: new Date(funcion.fin), estado: 'programada', version: funcion.version,
+  });
+}
 
 // Spec 004: política de privacidad vigente (registro, US7) y, fuera de producción, cuentas de prueba (US9).
 const cuentas = await seedIdentidad(db);

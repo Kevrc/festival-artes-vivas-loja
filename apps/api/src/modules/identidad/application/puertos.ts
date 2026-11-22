@@ -1,5 +1,6 @@
 import type { AlcanceRol, EventoPublicadoIdentidad, RolPersonal } from '@fiavl/contracts';
 import type { z } from 'zod';
+import type { Plantilla } from '../domain/notificaciones';
 
 /** Puertos del módulo Identidad (spec 004, Parte B). El dominio no conoce Prisma, SMTP ni pg-boss. */
 
@@ -26,6 +27,8 @@ export interface CorreoSaliente {
   asunto: string;
   texto: string;
   html: string;
+  /** Imágenes en línea (`cid:`), p. ej. los QR de las entradas (research R17). */
+  adjuntos?: { nombre: string; cid: string; contenido: Buffer; tipo: string }[];
 }
 
 /** Proveedor de correo intercambiable (ADR-0011): SMTP con nodemailer, memoria en pruebas. */
@@ -153,6 +156,61 @@ export interface RepositorioIdentidad {
   /** Cuentas con `es_personal` (también desactivadas), con roles vigentes y estado del TOTP. */
   listarPersonal(): Promise<CuentaPersonal[]>;
   cuentaPersonal(cuentaId: string): Promise<CuentaPersonal | null>;
+
+  // Notificaciones y proyecciones para avisos (US10, ADR-0011) --------------------------------
+  /** Correo, nombre y preferencia de novedades de una cuenta activa; null si no existe o no está activa. */
+  contacto(cuentaId: string): Promise<{ correo: string; nombre: string; novedades: boolean } | null>;
+  /** Inserta si la clave de deduplicación es nueva; devuelve el id, o null si ya existía (RN-011). */
+  crearNotificacion(n: NuevaNotificacion): Promise<string | null>;
+  notificacion(id: string): Promise<NotificacionGuardada | null>;
+  marcarEnviada(id: string, ahora: Date, datos: Record<string, unknown>): Promise<void>;
+  registrarFalloEnvio(id: string, error: string): Promise<void>;
+  marcarFallida(id: string, error: string): Promise<void>;
+  notificacionesDe(cuentaId: string, antesDe: Date | null, limite: number): Promise<NotificacionGuardada[]>;
+  notificacionesFallidas(limite: number): Promise<NotificacionGuardada[]>;
+  /** Solo si `version` es mayor que la guardada (eventos fuera de orden). */
+  guardarFuncionAviso(f: FuncionAviso): Promise<void>;
+  funcionAviso(funcionId: string): Promise<FuncionAviso | null>;
+  guardarDestinatario(d: { pedidoId: string; funcionId: string; cuentaId: string | null; correo: string | null }): Promise<void>;
+  desactivarDestinatario(pedidoId: string): Promise<void>;
+  destinatariosActivos(funcionId: string): Promise<{ cuentaId: string | null; correo: string | null }[]>;
+  guardarPostulacion(postulacionId: string, cuentaId: string, estado: 'enviada' | 'subsanacion' | 'cerrada'): Promise<void>;
+}
+
+export interface FuncionAviso {
+  funcionId: string;
+  titulo: string;
+  sedeNombre: string;
+  inicio: Date;
+  fin: Date;
+  estado: string;
+  version: number;
+}
+
+export interface NuevaNotificacion {
+  id: string;
+  cuentaId: string | null;
+  correoDestino: string;
+  plantilla: Plantilla;
+  categoria: 'servicio' | 'opcional';
+  eventoOrigenId: string | null;
+  claveDedup: string;
+  datos: Record<string, unknown>;
+  estado: 'pendiente' | 'omitida';
+  creadaEn: Date;
+}
+
+export interface NotificacionGuardada extends Omit<NuevaNotificacion, 'estado'> {
+  estado: 'pendiente' | 'enviada' | 'fallida' | 'omitida';
+  intentos: number;
+  ultimoError: string | null;
+  enviadaEn: Date | null;
+}
+
+/** Encola `identidad.enviar-notificacion` dentro de la transacción ambiente (ADR-0011). */
+export const COLA_NOTIFICACIONES = Symbol('COLA_NOTIFICACIONES');
+export interface ColaNotificaciones {
+  encolar(notificacionId: string, correlacionId?: string): Promise<void>;
 }
 
 export interface SegundoFactorGuardado {

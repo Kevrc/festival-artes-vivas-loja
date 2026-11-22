@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import { EventoPublicadoOperacion } from '@fiavl/contracts';
 import { ColaEventos } from '../../../common/datos/datos.module';
+import { operacionFuncionesTotal } from './metricas-operacion';
 import { crearColas, publicarEnCola } from '../../../common/datos/publicar-en-cola';
 import type { OpcionesPublicacion, PublicadorOperacion } from '../application/puertos';
 
@@ -29,6 +30,8 @@ export class PublicadorPgBossOperacion implements PublicadorOperacion, OnModuleI
 
   async publicar(eventoBruto: EventoPublicadoOperacion, opciones: OpcionesPublicacion = {}): Promise<void> {
     const evento = EventoPublicadoOperacion.parse(eventoBruto);
+    const cambio = ({ FuncionProgramada: 'publicada', FuncionReprogramada: 'reprogramada', FuncionCancelada: 'cancelada' } as Record<string, string>)[evento.tipo];
+    if (cambio) operacionFuncionesTotal.inc({ cambio });
     if (this.capturar) this.publicados.push(evento);
     this.log.log({ correlacionId: evento.correlacionId, tipo: evento.tipo, eventoId: evento.id }, 'evento publicado');
     await publicarEnCola(this.cola, evento, DESTINOS_OPERACION[evento.tipo], opciones);

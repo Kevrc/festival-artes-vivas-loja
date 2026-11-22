@@ -294,6 +294,10 @@ Boletería ya publica hacia las colas `operacion.*` e `identidad.*`
   5. Avisos **de servicio** siempre se envían; los **opcionales** (novedades) respetan la
      preferencia (US10-AS4). En v1 no hay productor de novedades (clarificación 2026-11-20).
   6. "Mis notificaciones" (US10-AS5) lista las filas propias.
+  7. (Implementación) Los correos de la cuenta —verificación, recuperación, bloqueo e invitación
+     del personal— no pasan por `notificacion`: llevan el enlace con el token de un solo uso y
+     guardarlo en `datos` lo dejaría en claro en la base. Se envían directo tras responder, sin
+     bloquear (RNF-007).
 - **Destinatarios de cambios de función** (clarificación 2026-11-20): `destinatario_funcion` se da
   de alta con `EntradasEmitidas` (cuenta o `correoDestino`) y de baja con `PedidoReembolsado`. Para
   redactar el aviso, Identidad guarda una **ficha mínima de función** (`funcion_aviso`: título,

@@ -561,7 +561,13 @@ paths:
           description: Notificaciones fallidas
           content:
             application/json:
-              schema: { type: array, items: { $ref: '#/components/schemas/Notificacion' } }
+              schema:
+                type: array
+                items:
+                  allOf:
+                    - $ref: '#/components/schemas/Notificacion'
+                    - type: object
+                      properties: { ultimoError: { type: [string, 'null'], description: 'Sin direcciones de correo' } }
 components:
   securitySchemes:
     sesion:

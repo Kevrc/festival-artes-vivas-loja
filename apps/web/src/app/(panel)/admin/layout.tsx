@@ -10,6 +10,9 @@ export default function LayoutAdmin({ children }: { children: React.ReactNode })
             <Link href="/admin/personal">Personal</Link>
           </li>
           <li>
+            <Link href="/admin/notificaciones">Avisos fallidos</Link>
+          </li>
+          <li>
             <Link href="/programacion">Programación</Link>
           </li>
           <li>

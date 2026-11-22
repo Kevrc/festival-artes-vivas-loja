@@ -41,6 +41,18 @@ export interface AltaTotp {
   clave: string;
 }
 
+export interface Notificacion {
+  id: string;
+  plantilla: string;
+  asunto: string;
+  categoria: 'servicio' | 'opcional';
+  estado: 'pendiente' | 'enviada' | 'fallida' | 'omitida';
+  intentos: number;
+  creadaEn: string;
+  enviadaEn: string | null;
+  ultimoError?: string | null;
+}
+
 export interface CuentaPersonal {
   cuentaId: string;
   nombre: string;
@@ -112,5 +124,8 @@ export const apiIdentidad = {
   cambiarEstado: (cuentaId: string, estado: 'desactivada' | 'verificada') =>
     pedir<void>(`/personal/${cuentaId}/estado`, { method: 'PUT', body: JSON.stringify({ estado }) }),
   restablecerTotp: (cuentaId: string, motivo: string) => pedir<void>(`/personal/${cuentaId}/segundo-factor`, { method: 'DELETE', body: JSON.stringify({ motivo }) }),
+  misNotificaciones: (cursor?: string) =>
+    pedir<{ items: Notificacion[]; siguiente: string | null }>(`/yo/notificaciones${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`),
+  notificacionesFallidas: () => pedir<Notificacion[]>('/notificaciones/fallidas'),
   reenviar: (correo: string) => pedir<{ mensaje: string }>('/verificacion/reenvio', { method: 'POST', body: JSON.stringify({ correo }) }),
 };
