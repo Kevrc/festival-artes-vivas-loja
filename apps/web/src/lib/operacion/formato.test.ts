@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { diaFestival, diasEntre, fechaLarga, horaDeInicio, horaLoja, dolares, entero, porcentaje, variacionTexto } from './formato';
+import { diaFestival, diasEntre, fechaLarga, horaDeInicio, horaLoja, dolares, entero, leerRecorrido, porcentaje, variacionTexto } from './formato';
 
 describe('formato del panel de Operación (hora de Loja)', () => {
   it('muestra la hora local de Loja en 24 h', () => {
@@ -36,5 +36,12 @@ describe('números de las estadísticas', () => {
     expect(variacionTexto(10.3)).toMatch(/^\+10,3\s%$/);
     expect(variacionTexto(-20)).toMatch(/^-20\s%$/);
     expect(variacionTexto(undefined)).toBe('sin dato anterior');
+  });
+});
+
+describe('puntos de un recorrido', () => {
+  it('lee «lat, lng; lat, lng» e ignora lo inválido', () => {
+    expect(leerRecorrido('-3.99, -79.20; -4.00,-79.21; x, 1')).toEqual([{ lat: -3.99, lng: -79.2 }, { lat: -4, lng: -79.21 }]);
+    expect(leerRecorrido('  ')).toBeNull();
   });
 });

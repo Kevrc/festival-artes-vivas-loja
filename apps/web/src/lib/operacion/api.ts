@@ -173,6 +173,32 @@ export interface InformeCierre {
 
 const consulta = (f: FiltroIndicadores) => new URLSearchParams(Object.entries(f).filter(([, v]) => v) as [string, string][]).toString();
 
+export interface EdicionEntrada {
+  numero: string;
+  anio: number;
+  fechaInicio: string;
+  fechaFin: string;
+  paisInvitado?: string | null;
+  precioCentavos?: number;
+  maxPagadasPersona?: number;
+  maxReservasPersona?: number;
+  aPartirDe?: string;
+}
+
+export interface SedeEntrada {
+  nombre: string;
+  tipo: 'teatro' | 'centro_cultural' | 'museo' | 'espacio_publico' | 'recorrido';
+  direccion: string;
+  lat: number;
+  lng: number;
+  recorrido: { lat: number; lng: number; nombre?: string }[] | null;
+  aforo: number | null;
+  accesibilidad: { sillaRuedas: boolean; banoAccesible: boolean; rampa: boolean };
+  montajeMin: number;
+  horarioTaquilla: string | null;
+  activa: boolean;
+}
+
 export const apiOperacion = {
   ediciones: async () => (await pedir<Edicion[]>('/ediciones')).datos,
   grilla: async (edicionId: string, fecha: string) => (await pedir<Grilla>(`/ediciones/${edicionId}/grilla?fecha=${fecha}`)).datos,
@@ -216,6 +242,14 @@ export const apiOperacion = {
   },
   informe: async (edicionId: string) => (await pedir<InformeCierre>(`/ediciones/${edicionId}/informe`)).datos,
   regenerarInforme: async (edicionId: string) => (await pedir<InformeCierre>(`/ediciones/${edicionId}/informe`, { method: 'POST' })).datos,
+  crearEdicion: async (e: EdicionEntrada) => (await pedir<Edicion & { advertencias: string[] }>('/ediciones', { method: 'POST', body: json(e) })).datos,
+  actualizarEdicion: async (id: string, version: number, e: EdicionEntrada) =>
+    (await pedir<Edicion & { advertencias: string[] }>(`/ediciones/${id}`, { method: 'PATCH', body: json(e), version })).datos,
+  crearSede: async (edicionId: string, s: SedeEntrada) => (await pedir<Sede>(`/ediciones/${edicionId}/sedes`, { method: 'POST', body: json(s) })).datos,
+  actualizarSede: async (id: string, version: number, s: SedeEntrada) => (await pedir<Sede>(`/sedes/${id}`, { method: 'PATCH', body: json(s), version })).datos,
+  eliminarSede: async (id: string) => {
+    await pedir<void>(`/sedes/${id}`, { method: 'DELETE' });
+  },
   historial: async (id: string) => (await pedir<CambioFuncion[]>(`/funciones/${id}/cambios`)).datos,
   reprogramar: async (id: string, version: number, r: Reprogramacion) =>
     (await pedir<Funcion>(`/funciones/${id}/reprogramacion`, { method: 'POST', body: json(r), version })).datos,

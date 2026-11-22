@@ -359,14 +359,14 @@ tiene una prueba nombrada; en dominio se escribe **primero** la prueba y se comp
 
 ### Tests
 
-- [ ] T118 [P] [US6] Prueba de dominio `op/domain/edicion.test.ts`: `US6-AS1` (copia sedes con `sede.sede_origen_id` y parámetros, no funciones), `US6-AS2` (fuera de noviembre ⇒ advertencia, no error)
-- [ ] T119 [P] [US6] Prueba de integración `apps/api/test/operacion/ediciones-sedes.int.test.ts`: `US6-AS3` (sede con funciones no se elimina; `sede.activa = false` solo sin funciones futuras), `sede.accesibilidad` obligatoria, `sede.aforo` obligatorio salvo espacio público y recorrido, `sede.recorrido` obligatorio en recorridos, cambio de `edicion.precio_centavos` no afecta pedidos existentes (RN-006)
+- [X] T118 [P] [US6] Prueba de dominio `op/domain/edicion.test.ts`: `US6-AS1` (copia sedes con `sede.sede_origen_id` y parámetros, no funciones), `US6-AS2` (fuera de noviembre ⇒ advertencia, no error)
+- [X] T119 [P] [US6] Prueba de integración `apps/api/test/operacion/ediciones-sedes.int.test.ts`: `US6-AS3` (sede con funciones no se elimina; `sede.activa = false` solo sin funciones futuras), `sede.accesibilidad` obligatoria, `sede.aforo` obligatorio salvo espacio público y recorrido, `sede.recorrido` obligatorio en recorridos, cambio de `edicion.precio_centavos` no afecta pedidos existentes (RN-006)
 
 ### Implementation
 
-- [ ] T120 [US6] Implementar `op/domain/edicion.ts`; hace pasar T118
-- [ ] T121 [US6] Casos de uso `op/application/ediciones/*` y `op/application/sedes/*` que validan `edicion.max_pagadas_persona`, `edicion.max_reservas_persona`, `edicion.precio_centavos`, `sede.accesibilidad`, `sede.aforo`, `sede.recorrido` y `sede.montaje_min` según [data-model.md](data-model.md); cada acción escribe `auditoria` (`auditoria.actor_id`, `auditoria.accion`, `auditoria.anterior`, `auditoria.nuevo`, `auditoria.correlacion_id`) en la misma transacción (FR-012); controladores `op/interface/ediciones.controller.ts` y ampliación de `sedes.controller.ts` (escritura con `@Requiere('administrador')`); hace pasar T119
-- [ ] T122 [US6] Páginas `apps/web/src/app/(panel)/admin/ediciones/page.tsx` y `admin/sedes/page.tsx`
+- [X] T120 [US6] Implementar `op/domain/edicion.ts`; hace pasar T118
+- [X] T121 [US6] Casos de uso `op/application/ediciones/*` y `op/application/sedes/*` que validan `edicion.max_pagadas_persona`, `edicion.max_reservas_persona`, `edicion.precio_centavos`, `sede.accesibilidad`, `sede.aforo`, `sede.recorrido` y `sede.montaje_min` según [data-model.md](data-model.md); cada acción escribe `auditoria` (`auditoria.actor_id`, `auditoria.accion`, `auditoria.anterior`, `auditoria.nuevo`, `auditoria.correlacion_id`) en la misma transacción (FR-012); controladores `op/interface/ediciones.controller.ts` y ampliación de `sedes.controller.ts` (escritura con `@Requiere('administrador')`); hace pasar T119 — hecho como `maestros/maestros.servicio.ts` y `interface/ediciones.controller.ts` (las lecturas de sedes siguen en `obras.controller.ts`). Con `aPartirDe` el precio y los límites son opcionales y se toman de la base; el año es único (409 `anio_ocupado`). Cambiar los parámetros de una edición publicada vuelve a publicar `ProgramacionPublicada` para que Boletería use el precio nuevo en pedidos futuros (RN-006). Una sede no baja su aforo por debajo del de sus funciones. Rutas añadidas a la matriz T081
+- [X] T122 [US6] Páginas `apps/web/src/app/(panel)/admin/ediciones/page.tsx` y `admin/sedes/page.tsx` — más `e2e/operacion-ediciones.spec.ts` (sin crear ediciones en la base compartida)
 
 **Checkpoint**: escenario 19.
 

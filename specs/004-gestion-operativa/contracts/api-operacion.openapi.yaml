@@ -618,7 +618,9 @@ components:
                  funcion_publicada, version_requerida, fuera_de_edicion, no_encontrado, segundo_factor_requerido,
                  publicacion_invalida, edicion_sin_publicar, idempotencia_requerida, funcion_en_borrador,
                  funcion_cancelada, sin_cambios, usar_reprogramacion, sin_tipo_acceso,
-                 conteo_no_aplica, edicion_abierta]
+                 conteo_no_aplica, edicion_abierta, anio_ocupado, parametros_requeridos, fechas_invertidas,
+                 precio_invalido, limite_invalido, aforo_requerido, recorrido_requerido, montaje_invalido,
+                 coordenadas_invalidas, sede_duplicada]
     Edicion:
       type: object
       required: [id, numero, anio, fechaInicio, fechaFin, estado, version]
@@ -636,7 +638,8 @@ components:
         version: { type: integer }
     EdicionEntrada:
       type: object
-      required: [numero, anio, fechaInicio, fechaFin, precioCentavos, maxPagadasPersona, maxReservasPersona]
+      required: [numero, anio, fechaInicio, fechaFin]
+      description: Sin `aPartirDe`, el precio y los límites son obligatorios; con `aPartirDe` se toman de la edición base si faltan
       properties:
         numero: { type: string }
         anio: { type: integer, minimum: 2016 }

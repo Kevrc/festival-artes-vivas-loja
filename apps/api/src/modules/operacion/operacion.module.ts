@@ -18,6 +18,8 @@ import {
   type RelojOperacion,
   REPOSITORIO_ESTADISTICAS,
   REPOSITORIO_INCIDENCIAS,
+  REPOSITORIO_MAESTROS,
+  type RepositorioMaestros,
   REPOSITORIO_OPERACION,
   type RepositorioEstadisticas,
   type RepositorioIncidencias,
@@ -25,6 +27,8 @@ import {
 } from './application/puertos';
 import { AlRecibirAforoExcedido, AlRecibirConflictoDeIngreso, AlRecibirSeleccionDesistida } from './application/eventos/alertas';
 import { EstadisticasServicio } from './application/estadisticas/estadisticas.servicio';
+import { MaestrosServicio } from './application/maestros/maestros.servicio';
+import { PrismaMaestrosRepository } from './infrastructure/prisma-maestros.repository';
 import { IncidenciasServicio } from './application/incidencias/incidencias.servicio';
 import { PrismaEstadisticasRepository } from './infrastructure/prisma-estadisticas.repository';
 import { PrismaIncidenciasRepository } from './infrastructure/prisma-incidencias.repository';
@@ -73,6 +77,12 @@ export class OperacionModule {
           new PublicacionServicio(r, pub, a, reloj),
       },
       // Consumidores de eventos de otros módulos; cada historia añade los suyos.
+      { provide: REPOSITORIO_MAESTROS, inject: [PrismaService], useFactory: (db: PrismaService) => new PrismaMaestrosRepository(db) },
+      {
+        provide: MaestrosServicio,
+        inject: [REPOSITORIO_OPERACION, REPOSITORIO_MAESTROS, PUBLICADOR_OPERACION, AUDITORIA_OPERACION, RELOJ_OPERACION],
+        useFactory: (r: RepositorioOperacion, m: RepositorioMaestros, pub: PublicadorOperacion, a: AuditoriaOperacion, reloj: RelojOperacion) => new MaestrosServicio(r, m, pub, a, reloj),
+      },
       { provide: REPOSITORIO_ESTADISTICAS, inject: [PrismaService], useFactory: (db: PrismaService) => new PrismaEstadisticasRepository(db) },
       {
         provide: EstadisticasServicio,

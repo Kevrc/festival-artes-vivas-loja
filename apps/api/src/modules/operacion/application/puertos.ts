@@ -342,3 +342,32 @@ export interface RepositorioEstadisticas {
   edicionesPublicadas(): Promise<{ id: string; anio: number; fechaFin: string; ultimoFin: Date | null }[]>;
   cerrarEdicion(edicionId: string): Promise<boolean>;
 }
+
+// Ediciones y sedes (US6, FR-001) -------------------------------------------------------------
+export const REPOSITORIO_MAESTROS = Symbol('REPOSITORIO_MAESTROS');
+
+export interface EdicionGuardar {
+  numero: string;
+  anio: number;
+  fechaInicio: string;
+  fechaFin: string;
+  paisInvitado: string | null;
+  precioCentavos: number;
+  maxPagadasPersona: number;
+  maxReservasPersona: number;
+}
+
+export type SedeGuardar = import('../domain/edicion').DatosSede;
+
+export interface RepositorioMaestros {
+  anioOcupado(anio: number, exceptoId?: string): Promise<boolean>;
+  crearEdicion(id: string, e: EdicionGuardar, edicionBaseId: string | null): Promise<void>;
+  /** false si la versión no coincide (412). */
+  actualizarEdicion(id: string, versionEsperada: number, e: EdicionGuardar): Promise<boolean>;
+  crearSede(id: string, edicionId: string, s: SedeGuardar, sedeOrigenId: string | null): Promise<void>;
+  actualizarSede(id: string, versionEsperada: number, s: SedeGuardar): Promise<boolean>;
+  eliminarSede(id: string): Promise<void>;
+  nombreOcupado(edicionId: string, nombre: string, exceptoId?: string): Promise<boolean>;
+  /** Funciones (y registros) que la usan: `total` cuenta también canceladas e incidencias. */
+  usoDeSede(sedeId: string, ahora: Date): Promise<{ total: number; futuras: number; aforoMaximo: number | null }>;
+}

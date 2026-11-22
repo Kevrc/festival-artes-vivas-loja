@@ -24,3 +24,15 @@ export const entero = (n: number) => n.toLocaleString('es-EC');
 export const porcentaje = (fraccion: number | null) => (fraccion === null ? '—' : `${(fraccion * 100).toLocaleString('es-EC', { maximumFractionDigits: 1 })} %`);
 export const dolares = (centavos: number) => `USD ${(centavos / 100).toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 export const variacionTexto = (v: number | undefined) => (v === undefined ? 'sin dato anterior' : `${v > 0 ? '+' : ''}${v.toLocaleString('es-EC', { maximumFractionDigits: 1 })} %`);
+
+/** «-3.99, -79.20; -4.00, -79.21» → puntos de paso de un recorrido (null si no hay ninguno válido). */
+export function leerRecorrido(texto: string): { lat: number; lng: number }[] | null {
+  const puntos = texto
+    .split(';')
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map((p) => p.split(',').map((n) => Number(n.trim())))
+    .filter((p) => p.length === 2 && p.every((n) => Number.isFinite(n)))
+    .map(([lat, lng]) => ({ lat: lat!, lng: lng! }));
+  return puntos.length ? puntos : null;
+}

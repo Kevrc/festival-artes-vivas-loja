@@ -428,7 +428,7 @@ export interface components {
             status: number;
             detail?: string;
             /** @enum {string} */
-            codigo?: "cruce_sede" | "cruce_elenco" | "aforo_supera_sede" | "exceso_aforo" | "motivo_requerido" | "funcion_finalizada" | "edicion_cerrada" | "obra_desistida" | "version_obsoleta" | "sede_con_funciones" | "fuera_de_alcance" | "fin_menor" | "funcion_publicada" | "version_requerida" | "fuera_de_edicion" | "no_encontrado" | "segundo_factor_requerido" | "publicacion_invalida" | "edicion_sin_publicar" | "idempotencia_requerida" | "funcion_en_borrador" | "funcion_cancelada" | "sin_cambios" | "usar_reprogramacion" | "sin_tipo_acceso" | "conteo_no_aplica" | "edicion_abierta";
+            codigo?: "cruce_sede" | "cruce_elenco" | "aforo_supera_sede" | "exceso_aforo" | "motivo_requerido" | "funcion_finalizada" | "edicion_cerrada" | "obra_desistida" | "version_obsoleta" | "sede_con_funciones" | "fuera_de_alcance" | "fin_menor" | "funcion_publicada" | "version_requerida" | "fuera_de_edicion" | "no_encontrado" | "segundo_factor_requerido" | "publicacion_invalida" | "edicion_sin_publicar" | "idempotencia_requerida" | "funcion_en_borrador" | "funcion_cancelada" | "sin_cambios" | "usar_reprogramacion" | "sin_tipo_acceso" | "conteo_no_aplica" | "edicion_abierta" | "anio_ocupado" | "parametros_requeridos" | "fechas_invertidas" | "precio_invalido" | "limite_invalido" | "aforo_requerido" | "recorrido_requerido" | "montaje_invalido" | "coordenadas_invalidas" | "sede_duplicada";
         };
         Edicion: {
             /** Format: uuid */
@@ -447,6 +447,7 @@ export interface components {
             estado: "planificacion" | "publicada" | "cerrada";
             version: number;
         };
+        /** @description Sin `aPartirDe`, el precio y los límites son obligatorios; con `aPartirDe` se toman de la edición base si faltan */
         EdicionEntrada: {
             numero: string;
             anio: number;
@@ -455,9 +456,9 @@ export interface components {
             /** Format: date */
             fechaFin: string;
             paisInvitado?: string | null;
-            precioCentavos: number;
-            maxPagadasPersona: number;
-            maxReservasPersona: number;
+            precioCentavos?: number;
+            maxPagadasPersona?: number;
+            maxReservasPersona?: number;
             /**
              * Format: uuid
              * @description Edición de la que copiar sedes y parámetros
