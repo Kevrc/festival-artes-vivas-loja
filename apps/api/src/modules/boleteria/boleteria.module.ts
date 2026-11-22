@@ -1,3 +1,4 @@
+import { IDENTIDAD_PUBLICA, type IdentidadPublica } from '@fiavl/contracts';
 import { type DynamicModule, Module, type Provider, type Type } from '@nestjs/common';
 import { enTransaccion } from '../../common/datos/transaccion';
 import { PrismaService } from '../../common/prisma/prisma.service';
@@ -34,6 +35,7 @@ import { TaquillaServicios } from './application/taquilla/taquilla-servicios';
 import { ValidadorServicios } from './application/validador/validador-servicios';
 import { obtenerLlavesQr } from './domain/firma-qr';
 import { AutorizacionDevAdapter } from './infrastructure/autorizacion-dev.adapter';
+import { AutorizacionIdentidadAdapter } from './infrastructure/autorizacion-identidad.adapter';
 import { ConsumidoresBoleteria } from './infrastructure/consumidores.pgboss';
 import { PayPhonePagosAdapter } from './infrastructure/pagos-payphone.adapter';
 import { SimuladorPagosAdapter } from './infrastructure/pagos-simulador.adapter';
@@ -68,7 +70,13 @@ export class BoleteriaModule {
       { provide: UNIDAD_TRABAJO, inject: [PrismaService], useFactory: (db: PrismaService): UnidadDeTrabajo => ({ ejecutar: (fn) => enTransaccion(db, () => fn()) }) },
       PublicadorPgBossBoleteria,
       { provide: PUBLICADOR_BOLETERIA, useExisting: PublicadorPgBossBoleteria },
-      { provide: AUTORIZACION_BOLETERIA, useClass: AutorizacionDevAdapter },
+      // T088 (spec 004): sesión real de Identidad; el puente de desarrollo solo en development/test.
+      {
+        provide: AUTORIZACION_BOLETERIA,
+        inject: [IDENTIDAD_PUBLICA],
+        useFactory: (identidad: IdentidadPublica) =>
+          new AutorizacionIdentidadAdapter(identidad, ['development', 'test'].includes(process.env.NODE_ENV ?? '') ? new AutorizacionDevAdapter() : null),
+      },
       {
         provide: AplicarEventoOperacion,
         inject: [REPOSITORIO_BOLETERIA, PUBLICADOR_BOLETERIA, RELOJ_BOLETERIA, UNIDAD_TRABAJO],

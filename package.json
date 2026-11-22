@@ -20,6 +20,7 @@
     "db:generate": "prisma generate",
     "db:seed": "tsx --env-file-if-exists=.env prisma/seed/index.ts",
     "events:emit": "tsx --env-file-if-exists=.env scripts/emitir-evento.ts",
+    "events:emit:004": "tsx --env-file-if-exists=.env scripts/emitir-evento-004.ts",
     "contracts:gen": "pnpm --filter @fiavl/contracts gen",
     "prepare": "husky"
   },

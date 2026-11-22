@@ -1,0 +1,430 @@
+// Esquema `operacion` — specs/004-gestion-operativa/data-model.md (Parte A)
+// Dueño exclusivo: módulo Operación. Los enums son propios (no se usan los de `programacion`)
+// para no crear dependencias entre esquemas (Constitución III).
+
+enum EstadoEdicionOperacion {
+  planificacion
+  publicada
+  cerrada
+
+  @@map("estado_edicion")
+  @@schema("operacion")
+}
+
+enum TipoSedeOperacion {
+  teatro
+  centro_cultural
+  museo
+  espacio_publico
+  recorrido
+
+  @@map("tipo_sede")
+  @@schema("operacion")
+}
+
+enum DisciplinaOperacion {
+  teatro
+  danza
+  circo
+  musica
+  titeres
+  exposicion
+  taller
+  calle
+  cine
+
+  @@map("disciplina")
+  @@schema("operacion")
+}
+
+enum ComponenteOperacion {
+  internacional
+  nacional
+  camino_a_loja
+  escuela
+  salud_arte
+
+  @@map("componente")
+  @@schema("operacion")
+}
+
+enum TipoAccesoOperacion {
+  pagada
+  gratuita_reserva
+  gratuita_libre
+  restringida
+
+  @@map("tipo_acceso")
+  @@schema("operacion")
+}
+
+enum PublicoOperacion {
+  familiar
+  adultos
+  estudiantes
+
+  @@map("publico")
+  @@schema("operacion")
+}
+
+enum OrigenObra {
+  invitado
+  convocatoria
+
+  @@map("origen_obra")
+  @@schema("operacion")
+}
+
+enum EstadoObra {
+  disponible
+  desistida
+
+  @@map("estado_obra")
+  @@schema("operacion")
+}
+
+/// `finalizada` no se guarda: se deriva de `fin < ahora` (research R8).
+enum EstadoFuncionOperacion {
+  borrador
+  programada
+  reprogramada
+  cancelada
+
+  @@map("estado_funcion")
+  @@schema("operacion")
+}
+
+enum TipoCambioFuncion {
+  reprogramacion
+  cambio_sede
+  cancelacion
+  cambio_aforo
+  edicion
+
+  @@map("tipo_cambio_funcion")
+  @@schema("operacion")
+}
+
+enum TipoIncidencia {
+  retraso
+  falla_tecnica
+  clima
+  emergencia_medica
+  aforo_superado
+  conflicto_ingreso
+  desistimiento
+  otra
+
+  @@map("tipo_incidencia")
+  @@schema("operacion")
+}
+
+enum OrigenIncidencia {
+  manual
+  automatica
+
+  @@map("origen_incidencia")
+  @@schema("operacion")
+}
+
+enum EstadoIncidencia {
+  abierta
+  atendida
+
+  @@map("estado_incidencia")
+  @@schema("operacion")
+}
+
+enum TipoPedidoRegistrado {
+  compra
+  reserva
+
+  @@map("tipo_pedido")
+  @@schema("operacion")
+}
+
+model EdicionOperacion {
+  id                 String                 @id @db.Uuid
+  numero             String
+  anio               Int                    @unique
+  fechaInicio        DateTime               @map("fecha_inicio") @db.Date
+  fechaFin           DateTime               @map("fecha_fin") @db.Date
+  paisInvitado       String?                @map("pais_invitado")
+  precioCentavos     Int                    @map("precio_centavos")
+  maxPagadasPersona  Int                    @map("max_pagadas_persona")
+  maxReservasPersona Int                    @map("max_reservas_persona")
+  estado             EstadoEdicionOperacion @default(planificacion)
+  edicionBaseId      String?                @map("edicion_base_id") @db.Uuid
+  version            Int                    @default(1)
+  creadaEn           DateTime               @default(now()) @map("creada_en") @db.Timestamptz(3)
+  actualizadaEn      DateTime               @default(now()) @updatedAt @map("actualizada_en") @db.Timestamptz(3)
+  sedes              SedeOperacion[]
+  obras              ObraOperacion[]
+  funciones          FuncionOperacion[]
+  incidencias        Incidencia[]
+  informe            InformeCierre?
+
+  @@map("edicion")
+  @@schema("operacion")
+}
+
+model SedeOperacion {
+  id              String             @id @db.Uuid
+  edicionId       String             @map("edicion_id") @db.Uuid
+  sedeOrigenId    String?            @map("sede_origen_id") @db.Uuid
+  nombre          String
+  tipo            TipoSedeOperacion
+  direccion       String
+  lat             Float
+  lng             Float
+  recorrido       Json?
+  aforo           Int?
+  accesibilidad   Json
+  montajeMin      Int                @default(30) @map("montaje_min")
+  horarioTaquilla Json?              @map("horario_taquilla")
+  activa          Boolean            @default(true)
+  version         Int                @default(1)
+  edicion         EdicionOperacion   @relation(fields: [edicionId], references: [id])
+  funciones       FuncionOperacion[]
+  incidencias     Incidencia[]
+
+  @@unique([edicionId, nombre])
+  @@map("sede")
+  @@schema("operacion")
+}
+
+model ElencoOperacion {
+  id            String          @id @db.Uuid
+  nombre        String
+  pais          String
+  ciudad        String?
+  origen        OrigenObra
+  postulacionId String?         @unique @map("postulacion_id") @db.Uuid
+  obras         ObraOperacion[]
+
+  @@map("elenco")
+  @@schema("operacion")
+}
+
+model ObraOperacion {
+  id             String              @id @db.Uuid
+  edicionId      String              @map("edicion_id") @db.Uuid
+  elencoId       String              @map("elenco_id") @db.Uuid
+  titulo         String
+  sinopsis       String
+  disciplina     DisciplinaOperacion
+  componente     ComponenteOperacion
+  duracionMin    Int                 @map("duracion_min")
+  edadMinima     Int                 @default(0) @map("edad_minima")
+  idioma         String?
+  imagenes       Json                @default("[]")
+  fichaArtistica Json                @default("[]") @map("ficha_artistica")
+  fichaTecnica   Json                @default("{}") @map("ficha_tecnica")
+  estado         EstadoObra          @default(disponible)
+  origen         OrigenObra
+  postulacionId  String?             @unique @map("postulacion_id") @db.Uuid
+  version        Int                 @default(1)
+  edicion        EdicionOperacion    @relation(fields: [edicionId], references: [id])
+  elenco         ElencoOperacion     @relation(fields: [elencoId], references: [id])
+  funciones      FuncionOperacion[]
+
+  @@map("obra")
+  @@schema("operacion")
+}
+
+model FuncionOperacion {
+  id              String                 @id @db.Uuid
+  edicionId       String                 @map("edicion_id") @db.Uuid
+  obraId          String                 @map("obra_id") @db.Uuid
+  sedeId          String                 @map("sede_id") @db.Uuid
+  elencoId        String                 @map("elenco_id") @db.Uuid
+  inicio          DateTime               @db.Timestamptz(3)
+  fin             DateTime               @db.Timestamptz(3)
+  continua        Boolean                @default(false)
+  tipoAcceso      TipoAccesoOperacion?    @map("tipo_acceso")
+  publico         PublicoOperacion       @default(familiar)
+  aforoHabilitado Int?                   @map("aforo_habilitado")
+  estado          EstadoFuncionOperacion @default(borrador)
+  version         Int                    @default(1)
+  publicadaEn     DateTime?              @map("publicada_en") @db.Timestamptz(3)
+  creadaPor       String                 @map("creada_por") @db.Uuid
+  creadaEn        DateTime               @default(now()) @map("creada_en") @db.Timestamptz(3)
+  actualizadaEn   DateTime               @default(now()) @updatedAt @map("actualizada_en") @db.Timestamptz(3)
+  edicion         EdicionOperacion       @relation(fields: [edicionId], references: [id])
+  obra            ObraOperacion          @relation(fields: [obraId], references: [id])
+  sede            SedeOperacion          @relation(fields: [sedeId], references: [id])
+  bloques         BloqueOcupacion[]
+  cambios         CambioFuncion[]
+  incidencias     Incidencia[]
+  conteos         ConteoEstimado[]
+
+  @@index([edicionId, inicio])
+  @@index([sedeId, inicio])
+  @@index([obraId])
+  @@map("funcion")
+  @@schema("operacion")
+}
+
+/// Garantía de cero cruces (ADR-0010). Las dos restricciones EXCLUDE están en la migración SQL;
+/// las filas se escriben con SQL porque Prisma no modela `tstzrange`.
+model BloqueOcupacion {
+  id          String                   @id @db.Uuid
+  funcionId   String                   @map("funcion_id") @db.Uuid
+  sedeId      String                   @map("sede_id") @db.Uuid
+  elencoId    String                   @map("elenco_id") @db.Uuid
+  rangoSede   Unsupported("tstzrange") @map("rango_sede")
+  rangoElenco Unsupported("tstzrange") @map("rango_elenco")
+  activo      Boolean                  @default(true)
+  funcion     FuncionOperacion         @relation(fields: [funcionId], references: [id], onDelete: Cascade)
+
+  @@index([funcionId])
+  @@map("bloque_ocupacion")
+  @@schema("operacion")
+}
+
+/// Historial de cambios (FR-006). Solo inserción (trigger en la migración).
+model CambioFuncion {
+  id               String            @id @db.Uuid
+  funcionId        String            @map("funcion_id") @db.Uuid
+  tipo             TipoCambioFuncion
+  anterior         Json
+  nuevo            Json
+  motivo           String?
+  excesoConfirmado Int?              @map("exceso_confirmado")
+  autorId          String            @map("autor_id") @db.Uuid
+  registradoEn     DateTime          @default(now()) @map("registrado_en") @db.Timestamptz(3)
+  funcion          FuncionOperacion  @relation(fields: [funcionId], references: [id])
+
+  @@index([funcionId, registradoEn])
+  @@map("cambio_funcion")
+  @@schema("operacion")
+}
+
+model Incidencia {
+  id             String            @id @db.Uuid
+  edicionId      String            @map("edicion_id") @db.Uuid
+  sedeId         String            @map("sede_id") @db.Uuid
+  funcionId      String?           @map("funcion_id") @db.Uuid
+  tipo           TipoIncidencia
+  descripcion    String
+  afectaPublico  Boolean           @default(false) @map("afecta_publico")
+  origen         OrigenIncidencia
+  eventoOrigenId String?           @unique @map("evento_origen_id") @db.Uuid
+  autorId        String?           @map("autor_id") @db.Uuid
+  estado         EstadoIncidencia  @default(abierta)
+  ocurridaEn     DateTime          @default(now()) @map("ocurrida_en") @db.Timestamptz(3)
+  edicion        EdicionOperacion  @relation(fields: [edicionId], references: [id])
+  sede           SedeOperacion     @relation(fields: [sedeId], references: [id])
+  funcion        FuncionOperacion? @relation(fields: [funcionId], references: [id])
+
+  @@index([edicionId, ocurridaEn])
+  @@map("incidencia")
+  @@schema("operacion")
+}
+
+/// Solo inserción; el vigente es el último por función (US4-AS1, RN-004).
+model ConteoEstimado {
+  id           String           @id @db.Uuid
+  funcionId    String           @map("funcion_id") @db.Uuid
+  cantidad     Int
+  metodo       String
+  autorId      String           @map("autor_id") @db.Uuid
+  registradoEn DateTime         @default(now()) @map("registrado_en") @db.Timestamptz(3)
+  funcion      FuncionOperacion @relation(fields: [funcionId], references: [id])
+
+  @@index([funcionId, registradoEn])
+  @@map("conteo_estimado")
+  @@schema("operacion")
+}
+
+// Proyecciones desde Boletería (research R7): se alimentan solo con sus eventos.
+
+model PedidoRegistrado {
+  pedidoId        String               @id @map("pedido_id") @db.Uuid
+  funcionId       String               @map("funcion_id") @db.Uuid
+  tipo            TipoPedidoRegistrado
+  canal           String
+  cantidad        Int
+  importeCentavos Int                  @map("importe_centavos")
+  reembolsado     Boolean              @default(false)
+
+  @@index([funcionId])
+  @@map("pedido_registrado")
+  @@schema("operacion")
+}
+
+model MetricaFuncion {
+  funcionId            String   @id @map("funcion_id") @db.Uuid
+  entradasEmitidas     Int      @default(0) @map("entradas_emitidas")
+  entradasReembolsadas Int      @default(0) @map("entradas_reembolsadas")
+  ingresosValidados    Int      @default(0) @map("ingresos_validados")
+  recaudacionCentavos  Int      @default(0) @map("recaudacion_centavos")
+  actualizadoEn        DateTime @default(now()) @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+
+  @@map("metrica_funcion")
+  @@schema("operacion")
+}
+
+model IngresoRegistrado {
+  ingresoId   String   @id @map("ingreso_id") @db.Uuid
+  funcionId   String   @map("funcion_id") @db.Uuid
+  escaneadoEn DateTime @map("escaneado_en") @db.Timestamptz(3)
+
+  @@index([funcionId])
+  @@map("ingreso_registrado")
+  @@schema("operacion")
+}
+
+model InformeCierre {
+  edicionId  String           @id @map("edicion_id") @db.Uuid
+  generadoEn DateTime         @default(now()) @map("generado_en") @db.Timestamptz(3)
+  datos      Json
+  edicion    EdicionOperacion @relation(fields: [edicionId], references: [id])
+
+  @@map("informe_cierre")
+  @@schema("operacion")
+}
+
+model CifrasHistoricas {
+  anio                Int    @id
+  actividades         Int
+  elencos             Int
+  obras               Int
+  paises              Int
+  /// Total publicado; el desglose puede no existir en ediciones anteriores al sistema.
+  asistenciaTotal     Int    @map("asistencia_total")
+  asistenciaValidada  Int?   @map("asistencia_validada")
+  asistenciaEstimada  Int?   @map("asistencia_estimada")
+  ocupacionMedia      Float? @map("ocupacion_media")
+  recaudacionCentavos Int?   @map("recaudacion_centavos")
+
+  @@map("cifras_historicas")
+  @@schema("operacion")
+}
+
+/// Bitácora inmutable (FR-012, Constitución IX). Solo inserción (trigger en la migración).
+model AuditoriaOperacion {
+  id            String   @id @db.Uuid
+  accion        String
+  actorId       String?  @map("actor_id") @db.Uuid
+  rol           String?
+  entidad       String
+  entidadId     String?  @map("entidad_id") @db.Uuid
+  anterior      Json?
+  nuevo         Json?
+  correlacionId String?  @map("correlacion_id")
+  registradoEn  DateTime @default(now()) @map("registrado_en") @db.Timestamptz(3)
+
+  @@index([entidad, entidadId])
+  @@map("auditoria")
+  @@schema("operacion")
+}
+
+model EventoProcesadoOperacion {
+  eventoId    String   @id @map("evento_id") @db.Uuid
+  tipo        String
+  procesadoEn DateTime @default(now()) @map("procesado_en") @db.Timestamptz(3)
+
+  @@map("evento_procesado")
+  @@schema("operacion")
+}

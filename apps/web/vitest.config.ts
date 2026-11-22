@@ -15,6 +15,8 @@ export default defineConfig({
         'src/lib/cartelera/tipos.ts',
         'src/lib/boleteria/api-boleteria.ts',
         'src/lib/boleteria/cartelera-operacion.ts',
+        'src/lib/operacion/api.ts',
+        'src/lib/identidad/api.ts',
       ],
       thresholds: { lines: 80, functions: 80, branches: 80, statements: 80 },
     },

@@ -18,6 +18,8 @@ import {
 } from './operacion';
 
 export * from './boleteria';
+export * from './convocatorias-pendientes';
+export * from './identidad';
 export * from './convocatorias';
 export * from './operacion';
 export * from './ejemplos';
@@ -57,6 +59,26 @@ export const EventoPublicadoBoleteria = z.discriminatedUnion('tipo', [
 ]);
 export type EventoPublicadoBoleteria = z.infer<typeof EventoPublicadoBoleteria>;
 
+/** Todos los eventos que publica Operación (spec 004): destinos en su publicador. */
+export const EventoPublicadoOperacion = z.discriminatedUnion('tipo', [
+  ProgramacionPublicada,
+  FuncionProgramada,
+  FuncionActualizada,
+  FuncionReprogramada,
+  FuncionCancelada,
+  AforoCambiado,
+]);
+export type EventoPublicadoOperacion = z.infer<typeof EventoPublicadoOperacion>;
+
+/** Eventos de Operación que consume Identidad para redactar avisos (spec 004, US10). */
+export const EventoOperacionIdentidad = z.discriminatedUnion('tipo', [
+  ProgramacionPublicada,
+  FuncionProgramada,
+  FuncionActualizada,
+  FuncionReprogramada,
+  FuncionCancelada,
+]);
+export type EventoOperacionIdentidad = z.infer<typeof EventoOperacionIdentidad>;
 /** Eventos publicados por Convocatorias para el servicio de Identidad. */
 export const EventoPublicadoConvocatorias = z.discriminatedUnion('tipo', [PostulacionEnviada, SubsanacionSolicitada]);
 export type EventoPublicadoConvocatorias = z.infer<typeof EventoPublicadoConvocatorias>;

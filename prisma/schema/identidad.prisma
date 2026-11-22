@@ -1,0 +1,327 @@
+// Esquema `identidad` — specs/004-gestion-operativa/data-model.md (Parte B)
+// Dueño exclusivo: módulo Identidad. Los demás módulos solo usan el contrato IdentidadPublica.
+
+enum EstadoCuenta {
+  pendiente_verificacion
+  verificada
+  desactivada
+  eliminada
+
+  @@map("estado_cuenta")
+  @@schema("identidad")
+}
+
+enum TipoTokenCuenta {
+  verificacion
+  recuperacion
+  estudiante
+
+  @@map("tipo_token")
+  @@schema("identidad")
+}
+
+/// Los 11 roles de FR-019 (research R16). El adaptador de cada módulo traduce estos códigos.
+enum RolIdentidad {
+  asistente
+  postulante
+  curador
+  coordinacion_convocatorias
+  coordinacion_provincial
+  programador
+  jefe_sala
+  taquilla
+  validador
+  direccion
+  administrador
+
+  @@map("rol")
+  @@schema("identidad")
+}
+
+enum TipoAlcance {
+  sede
+  provincia
+  disciplina
+
+  @@map("tipo_alcance")
+  @@schema("identidad")
+}
+
+enum DocumentoConsentimiento {
+  politica_privacidad
+  novedades
+
+  @@map("documento_consentimiento")
+  @@schema("identidad")
+}
+
+enum CategoriaNotificacion {
+  servicio
+  opcional
+
+  @@map("categoria_notificacion")
+  @@schema("identidad")
+}
+
+enum EstadoNotificacion {
+  pendiente
+  enviada
+  fallida
+  omitida
+
+  @@map("estado_notificacion")
+  @@schema("identidad")
+}
+
+enum EstadoPostulacionEnCurso {
+  enviada
+  subsanacion
+  cerrada
+
+  @@map("estado_postulacion")
+  @@schema("identidad")
+}
+
+model Cuenta {
+  id              String           @id @db.Uuid
+  nombre          String
+  /// Normalizado: trim + minúsculas.
+  correo          String           @unique
+  estado          EstadoCuenta     @default(pendiente_verificacion)
+  verificadaEn    DateTime?        @map("verificada_en") @db.Timestamptz(3)
+  bloqueadaHasta  DateTime?        @map("bloqueada_hasta") @db.Timestamptz(3)
+  esPersonal      Boolean          @default(false) @map("es_personal")
+  preferencias    Json             @default("{\"novedades\":false}")
+  creadaEn        DateTime         @default(now()) @map("creada_en") @db.Timestamptz(3)
+  actualizadaEn   DateTime         @default(now()) @updatedAt @map("actualizada_en") @db.Timestamptz(3)
+  credencial      Credencial?
+  sesiones        Sesion[]
+  tokens          TokenCuenta[]
+  roles           RolAsignado[]
+  consentimientos Consentimiento[]
+  acreditaciones  Acreditacion[]
+
+  @@map("cuenta")
+  @@schema("identidad")
+}
+
+model Credencial {
+  cuentaId           String   @id @map("cuenta_id") @db.Uuid
+  /// scrypt$N$r$p$sal$hash (research R10). Nunca en logs.
+  hashContrasena     String   @map("hash_contrasena")
+  /// AES-256-GCM con IDENTIDAD_CLAVE_CIFRADO (research R13).
+  totpSecretoCifrado Bytes?   @map("totp_secreto_cifrado")
+  totpActivo         Boolean  @default(false) @map("totp_activo")
+  totpUltimoPaso     BigInt?  @map("totp_ultimo_paso")
+  actualizadaEn      DateTime @default(now()) @updatedAt @map("actualizada_en") @db.Timestamptz(3)
+  cuenta             Cuenta   @relation(fields: [cuentaId], references: [id], onDelete: Cascade)
+
+  @@map("credencial")
+  @@schema("identidad")
+}
+
+model Sesion {
+  id                String    @id @db.Uuid
+  cuentaId          String    @map("cuenta_id") @db.Uuid
+  /// SHA-256 del token de la cookie (ADR-0009).
+  hashToken         Bytes     @unique @map("hash_token")
+  dispositivo       String
+  segundoFactorOk   Boolean   @default(false) @map("segundo_factor_ok")
+  creadaEn          DateTime  @default(now()) @map("creada_en") @db.Timestamptz(3)
+  ultimaActividadEn DateTime  @default(now()) @map("ultima_actividad_en") @db.Timestamptz(3)
+  expiraEn          DateTime  @map("expira_en") @db.Timestamptz(3)
+  revocadaEn        DateTime? @map("revocada_en") @db.Timestamptz(3)
+  cuenta            Cuenta    @relation(fields: [cuentaId], references: [id], onDelete: Cascade)
+
+  @@index([cuentaId])
+  @@map("sesion")
+  @@schema("identidad")
+}
+
+model TokenCuenta {
+  id        String          @id @db.Uuid
+  cuentaId  String          @map("cuenta_id") @db.Uuid
+  tipo      TipoTokenCuenta
+  hashToken Bytes           @unique @map("hash_token")
+  dato      Json?
+  expiraEn  DateTime        @map("expira_en") @db.Timestamptz(3)
+  usadoEn   DateTime?       @map("usado_en") @db.Timestamptz(3)
+  creadoEn  DateTime        @default(now()) @map("creado_en") @db.Timestamptz(3)
+  cuenta    Cuenta          @relation(fields: [cuentaId], references: [id], onDelete: Cascade)
+
+  @@index([cuentaId, tipo, creadoEn])
+  @@map("token_cuenta")
+  @@schema("identidad")
+}
+
+model IntentoAcceso {
+  id         String   @id @db.Uuid
+  correo     String
+  exito      Boolean
+  ocurridoEn DateTime @default(now()) @map("ocurrido_en") @db.Timestamptz(3)
+
+  @@index([correo, ocurridoEn])
+  @@map("intento_acceso")
+  @@schema("identidad")
+}
+
+/// Único parcial (cuenta_id, rol, alcance_valor) WHERE revocado_en IS NULL en la migración SQL.
+model RolAsignado {
+  id           String       @id @db.Uuid
+  cuentaId     String       @map("cuenta_id") @db.Uuid
+  rol          RolIdentidad
+  alcanceTipo  TipoAlcance? @map("alcance_tipo")
+  alcanceValor String?      @map("alcance_valor")
+  asignadoPor  String       @map("asignado_por") @db.Uuid
+  asignadoEn   DateTime     @default(now()) @map("asignado_en") @db.Timestamptz(3)
+  revocadoEn   DateTime?    @map("revocado_en") @db.Timestamptz(3)
+  cuenta       Cuenta       @relation(fields: [cuentaId], references: [id], onDelete: Cascade)
+
+  @@index([cuentaId])
+  @@map("rol_asignado")
+  @@schema("identidad")
+}
+
+model DocumentoLegal {
+  documento    DocumentoConsentimiento
+  version      Int
+  vigenteDesde DateTime                @map("vigente_desde") @db.Timestamptz(3)
+  url          String
+
+  @@id([documento, version])
+  @@map("documento_legal")
+  @@schema("identidad")
+}
+
+/// Solo inserción; el vigente es el último por documento.
+model Consentimiento {
+  id         String                  @id @db.Uuid
+  cuentaId   String                  @map("cuenta_id") @db.Uuid
+  documento  DocumentoConsentimiento
+  version    Int
+  aceptadoEn DateTime                @default(now()) @map("aceptado_en") @db.Timestamptz(3)
+  retiradoEn DateTime?               @map("retirado_en") @db.Timestamptz(3)
+  cuenta     Cuenta                  @relation(fields: [cuentaId], references: [id], onDelete: Cascade)
+
+  @@index([cuentaId, documento])
+  @@map("consentimiento")
+  @@schema("identidad")
+}
+
+model Notificacion {
+  id             String                @id @db.Uuid
+  cuentaId       String?               @map("cuenta_id") @db.Uuid
+  correoDestino  String                @map("correo_destino")
+  plantilla      String
+  categoria      CategoriaNotificacion
+  eventoOrigenId String?               @map("evento_origen_id") @db.Uuid
+  /// tipoEvento:eventoId:destinatario (RN-011).
+  claveDedup     String                @unique @map("clave_dedup")
+  datos          Json
+  estado         EstadoNotificacion    @default(pendiente)
+  intentos       Int                   @default(0)
+  ultimoError    String?               @map("ultimo_error")
+  creadaEn       DateTime              @default(now()) @map("creada_en") @db.Timestamptz(3)
+  enviadaEn      DateTime?             @map("enviada_en") @db.Timestamptz(3)
+
+  @@index([cuentaId, creadaEn])
+  @@index([estado, creadaEn])
+  @@map("notificacion")
+  @@schema("identidad")
+}
+
+// Proyecciones para avisos (data-model §Proyecciones para avisos).
+
+model FuncionAviso {
+  funcionId  String   @id @map("funcion_id") @db.Uuid
+  titulo     String
+  sedeNombre String   @map("sede_nombre")
+  inicio     DateTime @db.Timestamptz(3)
+  fin        DateTime @db.Timestamptz(3)
+  estado     String
+  version    Int
+
+  @@map("funcion_aviso")
+  @@schema("identidad")
+}
+
+model DestinatarioFuncion {
+  pedidoId  String  @id @map("pedido_id") @db.Uuid
+  funcionId String  @map("funcion_id") @db.Uuid
+  cuentaId  String? @map("cuenta_id") @db.Uuid
+  correo    String?
+  activo    Boolean @default(true)
+
+  @@index([funcionId, activo])
+  @@index([cuentaId])
+  @@map("destinatario_funcion")
+  @@schema("identidad")
+}
+
+model PostulacionEnCurso {
+  postulacionId String                   @id @map("postulacion_id") @db.Uuid
+  cuentaId      String                   @map("cuenta_id") @db.Uuid
+  estado        EstadoPostulacionEnCurso
+
+  @@index([cuentaId])
+  @@map("postulacion_en_curso")
+  @@schema("identidad")
+}
+
+model EdicionVigente {
+  edicionId String   @id @map("edicion_id") @db.Uuid
+  fechaFin  DateTime @map("fecha_fin") @db.Date
+
+  @@map("edicion_vigente")
+  @@schema("identidad")
+}
+
+model DominioInstitucional {
+  dominio     String   @id
+  institucion String
+  creadoPor   String   @map("creado_por") @db.Uuid
+  creadoEn    DateTime @default(now()) @map("creado_en") @db.Timestamptz(3)
+
+  @@map("dominio_institucional")
+  @@schema("identidad")
+}
+
+model Acreditacion {
+  id           String   @id @db.Uuid
+  cuentaId     String   @map("cuenta_id") @db.Uuid
+  tipo         String   @default("estudiante")
+  evidencia    String
+  vigenteHasta DateTime @map("vigente_hasta") @db.Timestamptz(3)
+  cuenta       Cuenta   @relation(fields: [cuentaId], references: [id], onDelete: Cascade)
+
+  @@index([cuentaId])
+  @@map("acreditacion")
+  @@schema("identidad")
+}
+
+/// Bitácora inmutable (FR-024). Solo inserción (trigger en la migración).
+model AuditoriaIdentidad {
+  id            String   @id @db.Uuid
+  accion        String
+  actorId       String?  @map("actor_id") @db.Uuid
+  rol           String?
+  entidad       String
+  entidadId     String?  @map("entidad_id") @db.Uuid
+  anterior      Json?
+  nuevo         Json?
+  correlacionId String?  @map("correlacion_id")
+  registradoEn  DateTime @default(now()) @map("registrado_en") @db.Timestamptz(3)
+
+  @@index([entidad, entidadId])
+  @@map("auditoria")
+  @@schema("identidad")
+}
+
+model EventoProcesadoIdentidad {
+  eventoId    String   @id @map("evento_id") @db.Uuid
+  tipo        String
+  procesadoEn DateTime @default(now()) @map("procesado_en") @db.Timestamptz(3)
+
+  @@map("evento_procesado")
+  @@schema("identidad")
+}

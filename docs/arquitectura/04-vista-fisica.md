@@ -58,6 +58,7 @@ flowchart TB
 | postgres | `postgres:16` | 2 vCPU · 4 GB | 5432 interno | Datos y colas (pg-boss); volumen persistente, respaldo diario |
 | almacenamiento | MinIO o S3 | — | interno | Archivos privados con URLs firmadas temporales |
 | monitoreo | prometheus + grafana | 0,5 vCPU · 512 MB | interno | Paneles de errores, latencia, entradas por función |
+| correo saliente | proveedor SMTP externo (producción) · Mailpit (local) | — | 587 saliente · 1025/8025 local | El worker envía los avisos; la API, los enlaces de cuenta. Mailpit es un buzón falso: nada sale a internet |
 
 Total aproximado en festival: **7,5 vCPU y 9,5 GB de RAM** en un VPS; fuera del festival se reduce a
 una réplica del API.

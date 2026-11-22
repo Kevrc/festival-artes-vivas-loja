@@ -14,6 +14,12 @@ services:
       test: ["CMD-SHELL", "pg_isready -U fiavl"]
       interval: 2s
       retries: 20
+  # Spec 004: bandeja de correos de prueba (SMTP 1025, web http://localhost:8025). Solo desarrollo.
+  mailpit:
+    image: axllent/mailpit:v1.21
+    ports:
+      - "1025:1025"
+      - "8025:8025"
   clamav:
     image: clamav/clamav:latest
     profiles: ["antivirus"]

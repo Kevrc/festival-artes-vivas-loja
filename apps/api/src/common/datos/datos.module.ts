@@ -23,6 +23,7 @@ export class ColaEventos implements OnModuleDestroy {
       const boss = new PgBoss({ connectionString: process.env.DATABASE_URL, schema: 'pgboss', max: 5 });
       boss.on('error', (e) => this.log.error(e));
       await boss.start();
+      serializarCreacionDeColas(boss);
       return boss;
     })();
     return this.arranque;
@@ -31,6 +32,22 @@ export class ColaEventos implements OnModuleDestroy {
   async onModuleDestroy() {
     if (this.arranque) await (await this.arranque).stop({ graceful: true });
   }
+}
+
+/**
+ * En una base nueva, dos `createQueue` simultáneos se interbloquean en PostgreSQL (40P01 dentro de
+ * pgboss.create_queue: cada cola añade una FK a pgboss.queue). Nest ejecuta a la vez los
+ * `onModuleInit` de un mismo módulo, así que el worker podía caerse en su primer arranque. Se crean
+ * de una en una dentro del proceso; la firma de pg-boss no cambia para los módulos.
+ */
+function serializarCreacionDeColas(boss: PgBoss) {
+  const original = boss.createQueue.bind(boss);
+  let cola: Promise<unknown> = Promise.resolve();
+  boss.createQueue = ((...args: Parameters<PgBoss['createQueue']>) => {
+    const siguiente = cola.then(() => original(...args));
+    cola = siguiente.catch(() => undefined);
+    return siguiente;
+  }) as PgBoss['createQueue'];
 }
 
 /** Un PrismaService y una ColaEventos compartidos por todos los módulos del proceso. */

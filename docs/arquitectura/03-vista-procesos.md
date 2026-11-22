@@ -43,10 +43,10 @@ flowchart LR
 | Liberar retenciones vencidas (10 min) | cada 30 s | 002 FR-004 |
 | Liberar reservas no validadas (10 min antes) | cada minuto | 002 FR-013 |
 | Conciliar pagos pendientes | cada 2 min | ADR-0007 |
-| Marcar funciones finalizadas | cada 5 min | 004 ciclo de función |
-| Recalcular indicadores | cada 5 min en festival | 004 RNF-003 |
-| Reintentar notificaciones fallidas | espera creciente hasta 24 h | 004 US10 |
-| Cerrar edición | diario | 004 RN-007 |
+| Funciones finalizadas | no es un trabajo: se deriva de `fin < ahora` (research R8) | 004 ciclo de función |
+| Indicadores | no es un trabajo: se calculan al consultar sobre la proyección de Boletería (≤ 5 min) | 004 RNF-003 |
+| Enviar notificación (`identidad.enviar-notificacion`) | al crear el aviso; reintentos 30 s · 2^n hasta 24 h, luego «fallida» | 004 US10, [ADR-0011](../adr/0011-notificaciones-con-cola.md) |
+| Cerrar ediciones (`operacion.cerrar-ediciones`) | diario 03:00 `America/Guayaquil`; congela el informe | 004 RN-007, US5-AS4 |
 
 ## 2. Eventos de dominio: cola transaccional ([ADR-0003](../adr/0003-eventos-outbox.md))
 
@@ -201,6 +201,54 @@ stateDiagram-v2
     Desistida --> [*]
 ```
 
+## 5b. Cancelación de una función → avisos (spec 004, US3 y US10)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor P as Programador
+    participant OP as Operación (API)
+    participant DB as PostgreSQL
+    participant WK as Worker
+    participant ID as Identidad (consumidor)
+    participant SMTP as Servidor SMTP
+    P->>OP: POST /funciones/{id}/cancelacion (If-Match, motivo)
+    OP->>DB: función cancelada + cambio_funcion + auditoría + FuncionCancelada (misma transacción)
+    WK->>ID: identidad.funcion-cancelada
+    ID->>DB: un aviso por destinatario activo (clave tipoEvento:eventoId:correo) + trabajo de envío
+    WK->>ID: identidad.enviar-notificacion
+    ID->>SMTP: correo «Tu función fue cancelada»
+    alt el SMTP falla
+        ID->>DB: intentos + 1, último error (sin correos)
+        WK-->>ID: reintento a los 30 s · 2^n, tras 24 h queda fallida
+    end
+```
+
+Cartelera y Boletería reciben el mismo evento por sus propias colas; Boletería devuelve el dinero y
+publica `PedidoReembolsado`, que Identidad convierte en el aviso de devolución.
+
+## 5c. Inicio de sesión del personal con segundo factor (spec 004, US8 y US9)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as Personal
+    participant W as Web
+    participant ID as Identidad
+    participant DB as PostgreSQL
+    U->>W: correo y contraseña
+    W->>ID: POST /sesion
+    ID->>DB: verifica scrypt, con 5 fallos en 15 min bloquea 15 min
+    ID-->>W: cookie fiavl_sesion (HttpOnly, 8 h) · sesión restringida
+    W->>U: /cuenta/segundo-factor (QR y clave en texto si es el alta)
+    U->>W: código de 6 dígitos
+    W->>ID: POST /segundo-factor/verificacion
+    ID->>DB: TOTP con hora real, ±1 paso, sin repetir paso, sesión completa
+    opt política de privacidad pendiente
+        W->>U: /cuenta/politica (hasta aceptar, 403 requiere_politica)
+    end
+```
+
 ## 6. Concurrencia y consistencia
 
 | Situación | Riesgo | Solución |
@@ -212,6 +260,9 @@ stateDiagram-v2
 | Evento entregado dos veces | Acción repetida | Consumidores registran ids procesados |
 | Dos validadores sin red aceptan el mismo QR | Doble ingreso | Primer ingreso gana, conflicto alertado |
 | Asignación de curadores concurrente | Carga desbalanceada | Transacción serializable en la asignación |
+| Dos funciones se cruzan en la misma sede a la vez | Doble reserva de la sala | `EXCLUDE` con rangos de tiempo y bloqueo consultivo por sede y elenco ([ADR-0010](../adr/0010-cruces-con-restriccion-de-exclusion.md)) |
+| Reprogramación y cancelación se procesan en paralelo | La proyección queda con la versión vieja | Escritura condicional `version_origen < version` en Cartelera |
+| El mismo evento genera el aviso dos veces | Correo duplicado | Clave de deduplicación única en `notificacion` (RN-011) |
 
 ## 7. Comportamiento en picos
 

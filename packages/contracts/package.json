@@ -5,10 +5,11 @@
   "exports": {
     ".": "./src/index.ts",
     "./eventos": "./src/eventos/index.ts",
+    "./identidad": "./src/identidad/publica.ts",
     "./api": "./src/api/index.ts"
   },
   "scripts": {
-    "gen": "openapi-typescript ../../specs/001-cartelera-programacion/contracts/api-cartelera.openapi.yaml -o src/api/cartelera.ts && openapi-typescript ../../specs/002-boleteria-entradas/contracts/api-boleteria.openapi.yaml -o src/api/boleteria.ts",
+    "gen": "openapi-typescript ../../specs/001-cartelera-programacion/contracts/api-cartelera.openapi.yaml -o src/api/cartelera.ts && openapi-typescript ../../specs/002-boleteria-entradas/contracts/api-boleteria.openapi.yaml -o src/api/boleteria.ts && openapi-typescript ../../specs/004-gestion-operativa/contracts/api-operacion.openapi.yaml -o src/api/operacion.ts && openapi-typescript ../../specs/004-gestion-operativa/contracts/api-identidad.openapi.yaml -o src/api/identidad.ts",
     "test": "vitest run",
     "typecheck": "tsc -p .",
     "lint": "eslint ."

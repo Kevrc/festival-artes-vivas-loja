@@ -1,0 +1,907 @@
+openapi: 3.1.0
+info:
+  title: API de operación del festival (módulo Operación)
+  version: 0.1.0
+  description: |
+    Contrato del módulo Operación del FIAVL (spec 004, parte A): ediciones, sedes, obras, elencos,
+    grilla de funciones, publicación, cambios, incidencias, conteos, estadísticas e informe de cierre.
+    Todas las operaciones requieren sesión de personal con segundo factor (cookie `fiavl_sesion`) y
+    el rol indicado en `x-roles`; el alcance por sede se comprueba en el servidor (Constitución VI).
+    Importes en centavos enteros de USD. Instantes ISO 8601 con zona. Errores RFC 9457.
+    Escrituras sobre recursos versionados exigen `If-Match` con la versión (FR-013).
+servers:
+  - url: /api/operacion
+security:
+  - sesion: []
+tags:
+  - name: ediciones
+  - name: sedes
+  - name: obras
+  - name: funciones
+  - name: publicacion
+  - name: cambios
+  - name: incidencias
+  - name: estadisticas
+paths:
+  /ediciones:
+    get:
+      operationId: listarEdiciones
+      summary: Listar ediciones
+      tags: [ediciones]
+      x-roles: [programador, jefe_sala, direccion, administrador]
+      responses:
+        '200':
+          description: Ediciones, de la más reciente a la más antigua
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Edicion' } }
+    post:
+      operationId: crearEdicion
+      tags: [ediciones]
+      summary: Crea una edición, opcionalmente a partir de otra (copia sedes y parámetros, no funciones; US6-AS1)
+      x-roles: [administrador]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EdicionEntrada' }
+      responses:
+        '201':
+          description: Edición creada; `advertencias` incluye fechas fuera de noviembre (US6-AS2)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EdicionConAdvertencias' }
+        '400': { $ref: '#/components/responses/Problema' }
+        '409': { $ref: '#/components/responses/Problema' }
+  /ediciones/{edicionId}:
+    parameters: [{ $ref: '#/components/parameters/EdicionId' }]
+    get:
+      operationId: obtenerEdicion
+      summary: Ver una edición
+      tags: [ediciones]
+      x-roles: [programador, direccion, administrador]
+      responses:
+        '200':
+          description: Edición
+          headers: { ETag: { schema: { type: string } } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Edicion' }
+        '404': { $ref: '#/components/responses/Problema' }
+    patch:
+      operationId: actualizarEdicion
+      tags: [ediciones]
+      summary: Cambia parámetros (precio, límites); no afecta pedidos existentes (RN-006). Rechaza si la edición está cerrada (RN-007)
+      x-roles: [administrador]
+      parameters: [{ $ref: '#/components/parameters/IfMatch' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EdicionEntrada' }
+      responses:
+        '200':
+          description: Edición actualizada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EdicionConAdvertencias' }
+        '409': { $ref: '#/components/responses/Problema' }
+        '412': { $ref: '#/components/responses/Problema' }
+  /ediciones/{edicionId}/sedes:
+    parameters: [{ $ref: '#/components/parameters/EdicionId' }]
+    get:
+      operationId: listarSedes
+      summary: Listar sedes de una edición
+      tags: [sedes]
+      x-roles: [programador, jefe_sala, direccion, administrador]
+      responses:
+        '200':
+          description: Sedes de la edición
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Sede' } }
+    post:
+      operationId: crearSede
+      summary: Crear una sede
+      tags: [sedes]
+      x-roles: [administrador]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SedeEntrada' }
+      responses:
+        '201':
+          description: Sede creada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Sede' }
+        '400': { $ref: '#/components/responses/Problema' }
+  /sedes/{sedeId}:
+    parameters: [{ $ref: '#/components/parameters/SedeId' }]
+    patch:
+      operationId: actualizarSede
+      tags: [sedes]
+      summary: Edita la sede o la desactiva (`activa = false`) si no tiene funciones futuras (US6-AS3)
+      x-roles: [administrador]
+      parameters: [{ $ref: '#/components/parameters/IfMatch' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SedeEntrada' }
+      responses:
+        '200':
+          description: Sede actualizada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Sede' }
+        '409': { $ref: '#/components/responses/Problema' }
+        '412': { $ref: '#/components/responses/Problema' }
+    delete:
+      operationId: eliminarSede
+      tags: [sedes]
+      summary: Solo si nunca tuvo funciones; si las tiene responde 409 (US6-AS3)
+      x-roles: [administrador]
+      responses:
+        '204': { description: Eliminada }
+        '409': { $ref: '#/components/responses/Problema' }
+  /ediciones/{edicionId}/obras:
+    parameters: [{ $ref: '#/components/parameters/EdicionId' }]
+    get:
+      operationId: buscarObras
+      tags: [obras]
+      summary: Obras programables con su ficha técnica, incluidas las seleccionadas en convocatoria (US1-AS5)
+      x-roles: [programador, direccion, administrador]
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+        - { name: origen, in: query, schema: { type: string, enum: [invitado, convocatoria] } }
+        - { name: incluirDesistidas, in: query, schema: { type: boolean, default: false } }
+      responses:
+        '200':
+          description: Obras
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Obra' } }
+    post:
+      operationId: crearObraInvitada
+      tags: [obras]
+      summary: Carga una obra y su elenco invitado (FR-007)
+      x-roles: [programador]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ObraEntrada' }
+      responses:
+        '201':
+          description: Obra creada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Obra' }
+        '400': { $ref: '#/components/responses/Problema' }
+  /obras/{obraId}:
+    parameters:
+      - { name: obraId, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      operationId: actualizarObra
+      tags: [obras]
+      summary: Cambiar la duración no mueve funciones; responde los conflictos recalculados (caso borde)
+      x-roles: [programador]
+      parameters: [{ $ref: '#/components/parameters/IfMatch' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ObraEntrada' }
+      responses:
+        '200':
+          description: Obra actualizada y conflictos detectados en funciones existentes
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [obra, conflictos]
+                properties:
+                  obra: { $ref: '#/components/schemas/Obra' }
+                  conflictos: { type: array, items: { $ref: '#/components/schemas/Conflicto' } }
+        '412': { $ref: '#/components/responses/Problema' }
+  /ediciones/{edicionId}/grilla:
+    parameters: [{ $ref: '#/components/parameters/EdicionId' }]
+    get:
+      operationId: obtenerGrilla
+      tags: [funciones]
+      summary: Grilla de un día con una columna por sede (US1); < 2 s con 60 funciones (RNF-001)
+      x-roles: [programador, jefe_sala, direccion, administrador]
+      parameters:
+        - { name: fecha, in: query, required: true, schema: { type: string, format: date } }
+      responses:
+        '200':
+          description: Grilla del día
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Grilla' }
+  /ediciones/{edicionId}/funciones:
+    parameters: [{ $ref: '#/components/parameters/EdicionId' }]
+    post:
+      operationId: crearFuncion
+      tags: [funciones]
+      summary: Crea una función en borrador; fin = inicio + duración (RN-002); rechaza cruces de sede y elenco (RN-001, FR-003) y aforo > sede (FR-004)
+      x-roles: [programador]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FuncionEntrada' }
+      responses:
+        '201':
+          description: Función en borrador
+          headers: { ETag: { schema: { type: string } } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Funcion' }
+        '400': { $ref: '#/components/responses/Problema' }
+        '409': { $ref: '#/components/responses/ConflictoAgenda' }
+  /funciones/{funcionId}:
+    parameters: [{ $ref: '#/components/parameters/FuncionId' }]
+    get:
+      operationId: obtenerFuncion
+      summary: Ver una función
+      tags: [funciones]
+      x-roles: [programador, jefe_sala, direccion, administrador]
+      responses:
+        '200':
+          description: Función
+          headers: { ETag: { schema: { type: string } } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Funcion' }
+        '404': { $ref: '#/components/responses/Problema' }
+    patch:
+      operationId: editarFuncion
+      tags: [funciones]
+      summary: |
+        Edita datos sin motivo. En borrador, cualquier campo. Publicada, solo público, tipo de acceso,
+        aforo habilitado y fin (solo hacia más tiempo); emite FuncionActualizada o AforoCambiado.
+        Para horario o sede de una función publicada usar /reprogramacion.
+      x-roles: [programador]
+      parameters: [{ $ref: '#/components/parameters/IfMatch' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FuncionEdicion' }
+      responses:
+        '200':
+          description: Función actualizada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Funcion' }
+        '409': { $ref: '#/components/responses/ConflictoAgenda' }
+        '412': { $ref: '#/components/responses/Problema' }
+    delete:
+      operationId: eliminarBorrador
+      tags: [funciones]
+      summary: Solo funciones en borrador (nunca publicadas)
+      x-roles: [programador]
+      parameters: [{ $ref: '#/components/parameters/IfMatch' }]
+      responses:
+        '204': { description: Eliminada }
+        '409': { $ref: '#/components/responses/Problema' }
+  /ediciones/{edicionId}/publicacion/validacion:
+    parameters: [{ $ref: '#/components/parameters/EdicionId' }]
+    get:
+      operationId: validarPublicacion
+      tags: [publicacion]
+      summary: Lista todos los errores que bloquean la publicación (FR-005, US2-AS2)
+      x-roles: [programador]
+      responses:
+        '200':
+          description: Resultado de la validación
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ValidacionPublicacion' }
+  /ediciones/{edicionId}/publicacion:
+    parameters: [{ $ref: '#/components/parameters/EdicionId' }]
+    post:
+      operationId: publicarEdicion
+      tags: [publicacion]
+      summary: Pasa los borradores a programadas y emite FuncionProgramada + ProgramacionPublicada (US2-AS1)
+      x-roles: [programador]
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      responses:
+        '200':
+          description: Edición publicada
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [funcionesPublicadas]
+                properties:
+                  funcionesPublicadas: { type: integer }
+        '422':
+          description: Hay errores; no se publica nada
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ValidacionPublicacion' }
+  /funciones/{funcionId}/publicacion:
+    parameters: [{ $ref: '#/components/parameters/FuncionId' }]
+    post:
+      operationId: publicarFuncion
+      tags: [publicacion]
+      summary: Publica una función nueva en una edición ya publicada sin republicar todo (US2-AS3)
+      x-roles: [programador]
+      parameters: [{ $ref: '#/components/parameters/IfMatch' }]
+      responses:
+        '200':
+          description: Función programada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Funcion' }
+        '422':
+          description: Errores de validación de la función
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ValidacionPublicacion' }
+  /funciones/{funcionId}/reprogramacion:
+    parameters: [{ $ref: '#/components/parameters/FuncionId' }]
+    post:
+      operationId: reprogramarFuncion
+      tags: [cambios]
+      summary: |
+        Cambia horario o sede con motivo obligatorio (US3-AS1, AS4); solo antes del fin (RN-005).
+        Si la nueva sede tiene menos aforo que entradas activas responde 409 `exceso_aforo` con la
+        cifra; se reintenta con `confirmarExceso: true` (US3-AS2).
+      x-roles: [programador]
+      parameters: [{ $ref: '#/components/parameters/IfMatch' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Reprogramacion' }
+      responses:
+        '200':
+          description: Función reprogramada; se emitió FuncionReprogramada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Funcion' }
+        '400': { $ref: '#/components/responses/Problema' }
+        '409': { $ref: '#/components/responses/ConflictoAgenda' }
+        '412': { $ref: '#/components/responses/Problema' }
+  /funciones/{funcionId}/cancelacion:
+    parameters: [{ $ref: '#/components/parameters/FuncionId' }]
+    post:
+      operationId: cancelarFuncion
+      tags: [cambios]
+      summary: Cancela con motivo obligatorio; emite FuncionCancelada (US3-AS3); rechaza funciones finalizadas (US3-AS5)
+      x-roles: [programador]
+      parameters: [{ $ref: '#/components/parameters/IfMatch' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [motivo]
+              properties:
+                motivo: { type: string, minLength: 3, maxLength: 500 }
+      responses:
+        '200':
+          description: Función cancelada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Funcion' }
+        '400': { $ref: '#/components/responses/Problema' }
+        '409': { $ref: '#/components/responses/Problema' }
+        '412': { $ref: '#/components/responses/Problema' }
+  /funciones/{funcionId}/cambios:
+    parameters: [{ $ref: '#/components/parameters/FuncionId' }]
+    get:
+      operationId: historialFuncion
+      summary: Historial de cambios de una función
+      tags: [cambios]
+      x-roles: [programador, direccion, administrador]
+      responses:
+        '200':
+          description: Historial de cambios (FR-006)
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/CambioFuncion' } }
+  /funciones/{funcionId}/conteos:
+    parameters: [{ $ref: '#/components/parameters/FuncionId' }]
+    post:
+      operationId: registrarConteo
+      tags: [incidencias]
+      summary: Conteo estimado en funciones de acceso libre (US4-AS1); alcance de sede del jefe de sala
+      x-roles: [jefe_sala]
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [cantidad, metodo]
+              properties:
+                cantidad: { type: integer, minimum: 0, maximum: 200000 }
+                metodo: { type: string, minLength: 2, maxLength: 120 }
+      responses:
+        '201':
+          description: Conteo registrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Conteo' }
+        '403': { $ref: '#/components/responses/Problema' }
+        '409': { $ref: '#/components/responses/Problema' }
+  /ediciones/{edicionId}/incidencias:
+    parameters: [{ $ref: '#/components/parameters/EdicionId' }]
+    get:
+      operationId: listarIncidencias
+      summary: Listar incidencias de una edición
+      tags: [incidencias]
+      x-roles: [programador, jefe_sala, direccion, administrador]
+      parameters:
+        - { name: sedeId, in: query, schema: { type: string, format: uuid } }
+        - { name: fecha, in: query, schema: { type: string, format: date } }
+        - { name: estado, in: query, schema: { type: string, enum: [abierta, atendida] } }
+      responses:
+        '200':
+          description: Incidencias (manuales y automáticas)
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Incidencia' } }
+    post:
+      operationId: registrarIncidencia
+      tags: [incidencias]
+      summary: Registra una incidencia en una sede del alcance del jefe de sala (US4-AS2)
+      x-roles: [jefe_sala, programador]
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IncidenciaEntrada' }
+      responses:
+        '201':
+          description: Incidencia registrada; `ofrecerReprogramar` si afecta al público
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Incidencia' }
+        '403': { $ref: '#/components/responses/Problema' }
+  /incidencias/{incidenciaId}:
+    parameters:
+      - { name: incidenciaId, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      operationId: atenderIncidencia
+      summary: Marcar una incidencia como atendida
+      tags: [incidencias]
+      x-roles: [jefe_sala, programador]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [estado]
+              properties:
+                estado: { type: string, enum: [atendida] }
+      responses:
+        '200':
+          description: Incidencia atendida
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Incidencia' }
+  /ediciones/{edicionId}/indicadores:
+    parameters: [{ $ref: '#/components/parameters/EdicionId' }]
+    get:
+      operationId: consultarIndicadores
+      tags: [estadisticas]
+      summary: Indicadores agrupados por una dimensión con filtros (US5, RN-003, RN-004)
+      x-roles: [direccion, programador, administrador]
+      parameters:
+        - $ref: '#/components/parameters/Dimension'
+        - { name: desde, in: query, schema: { type: string, format: date } }
+        - { name: hasta, in: query, schema: { type: string, format: date } }
+        - { name: sedeId, in: query, schema: { type: string, format: uuid } }
+        - { name: disciplina, in: query, schema: { type: string } }
+        - { name: componente, in: query, schema: { type: string } }
+        - { name: pais, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Totales y filas por dimensión
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Indicadores' }
+  /ediciones/{edicionId}/indicadores.csv:
+    parameters: [{ $ref: '#/components/parameters/EdicionId' }]
+    get:
+      operationId: exportarIndicadoresCsv
+      tags: [estadisticas]
+      summary: Mismos filtros que /indicadores; CSV UTF-8 con BOM y separador `;` (US5-AS3)
+      x-roles: [direccion, programador, administrador]
+      parameters:
+        - $ref: '#/components/parameters/Dimension'
+        - { name: desde, in: query, schema: { type: string, format: date } }
+        - { name: hasta, in: query, schema: { type: string, format: date } }
+        - { name: sedeId, in: query, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Archivo CSV
+          content:
+            text/csv:
+              schema: { type: string }
+  /ediciones/{edicionId}/informe:
+    parameters: [{ $ref: '#/components/parameters/EdicionId' }]
+    get:
+      operationId: obtenerInforme
+      tags: [estadisticas]
+      summary: Informe de cierre con comparación frente a la edición anterior (US5-AS4)
+      x-roles: [direccion, administrador]
+      responses:
+        '200':
+          description: Informe
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InformeCierre' }
+        '409':
+          description: La edición aún no está cerrada
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problema' }
+    post:
+      operationId: regenerarInforme
+      tags: [estadisticas]
+      summary: Recalcula el informe de una edición cerrada (SC-004 < 5 min)
+      x-roles: [administrador]
+      responses:
+        '200':
+          description: Informe regenerado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InformeCierre' }
+components:
+  securitySchemes:
+    sesion:
+      type: apiKey
+      in: cookie
+      name: fiavl_sesion
+  parameters:
+    EdicionId: { name: edicionId, in: path, required: true, schema: { type: string, format: uuid } }
+    SedeId: { name: sedeId, in: path, required: true, schema: { type: string, format: uuid } }
+    FuncionId: { name: funcionId, in: path, required: true, schema: { type: string, format: uuid } }
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      description: Versión vigente del recurso entre comillas, p. ej. "3" (FR-013)
+      schema: { type: string }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string, minLength: 8, maxLength: 128 }
+    Dimension:
+      name: dimension
+      in: query
+      required: true
+      schema: { type: string, enum: [dia, sede, disciplina, componente, pais, funcion] }
+  responses:
+    Problema:
+      description: Error RFC 9457
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problema' }
+    ConflictoAgenda:
+      description: Cruce de sede o de elenco, o exceso de aforo pendiente de confirmar
+      content:
+        application/problem+json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/Problema'
+              - type: object
+                properties:
+                  conflictos: { type: array, items: { $ref: '#/components/schemas/Conflicto' } }
+                  exceso: { type: integer, minimum: 1, description: Entradas activas por encima del nuevo aforo (US3-AS2) }
+  schemas:
+    Problema:
+      type: object
+      required: [type, title, status]
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        codigo:
+          type: string
+          enum: [cruce_sede, cruce_elenco, aforo_supera_sede, exceso_aforo, motivo_requerido, funcion_finalizada,
+                 edicion_cerrada, obra_desistida, version_obsoleta, sede_con_funciones, fuera_de_alcance, fin_menor,
+                 funcion_publicada, version_requerida, fuera_de_edicion, no_encontrado, segundo_factor_requerido,
+                 publicacion_invalida, edicion_sin_publicar, idempotencia_requerida, funcion_en_borrador,
+                 funcion_cancelada, sin_cambios, usar_reprogramacion, sin_tipo_acceso,
+                 conteo_no_aplica, edicion_abierta, anio_ocupado, parametros_requeridos, fechas_invertidas,
+                 precio_invalido, limite_invalido, aforo_requerido, recorrido_requerido, montaje_invalido,
+                 coordenadas_invalidas, sede_duplicada]
+    Edicion:
+      type: object
+      required: [id, numero, anio, fechaInicio, fechaFin, estado, version]
+      properties:
+        id: { type: string, format: uuid }
+        numero: { type: string }
+        anio: { type: integer }
+        fechaInicio: { type: string, format: date }
+        fechaFin: { type: string, format: date }
+        paisInvitado: { type: [string, 'null'] }
+        precioCentavos: { type: integer, minimum: 0 }
+        maxPagadasPersona: { type: integer, minimum: 1 }
+        maxReservasPersona: { type: integer, minimum: 1 }
+        estado: { type: string, enum: [planificacion, publicada, cerrada] }
+        version: { type: integer }
+    EdicionEntrada:
+      type: object
+      required: [numero, anio, fechaInicio, fechaFin]
+      description: Sin `aPartirDe`, el precio y los límites son obligatorios; con `aPartirDe` se toman de la edición base si faltan
+      properties:
+        numero: { type: string }
+        anio: { type: integer, minimum: 2016 }
+        fechaInicio: { type: string, format: date }
+        fechaFin: { type: string, format: date }
+        paisInvitado: { type: [string, 'null'] }
+        precioCentavos: { type: integer, minimum: 0 }
+        maxPagadasPersona: { type: integer, minimum: 1 }
+        maxReservasPersona: { type: integer, minimum: 1 }
+        aPartirDe: { type: string, format: uuid, description: Edición de la que copiar sedes y parámetros }
+    EdicionConAdvertencias:
+      allOf:
+        - $ref: '#/components/schemas/Edicion'
+        - type: object
+          properties:
+            advertencias: { type: array, items: { type: string } }
+    Accesibilidad:
+      type: object
+      required: [sillaRuedas, banoAccesible, rampa]
+      properties:
+        sillaRuedas: { type: boolean }
+        banoAccesible: { type: boolean }
+        rampa: { type: boolean }
+    SedeEntrada:
+      type: object
+      required: [nombre, tipo, direccion, lat, lng, accesibilidad, montajeMin]
+      properties:
+        nombre: { type: string }
+        tipo: { type: string, enum: [teatro, centro_cultural, museo, espacio_publico, recorrido] }
+        direccion: { type: string }
+        lat: { type: number }
+        lng: { type: number }
+        recorrido:
+          type: array
+          items:
+            type: object
+            required: [lat, lng]
+            properties: { lat: { type: number }, lng: { type: number }, nombre: { type: string } }
+        aforo: { type: [integer, 'null'], minimum: 1 }
+        accesibilidad: { $ref: '#/components/schemas/Accesibilidad' }
+        montajeMin: { type: integer, minimum: 0, default: 30 }
+        horarioTaquilla: { type: [string, 'null'] }
+        activa: { type: boolean }
+    Sede:
+      allOf:
+        - $ref: '#/components/schemas/SedeEntrada'
+        - type: object
+          required: [id, edicionId, activa, version]
+          properties:
+            id: { type: string, format: uuid }
+            edicionId: { type: string, format: uuid }
+            version: { type: integer }
+    Elenco:
+      type: object
+      required: [nombre, pais]
+      properties:
+        id: { type: string, format: uuid }
+        nombre: { type: string }
+        pais: { type: string }
+        ciudad: { type: string }
+    ObraEntrada:
+      type: object
+      required: [titulo, sinopsis, disciplina, componente, duracionMin, edadMinima, elenco]
+      properties:
+        titulo: { type: string }
+        sinopsis: { type: string }
+        disciplina: { type: string, enum: [teatro, danza, circo, musica, titeres, exposicion, taller, calle, cine] }
+        componente: { type: string, enum: [internacional, nacional, camino_a_loja, escuela, salud_arte] }
+        duracionMin: { type: integer, minimum: 1 }
+        edadMinima: { type: integer, minimum: 0 }
+        idioma: { type: string }
+        imagenes: { type: array, items: { type: string, format: uri } }
+        fichaArtistica:
+          type: array
+          items: { type: object, required: [rol, nombre], properties: { rol: { type: string }, nombre: { type: string } } }
+        fichaTecnica: { type: object, additionalProperties: true }
+        elenco: { $ref: '#/components/schemas/Elenco' }
+    Obra:
+      allOf:
+        - $ref: '#/components/schemas/ObraEntrada'
+        - type: object
+          required: [id, estado, origen, version]
+          properties:
+            id: { type: string, format: uuid }
+            estado: { type: string, enum: [disponible, desistida] }
+            origen: { type: string, enum: [invitado, convocatoria] }
+            version: { type: integer }
+    FuncionEntrada:
+      type: object
+      required: [obraId, sedeId, inicio, publico]
+      properties:
+        obraId: { type: string, format: uuid }
+        sedeId: { type: string, format: uuid }
+        inicio: { type: string, format: date-time }
+        continua: { type: boolean, default: false }
+        diasContinua: { type: array, items: { type: string, format: date }, description: Días de una actividad continua }
+        tipoAcceso: { type: [string, 'null'], enum: [pagada, gratuita_reserva, gratuita_libre, restringida, null], description: Puede faltar en un borrador; se exige al publicar (US2-AS2) }
+        publico: { type: string, enum: [familiar, adultos, estudiantes] }
+        aforoHabilitado: { type: [integer, 'null'], minimum: 1 }
+    FuncionEdicion:
+      type: object
+      properties:
+        obraId: { type: string, format: uuid }
+        sedeId: { type: string, format: uuid }
+        inicio: { type: string, format: date-time }
+        fin: { type: string, format: date-time, description: Solo hacia más tiempo (RN-002) }
+        tipoAcceso: { type: [string, 'null'], enum: [pagada, gratuita_reserva, gratuita_libre, restringida, null], description: Puede faltar en un borrador; se exige al publicar (US2-AS2) }
+        publico: { type: string, enum: [familiar, adultos, estudiantes] }
+        aforoHabilitado: { type: [integer, 'null'], minimum: 1 }
+        confirmarExceso: { type: boolean, description: Bajar el aforo por debajo de las entradas activas exige confirmarlo (US3-AS2) }
+    Funcion:
+      type: object
+      required: [id, edicionId, obraId, sedeId, elencoId, inicio, fin, continua, publico, estado, version]
+      properties:
+        id: { type: string, format: uuid }
+        edicionId: { type: string, format: uuid }
+        obraId: { type: string, format: uuid }
+        obraTitulo: { type: string }
+        sedeId: { type: string, format: uuid }
+        elencoId: { type: string, format: uuid }
+        inicio: { type: string, format: date-time }
+        fin: { type: string, format: date-time }
+        continua: { type: boolean }
+        tipoAcceso: { type: [string, 'null'], enum: [pagada, gratuita_reserva, gratuita_libre, restringida, null], description: Puede faltar en un borrador; se exige al publicar (US2-AS2) }
+        publico: { type: string, enum: [familiar, adultos, estudiantes] }
+        aforoHabilitado: { type: [integer, 'null'] }
+        estado: { type: string, enum: [borrador, programada, reprogramada, cancelada, finalizada] }
+        entradasActivas: { type: integer, description: Según la proyección de eventos de Boletería }
+        version: { type: integer }
+    Conflicto:
+      type: object
+      required: [tipo, funcionId, obraTitulo, inicio, fin]
+      properties:
+        tipo: { type: string, enum: [sede, elenco] }
+        funcionId: { type: string, format: uuid }
+        obraTitulo: { type: string }
+        sedeNombre: { type: string }
+        inicio: { type: string, format: date-time }
+        fin: { type: string, format: date-time }
+        libreDesde: { type: string, format: date-time, description: Primer inicio posible tras montaje }
+    Grilla:
+      type: object
+      required: [fecha, sedes, funciones]
+      properties:
+        fecha: { type: string, format: date }
+        feriado: { type: [string, 'null'], description: Solo informativo (20 de noviembre) }
+        sedes: { type: array, items: { $ref: '#/components/schemas/Sede' } }
+        funciones: { type: array, items: { $ref: '#/components/schemas/Funcion' } }
+    ValidacionPublicacion:
+      type: object
+      required: [valida, errores]
+      properties:
+        valida: { type: boolean }
+        errores:
+          type: array
+          items:
+            type: object
+            required: [codigo, mensaje]
+            properties:
+              codigo: { type: string }
+              mensaje: { type: string }
+              funcionId: { type: string, format: uuid }
+              obraId: { type: string, format: uuid }
+    Reprogramacion:
+      type: object
+      required: [motivo]
+      properties:
+        inicio: { type: string, format: date-time }
+        sedeId: { type: string, format: uuid }
+        motivo: { type: string, minLength: 3, maxLength: 500 }
+        confirmarExceso: { type: boolean, default: false }
+    CambioFuncion:
+      type: object
+      required: [id, tipo, anterior, nuevo, autorId, registradoEn]
+      properties:
+        id: { type: string, format: uuid }
+        tipo: { type: string, enum: [reprogramacion, cambio_sede, cancelacion, cambio_aforo, edicion] }
+        anterior: { type: object, additionalProperties: true }
+        nuevo: { type: object, additionalProperties: true }
+        motivo: { type: [string, 'null'] }
+        excesoConfirmado: { type: [integer, 'null'], description: Entradas en exceso aceptadas al reprogramar (US3-AS2) }
+        autorId: { type: string, format: uuid }
+        registradoEn: { type: string, format: date-time }
+    IncidenciaEntrada:
+      type: object
+      required: [sedeId, tipo, descripcion, afectaPublico]
+      properties:
+        sedeId: { type: string, format: uuid }
+        funcionId: { type: string, format: uuid }
+        tipo: { type: string, enum: [retraso, falla_tecnica, clima, emergencia_medica, aforo_superado, otra] }
+        descripcion: { type: string, minLength: 3, maxLength: 1000 }
+        afectaPublico: { type: boolean }
+    Incidencia:
+      allOf:
+        - $ref: '#/components/schemas/IncidenciaEntrada'
+        - type: object
+          required: [id, origen, estado, ocurridaEn]
+          properties:
+            id: { type: string, format: uuid }
+            tipo:
+              type: string
+              enum: [retraso, falla_tecnica, clima, emergencia_medica, aforo_superado, conflicto_ingreso, desistimiento, otra]
+            origen: { type: string, enum: [manual, automatica] }
+            estado: { type: string, enum: [abierta, atendida] }
+            ofrecerReprogramar: { type: boolean }
+            ocurridaEn: { type: string, format: date-time }
+    Conteo:
+      type: object
+      required: [id, funcionId, cantidad, metodo, registradoEn]
+      properties:
+        id: { type: string, format: uuid }
+        funcionId: { type: string, format: uuid }
+        cantidad: { type: integer }
+        metodo: { type: string }
+        registradoEn: { type: string, format: date-time }
+    FilaIndicador:
+      type: object
+      required: [clave, etiqueta, funcionesRealizadas, funcionesCanceladas, entradasEmitidas, ingresosValidados,
+                 asistenciaEstimada, asistenciaTotal, recaudacionCentavos]
+      properties:
+        clave: { type: string }
+        etiqueta: { type: string }
+        funcionesRealizadas: { type: integer }
+        funcionesCanceladas: { type: integer }
+        entradasEmitidas: { type: integer }
+        ingresosValidados: { type: integer }
+        asistenciaEstimada: { type: integer }
+        asistenciaTotal: { type: integer, description: validada + estimada (RN-004) }
+        ocupacion: { type: [number, 'null'], description: 'ingresos ÷ aforo habilitado, de 0 a 1 (RN-003)' }
+        recaudacionCentavos: { type: integer }
+    Indicadores:
+      type: object
+      required: [dimension, totales, filas, actualizadoEn]
+      properties:
+        dimension: { type: string }
+        totales: { $ref: '#/components/schemas/FilaIndicador' }
+        filas: { type: array, items: { $ref: '#/components/schemas/FilaIndicador' } }
+        actualizadoEn: { type: string, format: date-time }
+    InformeCierre:
+      type: object
+      required: [edicionId, generadoEn, actividades, elencos, obras, paises, asistenciaValidada,
+                 asistenciaEstimada, asistenciaTotal, recaudacionCentavos]
+      properties:
+        edicionId: { type: string, format: uuid }
+        generadoEn: { type: string, format: date-time }
+        actividades: { type: integer }
+        elencos: { type: integer }
+        obras: { type: integer }
+        paises: { type: integer }
+        asistenciaValidada: { type: integer }
+        asistenciaEstimada: { type: integer }
+        asistenciaTotal: { type: integer }
+        ocupacionMedia: { type: [number, 'null'] }
+        recaudacionCentavos: { type: integer }
+        variacion:
+          type: [object, 'null']
+          description: Diferencia porcentual frente a la edición anterior por cada cifra
+          additionalProperties: { type: number }
+        anio: { type: integer }
+        anterior:
+          type: [object, 'null']
+          description: Con qué se comparó (informe de cierre de esa edición o cifras históricas publicadas)
+          properties:
+            anio: { type: integer }
+            fuente: { type: string, enum: [informe, cifras_historicas] }

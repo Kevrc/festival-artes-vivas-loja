@@ -1,0 +1,677 @@
+openapi: 3.1.0
+info:
+  title: API de identidad, cuentas y notificaciones (módulo Identidad)
+  version: 0.1.0
+  description: |
+    Contrato del módulo Identidad del FIAVL (spec 004, parte B). La sesión viaja en la cookie
+    `fiavl_sesion` (HttpOnly, SameSite=Lax); el token nunca aparece en el cuerpo ni en la URL.
+    Las respuestas de registro, inicio de sesión y recuperación no revelan si un correo existe
+    (FR-016). Métodos no seguros comprueban `Origin` (CSRF). Errores RFC 9457.
+servers:
+  - url: /api/identidad
+tags:
+  - name: registro
+  - name: sesion
+  - name: segundo-factor
+  - name: mi-cuenta
+  - name: notificaciones
+  - name: personal
+  - name: estudiantes
+paths:
+  /politica:
+    get:
+      operationId: politicaVigente
+      tags: [registro]
+      summary: Versión y enlace de la política de privacidad vigente, para el formulario de registro (US7-AS5)
+      security: []
+      responses:
+        '200':
+          description: Política vigente
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [version, url, vigenteDesde]
+                properties:
+                  version: { type: integer, minimum: 1 }
+                  url: { type: string }
+                  vigenteDesde: { type: string, format: date-time }
+        '503': { $ref: '#/components/responses/Problema' }
+  /registro:
+    post:
+      operationId: registrarCuenta
+      tags: [registro]
+      summary: Crea una cuenta pendiente de verificación y envía el enlace (US7-AS1); misma respuesta si el correo ya existe (US7-AS3)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nombre, correo, contrasena, aceptaPolitica, versionPolitica]
+              properties:
+                nombre: { type: string, minLength: 2, maxLength: 120 }
+                correo: { type: string, format: email, maxLength: 254 }
+                contrasena: { type: string, minLength: 10, maxLength: 128, description: RN-008 }
+                aceptaPolitica: { type: boolean, const: true, description: US7-AS5 }
+                versionPolitica: { type: [string, integer], description: Versión vigente de GET /politica }
+                aceptaNovedades: { type: boolean, default: false }
+      responses:
+        '202': { description: 'Si el correo es válido, llegará un enlace' }
+        '400':
+          description: Datos inválidos, contraseña corta o filtrada (`codigo` = contrasena_corta | contrasena_filtrada | politica_no_aceptada)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problema' }
+  /verificacion:
+    post:
+      operationId: verificarCorreo
+      tags: [registro]
+      summary: Consume el enlace de verificación (válido 24 h, un solo uso; US7-AS2)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TokenEnlace' }
+      responses:
+        '200': { description: Cuenta verificada; emite CuentaVerificada }
+        '410': { $ref: '#/components/responses/Problema' }
+  /verificacion/reenvio:
+    post:
+      operationId: reenviarVerificacion
+      tags: [registro]
+      summary: Pide un nuevo enlace; máximo 3 por hora (caso borde)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [correo]
+              properties: { correo: { type: string, format: email } }
+      responses:
+        '202': { description: 'Si corresponde, se envió un nuevo enlace' }
+        '429': { $ref: '#/components/responses/Problema' }
+  /sesion:
+    post:
+      operationId: iniciarSesion
+      tags: [sesion]
+      summary: |
+        Inicia sesión (US8-AS1) y fija la cookie. 5 fallos en 15 min bloquean 15 min y avisan al
+        titular (US8-AS2). Personal sin TOTP verificado recibe sesión restringida (US9-AS3).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [correo, contrasena]
+              properties:
+                correo: { type: string, format: email }
+                contrasena: { type: string, maxLength: 128 }
+      responses:
+        '200':
+          description: Sesión iniciada
+          headers:
+            Set-Cookie: { schema: { type: string }, description: 'fiavl_sesion=…; HttpOnly; SameSite=Lax; Path=/' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Yo' }
+        '401':
+          description: Credenciales incorrectas o cuenta bloqueada (mismo mensaje en ambos casos)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problema' }
+    delete:
+      operationId: cerrarSesion
+      summary: Cerrar la sesión actual
+      tags: [sesion]
+      security: [{ sesion: [] }]
+      responses:
+        '204': { description: Sesión cerrada y cookie eliminada }
+  /recuperacion:
+    post:
+      operationId: pedirRecuperacion
+      tags: [sesion]
+      summary: Envía un enlace de 1 hora y un solo uso (US8-AS3, FR-017)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [correo]
+              properties: { correo: { type: string, format: email } }
+      responses:
+        '202': { description: 'Si existe la cuenta, llegará un enlace' }
+  /recuperacion/confirmacion:
+    post:
+      operationId: cambiarContrasenaConEnlace
+      tags: [sesion]
+      summary: Cambia la contraseña y revoca las demás sesiones (US8-AS3)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/TokenEnlace'
+                - type: object
+                  required: [contrasenaNueva]
+                  properties:
+                    contrasenaNueva: { type: string, minLength: 10, maxLength: 128 }
+      responses:
+        '204': { description: Contraseña cambiada }
+        '400': { $ref: '#/components/responses/Problema' }
+        '410': { $ref: '#/components/responses/Problema' }
+  /segundo-factor/alta:
+    post:
+      operationId: iniciarAltaTotp
+      tags: [segundo-factor]
+      summary: Genera un secreto TOTP y devuelve el QR de configuración (US9-AS3)
+      security: [{ sesion: [] }]
+      responses:
+        '200':
+          description: Datos para la aplicación de códigos
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [otpauthUri, qrSvg, clave]
+                properties:
+                  otpauthUri: { type: string }
+                  qrSvg: { type: string }
+                  clave: { type: string, description: 'La misma clave en base32, en grupos de 4, para escribirla a mano o con lector de pantalla' }
+        '403': { $ref: '#/components/responses/Problema' }
+        '409':
+          description: El TOTP ya está activo (`segundo_factor_activo`); solo el administrador lo restablece
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problema' }
+  /segundo-factor/verificacion:
+    post:
+      operationId: verificarTotp
+      tags: [segundo-factor]
+      summary: Confirma el alta o completa el inicio de sesión del personal con un código de 6 dígitos
+      security: [{ sesion: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [codigo]
+              properties: { codigo: { type: string, pattern: '^[0-9]{6}$' } }
+      responses:
+        '200':
+          description: Sesión completa
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Yo' }
+        '401':
+          description: Código incorrecto o ya usado (`codigo_invalido`); 5 fallos en 15 min cierran la sesión y bloquean la cuenta 15 min
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problema' }
+        '409': { $ref: '#/components/responses/Problema' }
+  /yo:
+    get:
+      operationId: obtenerYo
+      summary: Ver mi cuenta
+      tags: [mi-cuenta]
+      security: [{ sesion: [] }]
+      responses:
+        '200':
+          description: Cuenta, roles y estado de la sesión actual
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Yo' }
+        '401': { $ref: '#/components/responses/Problema' }
+    patch:
+      operationId: corregirMisDatos
+      tags: [mi-cuenta]
+      summary: Corrige nombre o preferencias (FR-022, FR-023); cambiar novedades registra el consentimiento
+      security: [{ sesion: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nombre: { type: string, minLength: 2, maxLength: 120 }
+                novedades: { type: boolean }
+      responses:
+        '200':
+          description: Datos actualizados
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Yo' }
+  /yo/contrasena:
+    put:
+      operationId: cambiarContrasena
+      summary: Cambiar mi contraseña
+      tags: [mi-cuenta]
+      security: [{ sesion: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [contrasenaActual, contrasenaNueva]
+              properties:
+                contrasenaActual: { type: string, maxLength: 128 }
+                contrasenaNueva: { type: string, minLength: 10, maxLength: 128 }
+      responses:
+        '204': { description: Cambiada; se revocan las demás sesiones }
+        '400': { $ref: '#/components/responses/Problema' }
+  /yo/politica:
+    post:
+      operationId: aceptarPolitica
+      tags: [mi-cuenta]
+      summary: Acepta la versión vigente de la política de privacidad (US11-AS4)
+      security: [{ sesion: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [version]
+              properties: { version: { type: string } }
+      responses:
+        '204': { description: Consentimiento registrado }
+  /yo/sesiones:
+    get:
+      operationId: listarMisSesiones
+      summary: Listar mis sesiones abiertas
+      tags: [mi-cuenta]
+      security: [{ sesion: [] }]
+      responses:
+        '200':
+          description: Sesiones activas (US8-AS4)
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Sesion' } }
+  /yo/sesiones/{sesionId}:
+    delete:
+      operationId: cerrarOtraSesion
+      summary: Cerrar una de mis sesiones
+      tags: [mi-cuenta]
+      security: [{ sesion: [] }]
+      parameters:
+        - { name: sesionId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '204': { description: Revocada de inmediato }
+        '404': { $ref: '#/components/responses/Problema' }
+  /yo/datos:
+    get:
+      operationId: descargarMisDatos
+      tags: [mi-cuenta]
+      summary: Archivo JSON con datos personales, consentimientos y actividad (US11-AS1)
+      security: [{ sesion: [] }]
+      responses:
+        '200':
+          description: Descarga
+          headers:
+            Content-Disposition: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+  /yo/eliminacion:
+    get:
+      operationId: evaluarEliminacion
+      tags: [mi-cuenta]
+      summary: Indica si hay entradas para funciones futuras o postulaciones en curso (US11-AS3)
+      security: [{ sesion: [] }]
+      responses:
+        '200':
+          description: Evaluación previa
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [funcionesFuturas, postulacionesEnCurso]
+                properties:
+                  funcionesFuturas:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        funcionId: { type: string, format: uuid }
+                        titulo: { type: string }
+                        inicio: { type: string, format: date-time }
+                  postulacionesEnCurso: { type: integer }
+    post:
+      operationId: eliminarMiCuenta
+      tags: [mi-cuenta]
+      summary: Anonimiza la cuenta (US11-AS2); con funciones futuras exige `asumoPerdida` (US11-AS3); emite CuentaEliminada
+      security: [{ sesion: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [contrasena]
+              properties:
+                contrasena: { type: string, maxLength: 128 }
+                asumoPerdida: { type: boolean, default: false }
+      responses:
+        '204': { description: Cuenta eliminada; la sesión deja de existir }
+        '409': { $ref: '#/components/responses/Problema' }
+  /yo/notificaciones:
+    get:
+      operationId: listarMisNotificaciones
+      tags: [notificaciones]
+      summary: Historial de avisos recibidos (US10-AS5)
+      security: [{ sesion: [] }]
+      parameters:
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Página de notificaciones
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/Notificacion' } }
+                  siguiente: { type: [string, 'null'] }
+  /yo/estudiante:
+    post:
+      operationId: pedirAcreditacionEstudiante
+      tags: [estudiantes]
+      summary: Envía un enlace al correo institucional si su dominio está registrado (US12)
+      security: [{ sesion: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [correoInstitucional]
+              properties: { correoInstitucional: { type: string, format: email } }
+      responses:
+        '202': { description: Enlace enviado }
+        '400': { $ref: '#/components/responses/Problema' }
+  /estudiante/confirmacion:
+    post:
+      operationId: confirmarAcreditacionEstudiante
+      tags: [estudiantes]
+      summary: Acredita hasta el fin de la edición vigente (RN-012)
+      security: [{ sesion: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TokenEnlace' }
+      responses:
+        '200': { description: Acreditada }
+        '410': { $ref: '#/components/responses/Problema' }
+  /personal:
+    get:
+      operationId: listarPersonal
+      summary: Listar cuentas del personal
+      tags: [personal]
+      x-roles: [administrador]
+      security: [{ sesion: [] }]
+      responses:
+        '200':
+          description: Cuentas con roles de personal
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/CuentaPersonal' } }
+    post:
+      operationId: crearCuentaPersonal
+      tags: [personal]
+      summary: Crea una cuenta de personal con roles y alcance; el titular recibe un enlace para fijar contraseña (US9)
+      x-roles: [administrador]
+      security: [{ sesion: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nombre, correo, roles]
+              properties:
+                nombre: { type: string }
+                correo: { type: string, format: email }
+                roles: { type: array, minItems: 1, items: { $ref: '#/components/schemas/RolAsignado' } }
+      responses:
+        '201':
+          description: Cuenta creada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CuentaPersonal' }
+        '400': { $ref: '#/components/responses/Problema' }
+  /personal/{cuentaId}/roles:
+    put:
+      operationId: reemplazarRoles
+      tags: [personal]
+      summary: Reemplaza roles; auditado; efectivo en la siguiente petición del usuario (US9-AS4); emite RolAsignado
+      x-roles: [administrador]
+      security: [{ sesion: [] }]
+      parameters:
+        - $ref: '#/components/parameters/CuentaId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [roles]
+              properties:
+                roles: { type: array, items: { $ref: '#/components/schemas/RolAsignado' } }
+      responses:
+        '200':
+          description: Roles vigentes
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CuentaPersonal' }
+        '400':
+          description: Rol sin el alcance que exige (codigo = alcance_requerido)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problema' }
+  /personal/{cuentaId}/estado:
+    put:
+      operationId: cambiarEstadoCuenta
+      tags: [personal]
+      summary: Desactiva (pierde el acceso de inmediato, conserva historial; US9-AS5) o reactiva
+      x-roles: [administrador]
+      security: [{ sesion: [] }]
+      parameters:
+        - $ref: '#/components/parameters/CuentaId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [estado]
+              properties: { estado: { type: string, enum: [desactivada, verificada] } }
+      responses:
+        '204': { description: Estado cambiado }
+  /personal/{cuentaId}/segundo-factor:
+    delete:
+      operationId: restablecerTotp
+      tags: [personal]
+      summary: Restablece el segundo factor tras verificar la identidad; auditado (caso borde, FR-024)
+      x-roles: [administrador]
+      security: [{ sesion: [] }]
+      parameters:
+        - $ref: '#/components/parameters/CuentaId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [motivo]
+              properties: { motivo: { type: string, minLength: 3 } }
+      responses:
+        '204': { description: TOTP restablecido; sesiones del titular revocadas }
+  /dominios-institucionales:
+    get:
+      operationId: listarDominios
+      summary: Listar dominios institucionales
+      tags: [estudiantes]
+      x-roles: [administrador]
+      security: [{ sesion: [] }]
+      responses:
+        '200':
+          description: Dominios
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/DominioInstitucional' }
+    post:
+      operationId: agregarDominio
+      summary: Registrar un dominio institucional
+      tags: [estudiantes]
+      x-roles: [administrador]
+      security: [{ sesion: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DominioInstitucional' }
+      responses:
+        '201': { description: Dominio registrado }
+  /notificaciones/fallidas:
+    get:
+      operationId: listarNotificacionesFallidas
+      tags: [notificaciones]
+      summary: Avisos marcados como fallidos para revisión (US10-AS2)
+      x-roles: [administrador]
+      security: [{ sesion: [] }]
+      responses:
+        '200':
+          description: Notificaciones fallidas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  allOf:
+                    - $ref: '#/components/schemas/Notificacion'
+                    - type: object
+                      properties: { ultimoError: { type: [string, 'null'], description: 'Sin direcciones de correo' } }
+components:
+  securitySchemes:
+    sesion:
+      type: apiKey
+      in: cookie
+      name: fiavl_sesion
+  parameters:
+    CuentaId: { name: cuentaId, in: path, required: true, schema: { type: string, format: uuid } }
+  responses:
+    Problema:
+      description: Error RFC 9457
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problema' }
+  schemas:
+    Problema:
+      type: object
+      required: [type, title, status]
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        codigo:
+          type: string
+          enum: [contrasena_corta, contrasena_filtrada, politica_no_aceptada, enlace_vencido, enlace_usado,
+                 credenciales_invalidas, requiere_segundo_factor, requiere_politica, alcance_requerido,
+                 dominio_no_institucional, limite_reenvios, funciones_futuras, postulaciones_en_curso,
+                 contrasena_larga, sin_politica, origen_no_permitido, sin_sesion, no_encontrado,
+                 segundo_factor_requerido, segundo_factor_activo, sin_segundo_factor, codigo_invalido,
+                 solo_personal, rol_personal_requerido, alcance_invalido, alcance_no_aplica,
+                 accion_sobre_si_mismo, cuenta_eliminada, sin_edicion_vigente, dominio_invalido, dominio_existente]
+    TokenEnlace:
+      type: object
+      required: [token]
+      properties:
+        token: { type: string, minLength: 43, maxLength: 64, description: 'Valor del enlace (base64url, 256 bits)' }
+    AlcanceRol:
+      type: object
+      required: [tipo, valor]
+      properties:
+        tipo: { type: string, enum: [sede, provincia, disciplina] }
+        valor: { type: string }
+    RolAsignado:
+      type: object
+      required: [rol]
+      properties:
+        rol:
+          type: string
+          enum: [asistente, postulante, curador, coordinacion_convocatorias, coordinacion_provincial,
+                 programador, jefe_sala, taquilla, validador, direccion, administrador]
+        alcance:
+          oneOf:
+            - $ref: '#/components/schemas/AlcanceRol'
+            - type: 'null'
+    Yo:
+      type: object
+      required: [cuentaId, nombre, correo, correoVerificado, estudianteAcreditado, roles, segundoFactorOk, politicaPendiente]
+      properties:
+        cuentaId: { type: string, format: uuid }
+        nombre: { type: string }
+        correo: { type: string, format: email }
+        correoVerificado: { type: boolean }
+        estudianteAcreditado: { type: boolean }
+        novedades: { type: boolean }
+        roles: { type: array, items: { $ref: '#/components/schemas/RolAsignado' } }
+        segundoFactorOk: { type: boolean, description: false ⇒ el personal debe configurar o verificar TOTP }
+        segundoFactorActivo: { type: boolean, description: 'Personal: true ⇒ solo verificar el código; false ⇒ dar de alta el TOTP' }
+        esPersonal: { type: boolean }
+        politicaPendiente: { type: [string, 'null'], description: Versión de la política por aceptar (US11-AS4) }
+    Sesion:
+      type: object
+      required: [id, dispositivo, creadaEn, ultimaActividadEn, actual]
+      properties:
+        id: { type: string, format: uuid }
+        dispositivo: { type: string }
+        creadaEn: { type: string, format: date-time }
+        ultimaActividadEn: { type: string, format: date-time }
+        actual: { type: boolean }
+    CuentaPersonal:
+      type: object
+      required: [cuentaId, nombre, correo, estado, roles, segundoFactorActivo]
+      properties:
+        cuentaId: { type: string, format: uuid }
+        nombre: { type: string }
+        correo: { type: string, format: email }
+        estado: { type: string, enum: [pendiente_verificacion, verificada, desactivada] }
+        roles: { type: array, items: { $ref: '#/components/schemas/RolAsignado' } }
+        segundoFactorActivo: { type: boolean }
+    Notificacion:
+      type: object
+      required: [id, plantilla, categoria, estado, creadaEn]
+      properties:
+        id: { type: string, format: uuid }
+        plantilla: { type: string }
+        asunto: { type: string }
+        categoria: { type: string, enum: [servicio, opcional] }
+        estado: { type: string, enum: [pendiente, enviada, fallida, omitida] }
+        intentos: { type: integer }
+        creadaEn: { type: string, format: date-time }
+        enviadaEn: { type: [string, 'null'], format: date-time }
+    DominioInstitucional:
+      type: object
+      required: [dominio, institucion]
+      properties:
+        dominio: { type: string, pattern: '^[a-z0-9.-]+\.[a-z]{2,}$' }
+        institucion: { type: string }

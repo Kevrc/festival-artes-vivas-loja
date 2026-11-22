@@ -31,6 +31,16 @@ funciones). Cada módulo necesita saber **quién es** el usuario y **qué puede 
 necesitan **avisar** a las personas (entradas, cambios de función, resultados de convocatoria).
 Centralizarlo evita que cada módulo resuelva seguridad y correo por su cuenta (Constitución III y VI).
 
+## Clarifications
+
+### Session 2026-11-20
+
+- Q: Cuando se cancela o reprograma una función, ¿cómo sabe Identidad a qué personas avisar? → A: Identidad lleva su propio registro de destinatarios por función a partir de `EntradasEmitidas` (alta) y `PedidoReembolsado` (baja), que Boletería ya le envía; al recibir `FuncionReprogramada`/`FuncionCancelada` de Operación avisa a esos destinatarios. No requiere cambios en la spec 002. *(Revisada el mismo día: sustituye a la propuesta de un evento nuevo `TitularesAfectados`.)*
+- Q: Si un elenco desiste y su obra ya tiene funciones, ¿qué hace Operación con ellas? → A: La obra se marca "desistida" y no puede programarse más; sus funciones no se modifican automáticamente y se crea una alerta para el programador, que decide cancelar o reemplazar.
+- Q: ¿Contra qué lista se comparan las contraseñas "conocidas por filtraciones"? → A: Una lista local versionada de las ≈100 000 contraseñas filtradas más comunes, sin llamadas a servicios externos.
+- Q: Si un titular elimina su cuenta con entradas futuras y asume la pérdida, ¿qué pasa con esas entradas? → A: Las entradas ya emitidas siguen siendo válidas con el QR recibido por correo; el titular pierde el acceso a ellas desde la cuenta ("Mis entradas", reenvíos, devoluciones). Boletería no necesita reaccionar a `CuentaEliminada`. No requiere cambios en la spec 002. *(Revisada el mismo día: sustituye a la anulación sin devolución por parte de Boletería.)*
+- Q: ¿Quién envía las novedades (avisos opcionales) en la v1? → A: Nadie: en la v1 solo se guarda la preferencia con su consentimiento y existe la plantilla "novedad"; el envío masivo de novedades queda fuera de alcance.
+
 ## Actores
 
 - **Administrador**: ediciones, sedes y parámetros.
@@ -49,7 +59,8 @@ Centralizarlo evita que cada módulo resuelva seguridad y correo por su cuenta (
 El programador ve una grilla por día con una columna por sede y crea funciones eligiendo obra,
 sede, fecha, hora de inicio (la de fin se calcula con la duración de la obra), tipo de acceso,
 público y aforo habilitado. El sistema impide cruces en la misma sede, respetando el tiempo de
-montaje y desmontaje.
+montaje de la sede (el intervalo mínimo entre funciones, que incluye desmontar la anterior y montar
+la siguiente).
 
 **Why this priority**: Sin funciones programadas no hay cartelera ni boletería.
 
@@ -272,8 +283,8 @@ del festival, reintenta si fallan y deja constancia.
 **Why this priority**: Los avisos de cambio son obligatorios frente al público, pero cada módulo
 puede operar mientras tanto.
 
-**Independent Test**: Publicar `FuncionCancelada` con 3 compradores y verificar 3 correos
-registrados como enviados.
+**Independent Test**: Recibir `EntradasEmitidas` de 3 compradores de una función, publicar
+`FuncionCancelada` y verificar 3 correos registrados como enviados.
 
 **Acceptance Scenarios**:
 
@@ -308,7 +319,8 @@ que sus datos personales quedan anonimizados.
    contables se conservan sin datos identificables.
 3. **Given** un titular con entradas para funciones futuras, **When** pide eliminar su cuenta,
    **Then** se le informa y se le permite continuar asumiendo la pérdida de esas entradas o
-   esperar a después del festival.
+   esperar a después del festival; si continúa, la cuenta se anonimiza y las entradas siguen
+   valiendo solo con el QR ya recibido por correo, sin acceso desde la cuenta.
 4. **Given** una nueva versión de la política de privacidad, **When** el usuario inicia sesión,
    **Then** se le pide aceptarla y queda registrado qué versión aceptó y cuándo.
 
@@ -342,6 +354,8 @@ una función "solo estudiantes".
 - Funciones que cruzan medianoche cuentan para el día en que empiezan.
 - Cambiar la duración de una obra no mueve funciones ya programadas; se recalculan conflictos y
   se avisa.
+- Un elenco desiste con funciones ya programadas o publicadas: las funciones no se cancelan solas;
+  el programador recibe una alerta y decide cancelar (con motivo) o reemplazar la obra.
 
 **Identidad**
 
@@ -351,6 +365,10 @@ una función "solo estudiantes".
 - El personal pierde el dispositivo del segundo factor: el administrador puede restablecerlo
   tras verificar su identidad, con registro en auditoría.
 - Un rol sin alcance cuando el rol lo exige (taquilla sin sede): no se puede guardar.
+- Un asistente anula su reserva gratuita: Boletería no publica ese hecho, así que puede seguir
+  recibiendo avisos de cambio de esa función (aceptado en v1).
+- Una función cancelada con entradas pagadas: el asistente recibe el aviso de cancelación y,
+  aparte, el de devolución (`PedidoReembolsado`); son dos avisos distintos, no un duplicado.
 
 ## Requirements *(mandatory)*
 
@@ -366,7 +384,8 @@ una función "solo estudiantes".
 - **FR-006**: Reprogramar o cancelar MUST exigir motivo, conservar historial y emitir el evento
   correspondiente.
 - **FR-007**: El sistema MUST permitir cargar obras y elencos invitados y recibir los
-  seleccionados de Convocatorias.
+  seleccionados de Convocatorias. Ante `SeleccionDesistida`, la obra pasa a "desistida" (no se
+  puede programar) y, si tiene funciones, se genera una alerta al programador sin modificarlas.
 - **FR-008**: El jefe de sala MUST poder registrar incidencias y conteos estimados.
 - **FR-009**: El sistema MUST mostrar indicadores filtrables y exportables en CSV.
 - **FR-010**: El sistema MUST generar el informe de cierre de la edición con comparación interanual.
@@ -390,8 +409,9 @@ una función "solo estudiantes".
   y alcance en cada operación (Constitución VI: autorización en el servidor).
 - **FR-021**: El sistema MUST enviar notificaciones por correo a partir de eventos de los demás
   módulos, con plantillas, reintentos, deduplicación e historial.
-- **FR-022**: Los usuarios MUST poder gestionar preferencias de avisos opcionales; los avisos de
-  servicio no se pueden desactivar.
+- **FR-022**: Los usuarios MUST poder gestionar preferencias de avisos opcionales (novedades),
+  registradas como consentimiento; los avisos de servicio no se pueden desactivar. En v1 el envío
+  respeta la preferencia, pero ningún módulo produce novedades todavía.
 - **FR-023**: Los titulares MUST poder consultar, corregir, descargar y eliminar sus datos y
   gestionar consentimientos (LOPDP).
 - **FR-024**: El sistema MUST registrar en auditoría inicios de sesión del personal, cambios de
@@ -412,10 +432,14 @@ una función "solo estudiantes".
 - **RN-007**: Una edición pasa a "cerrada" el día siguiente a su última función; desde ahí sus
   datos son de solo lectura.
 
-- **RN-008**: Contraseña mínima de 10 caracteres y no presente en listas de contraseñas filtradas.
+- **RN-008**: Contraseña mínima de 10 caracteres y no presente en la lista local de las ≈100 000
+  contraseñas filtradas más comunes (comparación sin distinguir mayúsculas); la contraseña ni
+  ningún derivado suyo se envía a servicios externos.
 - **RN-009**: Un rol con alcance solo autoriza operaciones dentro de su alcance.
 - **RN-010**: La eliminación de cuenta anonimiza datos personales; los registros de pagos y
-  auditoría se conservan sin datos identificables.
+  auditoría de Identidad se conservan sin datos identificables. Las entradas ya emitidas no se
+  anulan. Los registros contables propios de Boletería (p. ej. el correo del comprador en el
+  pedido) se rigen por la spec 002 y su conservación por obligación legal; Identidad no los modifica.
 - **RN-011**: Cada notificación tiene una clave de deduplicación (evento + destinatario).
 - **RN-012**: La acreditación de estudiante vence al cerrar la edición.
 
@@ -437,6 +461,7 @@ una función "solo estudiantes".
 | Pendiente de verificación | Abre enlace | Verificada |
 | Verificada | 5 intentos fallidos | Bloqueada temporalmente → Verificada (a los 15 min) |
 | Verificada | Administrador desactiva | Desactivada |
+| Desactivada | Administrador reactiva | Verificada |
 | Verificada | Titular elimina | Eliminada (anonimizada) |
 
 ### Eventos de dominio
@@ -448,7 +473,7 @@ una función "solo estudiantes".
 | Operación | `EntradasEmitidas`, `IngresoRegistrado`, `PedidoReembolsado` | Consume (estadísticas) | Boletería |
 | Operación | `AforoExcedido`, `ConflictoDeIngreso` | Consume (incidencias) | Boletería |
 | Identidad | `EntradasEmitidas`, `PedidoReembolsado` | Consume (avisos) | Boletería |
-| Identidad | `FuncionReprogramada`, `FuncionCancelada` | Consume (avisos; destinatarios vía Boletería) | Operación |
+| Identidad | `FuncionReprogramada`, `FuncionCancelada` | Consume (avisos; destinatarios según su registro propio armado con `EntradasEmitidas` y `PedidoReembolsado`) | Operación |
 | Identidad | `PostulacionEnviada`, `SubsanacionSolicitada`, `ResultadoPublicado` | Consume (avisos) | Convocatorias |
 | Identidad | `CuentaVerificada`, `RolAsignado`, `CuentaEliminada` | Publica | Todos los módulos |
 
@@ -480,8 +505,10 @@ una función "solo estudiantes".
 - **Sesión**: cuenta, dispositivo, creación, última actividad, expiración.
 - **Rol asignado**: cuenta, rol, alcance (sede, provincia o disciplina), asignado por, fecha.
 - **Consentimiento**: cuenta, documento y versión, fecha de aceptación o retiro.
+- **Destinatario de función**: función, cuenta o correo, pedido de origen; se da de alta con
+  `EntradasEmitidas` y de baja con `PedidoReembolsado`. Solo sirve para enviar avisos.
 - **Notificación**: destinatario, plantilla, evento de origen, clave de deduplicación, estado
-  (pendiente, enviada, fallida), intentos.
+  (pendiente, enviada, fallida, omitida si es opcional y está desactivada), intentos.
 - **Acreditación**: cuenta, tipo (estudiante), evidencia, vigencia.
 
 ## Success Criteria *(mandatory)*
@@ -523,11 +550,13 @@ una función "solo estudiantes".
 
 - Inicio de sesión con redes sociales o SSO institucional.
 - Notificaciones por SMS, WhatsApp o *push*.
+- Redacción y envío masivo de novedades o boletines (en v1 solo se guarda la preferencia).
 - Verificación de identidad con cédula ante el Registro Civil.
 
 ## Dependencias
 
 - **003 Convocatorias**: obras seleccionadas.
-- **002 Boletería**: ventas, ingresos y alertas.
+- **002 Boletería**: ventas, ingresos y alertas, con los eventos que ya publica (sin cambios en
+  la spec 002).
 - **001 Cartelera**: consume la programación publicada.
 - **Todos los módulos (001–003)** dependen de Identidad para identidad, autorización y avisos.

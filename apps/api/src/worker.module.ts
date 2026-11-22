@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { LoggerModule } from 'nestjs-pino';
 import { DatosModule } from './common/datos/datos.module';
 import { BoleteriaModule } from './modules/boleteria/boleteria.module';
+import { IdentidadModule } from './modules/identidad/identidad.module';
+import { OperacionModule } from './modules/operacion/operacion.module';
 import { ConvocatoriasModule } from './modules/convocatorias/convocatorias.module';
 import { ProgramacionModule } from './modules/programacion/programacion.module';
 
@@ -12,6 +14,8 @@ import { ProgramacionModule } from './modules/programacion/programacion.module';
     DatosModule,
     ProgramacionModule.registrar({ consumidores: true }),
     BoleteriaModule.registrar({ consumidores: true }),
+    IdentidadModule.registrar({ consumidores: true }),
+    OperacionModule.registrar({ consumidores: true }),
     ConvocatoriasModule.registrar({ consumidores: true }),
   ],
 })
