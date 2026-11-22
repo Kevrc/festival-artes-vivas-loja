@@ -3,7 +3,6 @@
 923aa95c468ee1160e60f629c6125acb88e11d30:apps/api/src/modules/convocatorias/infrastructure/almacenamiento-documentos.adapter.test.ts:generic-api-key:9
 2cf84272b2ddf2c50f4e4fc39300399eee0245ae:apps/api/src/modules/convocatorias/infrastructure/almacenamiento.factory.ts:generic-api-key:26
 a804d90ef1fbbcdef061a3f501237a13720bcf65:.env.example:generic-api-key:24
-# 4) Spec 004: clave TOTP de las cuentas de prueba (base32 de "TestSecretTestSecret"), solo para la
-#    semilla de desarrollo y las E2E; está documentada en specs/004-gestion-operativa/quickstart.md.
-6ca5b05003468c4a90a8bf6e434d11bed010ab72:prisma/seed/identidad.ts:generic-api-key:18
-6ca5b05003468c4a90a8bf6e434d11bed010ab72:apps/web/e2e/ayuda-identidad.ts:generic-api-key:8
+# 4) Spec 004: la clave TOTP de las cuentas de prueba (base32 de "TestSecretTestSecret", solo semilla de
+#    desarrollo y E2E, documentada en el quickstart) se marca con `gitleaks:allow` en su propia línea:
+#    una huella de este archivo incluye el hash del commit y deja de valer tras un squash merge.

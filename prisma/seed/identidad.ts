@@ -15,7 +15,7 @@ export const POLITICA_VIGENTE = { version: 1, url: '/privacidad', vigenteDesde: 
 export const CUENTAS_PRUEBA = {
   contrasena: 'Festival-de-Loja-2026',
   /** Base32 de "TestSecretTestSecret"; cualquier aplicación de códigos lo acepta. */
-  secretoTotp: 'KRSXG5CTMVRXEZLUKRSXG5CTMVRXEZLU',
+  secretoTotp: 'KRSXG5CTMVRXEZLUKRSXG5CTMVRXEZLU', // gitleaks:allow (clave de prueba documentada, no es un secreto)
 } as const;
 
 /** Dominios institucionales de ejemplo para acreditar estudiantes (US12, solo desarrollo). */
