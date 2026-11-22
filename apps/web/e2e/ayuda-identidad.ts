@@ -5,7 +5,7 @@ import { type APIRequestContext, type Page, expect } from '@playwright/test';
 export const MAILPIT = process.env.MAILPIT_URL ?? 'http://localhost:8025';
 
 /** Cuentas de prueba de prisma/seed/identidad.ts (solo desarrollo y CI). */
-export const SEMILLA = { contrasena: 'Festival-de-Loja-2026', secretoTotp: 'KRSXG5CTMVRXEZLUKRSXG5CTMVRXEZLU' } as const;
+export const SEMILLA = { contrasena: 'Festival-de-Loja-2026', secretoTotp: 'KRSXG5CTMVRXEZLUKRSXG5CTMVRXEZLU' } as const; // gitleaks:allow (clave de prueba)
 
 export async function hayMailpit(request: APIRequestContext) {
   try {
