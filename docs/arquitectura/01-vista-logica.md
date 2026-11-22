@@ -352,7 +352,15 @@ classDiagram
 | API de boletería | HTTP | Boletería | Web, taquilla, validador | `specs/002-*/contracts/` |
 | API de convocatorias | HTTP | Convocatorias | Web, paneles | `specs/003-*/contracts/` |
 | API de operación | HTTP | Operación | Paneles | `specs/004-*/contracts/` |
-| `AutorizacionPort` | Interfaz interna | Identidad | Todos | `packages/contracts` |
+| `IdentidadPublica` | Interfaz interna (`resolverSesion`) | Identidad | Todos | `packages/contracts/src/identidad/publica.ts` |
 | Eventos de dominio | Mensajes versionados | Cada módulo | Ver catálogo | `packages/contracts/eventos` |
 
 Todo evento lleva `id`, `tipo`, `version`, `ocurridoEn`, `edicionId` y `correlacionId`.
+
+**Cómo usan los módulos `IdentidadPublica`** (spec 004, [contrato](../../specs/004-gestion-operativa/contracts/identidad-publica.md)):
+Operación usa directamente `RequiereGuard` y `exigirAlcance`. Boletería, Cartelera (Mi agenda) y
+Convocatorias no cambiaron sus puertos: cada uno tiene un adaptador que traduce `ContextoIdentidad`
+a su propio contexto (roles con sede, nombres de rol de FR-019, cuentas de público como
+`asistente`/`postulante`). Con la cookie `fiavl_sesion` manda Identidad; sin ella, solo en
+desarrollo y pruebas, siguen los puentes de demostración. Una sesión del personal sin segundo factor
+o con la política de privacidad pendiente no autoriza nada en los demás módulos.

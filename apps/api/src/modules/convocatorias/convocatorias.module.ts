@@ -34,12 +34,12 @@ export class ConvocatoriasModule {
       { provide: RELOJ_CONVOCATORIAS, useValue: relojDelEntorno() },
       { provide: ALMACENAMIENTO_DOCUMENTOS, useFactory: () => crearAlmacenamientoDocumentos() },
       { provide: ESCANER_ANTIVIRUS, useFactory: () => crearEscanerAntivirus() },
-      // T090 (spec 004): sesión real de Identidad; el puente de desarrollo sigue fuera de producción.
+      // T090 (spec 004): sesión real de Identidad; el puente de desarrollo solo en development/test (hallazgo T132: antes también en staging).
       {
         provide: AUTORIZACION_CONVOCATORIAS,
         inject: [IDENTIDAD_PUBLICA],
         useFactory: (identidad: IdentidadPublica) =>
-          new AutorizacionConvocatoriasIdentidadAdapter(identidad, process.env.NODE_ENV === 'production' ? null : new AutorizacionConvocatoriasDevAdapter(process.env.NODE_ENV)),
+          new AutorizacionConvocatoriasIdentidadAdapter(identidad, ['development', 'test'].includes(process.env.NODE_ENV ?? '') ? new AutorizacionConvocatoriasDevAdapter(process.env.NODE_ENV) : null),
       },
       PublicadorPgBossConvocatorias,
       { provide: PUBLICADOR_CONVOCATORIAS, useExisting: PublicadorPgBossConvocatorias },

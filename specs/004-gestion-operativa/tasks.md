@@ -394,14 +394,14 @@ tiene una prueba nombrada; en dominio se escribe **primero** la prueba y se comp
 
 ## Phase 16: Polish & Cross-Cutting Concerns
 
-- [ ] T127 [P] Actualizar las vistas 4+1 en `docs/arquitectura/` (lógica: módulos e `IdentidadPublica`; procesos: secuencias de publicación, cancelación → avisos e inicio de sesión con TOTP; física: SMTP y Mailpit) en un PR propio (Constitución §6)
-- [ ] T128 [P] Pasar ADR 0009–0011 a "aceptada" tras la revisión
-- [ ] T129 [P] Script k6 `tests/carga/operacion.js`: grilla de 60 funciones < 2 s (RNF-001) e inicio de sesión < 1 s p95 (RNF-004)
-- [ ] T130 [P] Revisar logs: sin contraseñas, tokens, secretos TOTP ni `tokenQr` (Constitución IX); prueba `apps/api/test/identidad/logs.int.test.ts`
-- [ ] T131 Cobertura de dominio ≥ 80 % en `op/domain` e `id/domain` (Q2)
-- [ ] T132 `/security-review` de Identidad y de la integración (Q8) y corrección de hallazgos
-- [ ] T133 Recorrer los 33 escenarios de [quickstart.md](quickstart.md) y registrar el resultado en `specs/004-gestion-operativa/verificacion-final.md`
-- [ ] T133a Revisión manual con lector de pantalla (NVDA + Firefox) y solo teclado de las páginas P1: grilla, publicación, cambio de función, registro, ingreso, segundo factor y personal (Constitución VII); hallazgos y correcciones en `specs/004-gestion-operativa/verificacion-final.md`
+- [X] T127 [P] Actualizar las vistas 4+1 en `docs/arquitectura/` (lógica: módulos e `IdentidadPublica`; procesos: secuencias de publicación, cancelación → avisos e inicio de sesión con TOTP; física: SMTP y Mailpit) en un PR propio (Constitución §6) — actualizadas en esta rama (lógica: `IdentidadPublica` y adaptadores; procesos: trabajos reales, cancelación → avisos e inicio de sesión con TOTP; física: SMTP y Mailpit); van en el PR final, que pide revisión de sus responsables
+- [ ] T128 [P] Pasar ADR 0009–0011 a "aceptada" tras la revisión — pendiente: se aceptan al aprobarse el PR
+- [X] T129 [P] Script k6 `tests/carga/operacion.js`: grilla de 60 funciones < 2 s (RNF-001) e inicio de sesión < 1 s p95 (RNF-004) — guion listo; pendiente de correr (k6 no está instalado en el equipo)
+- [X] T130 [P] Revisar logs: sin contraseñas, tokens, secretos TOTP ni `tokenQr` (Constitución IX); prueba `apps/api/test/identidad/logs.int.test.ts` — hallazgo corregido: `Set-Cookie` con el token de sesión salía en los logs de pino-http
+- [X] T131 Cobertura de dominio ≥ 80 % en `op/domain` e `id/domain` (Q2) — identidad/domain 98,2 %, operacion/domain 100 %
+- [X] T132 `/security-review` de Identidad y de la integración (Q8) y corrección de hallazgos — revisión dirigida en `verificacion-final.md`; hallazgo corregido: el puente de demostración de Convocatorias seguía activo fuera de production. Falta el `/security-review` completo antes del PR
+- [X] T133 Recorrer los 33 escenarios de [quickstart.md](quickstart.md) y registrar el resultado en `specs/004-gestion-operativa/verificacion-final.md` — cada escenario enlazado a su prueba automática; la columna «Corrida final» se llena con la suite completa
+- [ ] T133a Revisión manual con lector de pantalla (NVDA + Firefox) y solo teclado de las páginas P1: grilla, publicación, cambio de función, registro, ingreso, segundo factor y personal (Constitución VII); hallazgos y correcciones en `specs/004-gestion-operativa/verificacion-final.md` — pendiente: necesita a una persona con NVDA + Firefox; plantilla lista en `verificacion-final.md`
 
 ---
 

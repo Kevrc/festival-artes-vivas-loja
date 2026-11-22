@@ -1,4 +1,5 @@
 import type { Logger } from '@nestjs/common';
+import { errorSeguro } from '../domain/notificaciones';
 import type { Correo } from '../domain/plantillas/plantillas';
 import type { ProveedorCorreo } from './puertos';
 
@@ -10,6 +11,7 @@ import type { ProveedorCorreo } from './puertos';
  */
 export function enviarSinBloquear(proveedor: ProveedorCorreo, para: string, c: Correo, log: Logger): void {
   void proveedor.enviar({ para, ...c }).catch((err: unknown) => {
-    log.error({ asunto: c.asunto, error: err instanceof Error ? err.message : String(err) }, 'no se pudo enviar el correo');
+    // El error del servidor SMTP puede citar la dirección: se registra sin ella (Constitución IX).
+    log.error({ asunto: c.asunto, error: errorSeguro(err) }, 'no se pudo enviar el correo');
   });
 }
