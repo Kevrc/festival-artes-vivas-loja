@@ -103,7 +103,7 @@ export function eventosEdicion2026(): EventoCartelera[] {
         disciplina: f.disciplina,
         duracionMin: f.duracion,
         edadMinima: f.edad ?? 0,
-        imagenes: IMAGEN_OBRA[f.obra] ? [IMAGEN_OBRA[f.obra]] : [],
+        imagenes: [IMAGEN_OBRA[f.obra]].filter((url): url is string => url !== undefined),
         fichaArtistica: [{ rol: 'Compañía', nombre: f.elenco }],
         componente: f.componente,
       },
