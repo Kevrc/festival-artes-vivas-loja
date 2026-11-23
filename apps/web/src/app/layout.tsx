@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Fraunces, Inter } from 'next/font/google';
+import { Barlow_Condensed, Inter } from 'next/font/google';
 import './globales.css';
 
 export const metadata: Metadata = {
@@ -10,16 +10,16 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#0e0c0b',
+  themeColor: '#ffffff',
 };
 
-// Serif de programa de mano para titulares + sans legible para datos; servidas desde el propio sitio
-const fraunces = Fraunces({ subsets: ['latin'], style: ['normal', 'italic'], variable: '--fuente-serif', display: 'swap' });
+// Grotesca condensada para titulares (como las webs de festivales grandes) + Inter para datos; servidas desde el propio sitio
+const barlow = Barlow_Condensed({ subsets: ['latin'], weight: ['600', '700', '800'], variable: '--fuente-titular', display: 'swap' });
 const inter = Inter({ subsets: ['latin'], variable: '--fuente-sans', display: 'swap' });
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" className={`${fraunces.variable} ${inter.variable}`}>
+    <html lang="es" className={`${barlow.variable} ${inter.variable}`}>
       <body>{children}</body>
     </html>
   );
