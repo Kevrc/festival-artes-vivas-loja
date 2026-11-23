@@ -1,5 +1,6 @@
 import { ejemplo, type EventoCartelera } from '@fiavl/contracts';
 import { idDe } from './ids';
+import { IMAGEN_OBRA } from './imagenes';
 
 /**
  * Edición XI (12–22 nov 2026) con obras, elencos y sedes reales de docs/investigacion-festival.md.
@@ -102,7 +103,7 @@ export function eventosEdicion2026(): EventoCartelera[] {
         disciplina: f.disciplina,
         duracionMin: f.duracion,
         edadMinima: f.edad ?? 0,
-        imagenes: [],
+        imagenes: IMAGEN_OBRA[f.obra] ? [IMAGEN_OBRA[f.obra]] : [],
         fichaArtistica: [{ rol: 'Compañía', nombre: f.elenco }],
         componente: f.componente,
       },
