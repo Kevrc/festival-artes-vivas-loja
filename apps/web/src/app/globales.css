@@ -156,6 +156,12 @@ main { padding: 0 16px 64px; max-width: 1200px; margin: 0 auto; }
   flex: 1; display: flex; flex-direction: column; gap: 6px;
   border-top: 4px solid var(--texto); padding-top: 14px;
 }
+.tarjeta:has(.tarjeta-imagen) { border-top: 0; padding-top: 0; }
+.tarjeta:has(.tarjeta-imagen) .tarjeta-hora { border-top: 4px solid var(--texto); padding-top: 10px; }
+.tarjeta-imagen { display: block; width: 100%; height: auto; aspect-ratio: 8 / 5; object-fit: cover; background: var(--gris); margin-bottom: 8px; transition: filter var(--rapido) ease; }
+.tarjeta:hover .tarjeta-imagen { filter: brightness(.9); }
+.tarjeta.cancelada .tarjeta-imagen { filter: grayscale(1); }
+.ficha-imagen { display: block; width: 100%; max-width: 960px; height: auto; aspect-ratio: 8 / 5; object-fit: cover; background: var(--gris); margin: 0 0 20px; }
 .tarjeta:hover .tarjeta-cuerpo h3 a { text-decoration: underline; text-decoration-thickness: 2px; }
 .tarjeta.cancelada { opacity: .65; }
 .tarjeta.cancelada .tarjeta-cuerpo h3 { text-decoration: line-through; }
@@ -226,7 +232,7 @@ main { padding: 0 16px 64px; max-width: 1200px; margin: 0 auto; }
 
 /* ---------- Impresión (programa de mano) ---------- */
 @media print {
-  .cabecera, .pie, .selector-dias, .filtros, .tarjeta-acciones, .no-imprimir { display: none !important; }
+  .cabecera, .pie, .selector-dias, .filtros, .tarjeta-acciones, .tarjeta-imagen, .ficha-imagen, .no-imprimir { display: none !important; }
   body { font-size: 11pt; }
   main { max-width: none; padding: 0; }
   .portada-dia { background: none; margin: 0 0 12px; padding: 0; }
