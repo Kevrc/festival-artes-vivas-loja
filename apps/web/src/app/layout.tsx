@@ -10,10 +10,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#14106b' },
-    { media: '(prefers-color-scheme: dark)', color: '#07052b' },
-  ],
+  themeColor: '#0b0845',
 };
 
 // Tipografía geométrica del festival, servida desde el propio sitio (sin peticiones a Google en el navegador)
