@@ -28,7 +28,7 @@ export function TarjetaFuncion({
   const conEntrada = (f.tipoAcceso === 'pagada' || f.tipoAcceso === 'gratuita_reserva') && !cancelada && !finalizada;
   const edad = f.obra.edadMinima ?? 0;
   return (
-    <article className={`tarjeta${cancelada ? ' cancelada' : ''}`} aria-labelledby={`t-${f.id}`}>
+    <article className={`tarjeta disciplina-${f.obra.disciplina}${cancelada ? ' cancelada' : ''}`} aria-labelledby={`t-${f.id}`}>
       <div className="tarjeta-hora">
         {f.continua ? (
           <span>Todo el día</span>
