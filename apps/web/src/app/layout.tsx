@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Outfit } from 'next/font/google';
+import { Fraunces, Inter } from 'next/font/google';
 import './globales.css';
 
 export const metadata: Metadata = {
@@ -10,15 +10,16 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#0b0845',
+  themeColor: '#0e0c0b',
 };
 
-// Tipografía geométrica del festival, servida desde el propio sitio (sin peticiones a Google en el navegador)
-const outfit = Outfit({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'], variable: '--fuente-display', display: 'swap' });
+// Serif de programa de mano para titulares + sans legible para datos; servidas desde el propio sitio
+const fraunces = Fraunces({ subsets: ['latin'], style: ['normal', 'italic'], variable: '--fuente-serif', display: 'swap' });
+const inter = Inter({ subsets: ['latin'], variable: '--fuente-sans', display: 'swap' });
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" className={outfit.variable}>
+    <html lang="es" className={`${fraunces.variable} ${inter.variable}`}>
       <body>{children}</body>
     </html>
   );

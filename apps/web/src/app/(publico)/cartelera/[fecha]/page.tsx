@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { ListaDia } from '@/components/cartelera/lista-dia';
 import { SelectorDias } from '@/components/cartelera/selector-dias';
-import { Mosaico } from '@/components/sitio/mosaico';
 import { obtener } from '@/lib/cartelera/api';
 import { formatoDia } from '@/lib/cartelera/formato';
 import type { DiaCartelera, EdicionConFacetas } from '@/lib/cartelera/tipos';
@@ -42,7 +41,6 @@ export default async function PaginaDia({ params }: Props) {
             Cartelera del <em>{formatoDia(fecha)}</em>
           </h1>
         </div>
-        <Mosaico />
       </header>
       <SelectorDias desde={dia.edicion.fechaInicio} hasta={dia.edicion.fechaFin} actual={fecha} />
       <ListaDia fecha={fecha} funciones={dia.funciones} facetas={edicion.facetas} version={dia.version} />
