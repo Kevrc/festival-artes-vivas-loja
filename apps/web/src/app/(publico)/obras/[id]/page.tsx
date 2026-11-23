@@ -34,6 +34,9 @@ export default async function FichaObraPagina({ params }: Props) {
         {ETIQUETA_DISCIPLINA[o.disciplina]} · {ETIQUETA_COMPONENTE[o.componente]}
       </p>
       <h1 id="titulo-obra">{o.titulo}</h1>
+      {o.imagenes?.[0] && (
+        <img className="ficha-imagen" src={o.imagenes[0]} alt="" width={960} height={600} />
+      )}
       {edad >= 16 && <p className="destacado">No apta para menores de {edad} años</p>}
       {o.sinopsis && <p>{o.sinopsis}</p>}
       <dl>

@@ -29,6 +29,10 @@ export function TarjetaFuncion({
   const edad = f.obra.edadMinima ?? 0;
   return (
     <article className={`tarjeta${cancelada ? ' cancelada' : ''}`} aria-labelledby={`t-${f.id}`}>
+      {f.obra.imagen && (
+        // Foto decorativa (alt vacío): el título ya identifica la obra; el CDN ya la entrega recortada
+        <img className="tarjeta-imagen" src={f.obra.imagen} alt="" width={960} height={600} loading="lazy" decoding="async" />
+      )}
       <div className="tarjeta-hora">
         {f.continua ? (
           <span>Todo el día</span>
