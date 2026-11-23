@@ -178,12 +178,5 @@ idempotencia de notificaciones.
 
 ## 3. Guion de demostración para el video
 
-| Tiempo | Quién | Qué se muestra |
-|--------|-------|----------------|
-| 0:00–0:30 | Integrante 004 | El festival y el problema (cifras de 2025–2026) |
-| 0:30–1:15 | Integrante 004 | SDD con spec-kit: constitución → spec → plan → tareas |
-| 1:15–2:00 | Integrante 003 | Vista lógica y E1 (convocatoria → cartelera) |
-| 2:00–2:45 | Integrante 002 | Vista de procesos y E2 (pico sin sobreventa) + ADR-0004 |
-| 2:45–3:30 | Integrante 002 | E3 (ingreso sin internet) + ADR-0005 |
-| 3:30–4:15 | Integrante 001 | Vista física, cartelera en CDN (ADR-0006) y E4 |
-| 4:15–5:00 | Todos | Vista de desarrollo, ramas y PRs, lecciones aprendidas |
+El guion completo, con el texto de cada integrante y lo que se muestra en pantalla, está en
+[guion-video.md](../guion-video.md).
